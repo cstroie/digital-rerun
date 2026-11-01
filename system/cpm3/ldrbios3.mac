@@ -1,0 +1,206 @@
+;	DigitalRerun loader BIOS for CP/M 3
+;
+;	The small BIOS CPMLDR uses to find CPM3.SYS on A: and read it:
+;	console output and the disk controller (the ports of bios3.mac).
+;	Linked behind CPMLDR (L80 CPMLDR,LDRBIOS3,LDR/N/E): CPMLDR calls
+;	the jump table at the next page boundary after itself.
+;
+;	Copyright (c) 2026 Costin Stroie, MIT licence.
+
+	.z80
+
+cond	equ	1		;console data
+fdcd	equ	10		;drive; IN: 0FFh when it holds a disk
+fdct	equ	11		;track
+fdcs	equ	12		;sector, low byte
+fdcsh	equ	17		;sector, high byte
+fdcop	equ	13		;command: 0 read, 1 write
+fdcst	equ	14		;status: 0 ok
+dmal	equ	15		;DMA address, low byte
+dmah	equ	16		;DMA address, high byte
+fdcfmt	equ	18		;IN: format of the selected drive's disk
+
+	cseg
+
+	jp	boot		; cold start
+	jp	wboot
+	jp	const
+	jp	conin
+	jp	conout		; console output
+	jp	list
+	jp	auxout
+	jp	auxin
+	jp	home		; home
+	jp	seldsk		; select disk
+	jp	settrk		; set track
+	jp	setsec		; set sector
+	jp	setdma		; set DMA
+	jp	read		; read
+	jp	write
+	jp	listst
+	jp	sectrn		; sector translate
+	jp	conost
+	jp	auxist
+	jp	auxost
+	jp	devtbl
+	jp	devini
+	jp	drvtbl
+	jp	multio
+	jp	flush
+	jp	move		; memory move
+	jp	time
+	jp	selmem
+	jp	setbnk
+	jp	xmove
+	jp	0
+	jp	0
+	jp	0
+
+boot:
+wboot:
+const:
+conin:
+list:
+auxout:
+auxin:
+write:
+listst:
+conost:
+auxist:
+auxost:
+devtbl:
+devini:
+drvtbl:
+multio:
+flush:
+time:
+selmem:
+setbnk:
+xmove:	ret
+
+conout:	ld	a,c
+	out	(cond),a
+	ret
+
+;	only A: is known to the loader
+seldsk:	ld	a,c
+	or	a
+	jr	nz,selno
+	out	(fdcd),a
+	in	a,(fdcd)	;a disk in it?
+	or	a
+	jr	z,selno
+	in	a,(fdcfmt)
+	cp	nfmts
+	jr	nc,selno
+	add	a,a
+	add	a,a
+	ld	l,a
+	ld	h,0
+	ld	bc,fmttab
+	add	hl,bc
+	ld	c,(hl)
+	inc	hl
+	ld	b,(hl)		;BC = skew table
+	inc	hl
+	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)		;DE = DPB
+	ld	hl,dph0
+	ld	(hl),c
+	inc	hl
+	ld	(hl),b
+	ld	hl,dph0+12
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	ld	hl,dph0
+	ret
+selno:	ld	hl,0
+	ret
+
+home:	ld	c,0
+settrk:	ld	a,c
+	out	(fdct),a
+	ret
+
+setsec:	ld	a,c
+	out	(fdcs),a
+	ld	a,b
+	out	(fdcsh),a
+	ret
+
+setdma:	ld	a,c
+	out	(dmal),a
+	ld	a,b
+	out	(dmah),a
+	ret
+
+read:	xor	a
+	out	(fdcop),a
+	in	a,(fdcst)
+	or	a
+	ret	z
+	ld	a,1
+	ret
+
+sectrn:	ld	a,d
+	or	e
+	jr	z,notran
+	ex	de,hl
+	add	hl,bc
+	ld	l,(hl)
+	ld	h,0
+	ret
+notran:	ld	h,b
+	ld	l,c
+	inc	hl
+	ret
+
+move:	ex	de,hl
+	ldir
+	ex	de,hl
+	ret
+
+dph0:	dw	trans
+	db	0,0,0,0,0,0,0,0,0,0
+	dw	dpb8,csv,alv,0fffeh,0ffffh,0ffffh
+	db	0
+csv:	ds	16
+alv:	ds	32
+
+dpb8:	dw	26
+	db	3,7,0
+	dw	242,63
+	db	0c0h,0
+	dw	16,2
+	db	0,0
+dpbs5:	dw	40
+	db	3,7,0
+	dw	194,63
+	db	0c0h,0
+	dw	16,1
+	db	0,0
+dpbd5:	dw	40
+	db	4,15,1
+	dw	196,63
+	db	080h,0
+	dw	16,1
+	db	0,0
+dpbk5:	dw	40
+	db	3,7,0
+	dw	184,63
+	db	0c0h,0
+	dw	16,3
+	db	0,0
+
+fmttab:	dw	trans,dpb8
+	dw	0,dpbs5
+	dw	0,dpbd5
+	dw	0,dpbk5
+nfmts	equ	4
+
+trans:	db	1,7,13,19,25,5,11,17,23,3,9,15,21
+	db	2,8,14,20,26,6,12,18,24,4,10,16,22
+
+	end

@@ -1,6 +1,6 @@
 /*
  * shelf.js: the disk collection. A shelf entry is a prebuilt image
- * ({ image }) or a list of files ({ files: [{ name, path, user? }] }) put on a
+ * ({ image }) or a list of files ({ files: [{ name, path, user? }], system? }) put on a
  * fresh disk when it is inserted, so the repository holds no mostly empty
  * images. disks/shelf.json lists the shipped entries (tools/build.js
  * writes it); the owner's own disks live in the browser (Storage). A
@@ -30,6 +30,7 @@
         }
         const disk = new Disk(entry.format, null, { name: entry.name });
         const fsys = new CpmFs(disk);
+        if (entry.system) fsys.writeSystem(await fetchBytes(entry.system));       // a bootable disk: its system tracks
         const data = await Promise.all(entry.files.map(f => fetchBytes(f.path)));
         entry.files.forEach((f, i) => fsys.write(f.name, isText(entry, f.name, data[i]) ? toCpmText(data[i]) : data[i], f.user || 0));
         disk.dirty = false;
@@ -55,6 +56,7 @@
             const at = p => new URL(p, url).href;
             const out = { ...e, category: e.category || 'Private', credit: e.credit || '', description: e.description || '' };
             if (e.image) out.image = at(e.image);
+            if (e.system) out.system = at(e.system);
             if (e.files) out.files = e.files.map(f => ({ ...f, path: at(f.path || f.name) }));
             return out;
         });

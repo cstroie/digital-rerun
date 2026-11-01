@@ -79,7 +79,7 @@ A: holds the CP/M 2.2 tools (PIP, STAT, ED, ASM, LOAD, DDT, SUBMIT, XSUB, DUMP),
 | Printer | FX-80 compatible, on `LST:` |
 | Lights | POWER, RUN (bright while working, dim while waiting), one per drive, PRN |
 
-At reset, the "boot ROM" loads sector 1 of track 0 into `0000h` and jumps there. That sector is [`system/boot.asm`](system/boot.asm), which reads CCP, BDOS and BIOS from the system tracks and starts the BIOS. Nothing about CP/M is built into the emulator: the system is whatever the boot disk holds.
+At reset, the "boot ROM" loads sector 1 of track 0 into `0000h` and jumps there. That sector is [`system/boot.asm`](system/boot.asm), which reads CCP, BDOS and BIOS from the system tracks and starts the BIOS. Nothing about CP/M is built into the emulator: the system is whatever the boot disk holds. That includes CP/M 3: its BIOS and the tool that builds the disk from your own copy of the distribution are here ([docs/cpm3.md](docs/cpm3.md)).
 
 The I/O ports follow z80pack for the disk controller:
 
@@ -237,7 +237,7 @@ DigitalRerun is a progressive web app:
 git clone https://github.com/cstroie/digital-rerun.git
 cd DigitalRerun
 python3 -m http.server 8000         # any static server; then open http://localhost:8000
-node --test                         # 84 tests: assembler, file system, Altair images, terminal, printer, CP/M, shelf disks, folder and private shelf, snapshots, PWA
+node --test                         # 87 tests: assembler, file system, Altair images, terminal, printer, CP/M, shelf disks, folder and private shelf, snapshots, PWA
 ZEX=1 node --test test/zex.test.js  # ZEXDOC on the Z80 core (a few minutes; ZEX=all adds ZEXALL, CI runs both)
 ```
 
@@ -268,10 +268,11 @@ js/storage.js                     disks, settings and snapshots in IndexedDB
 js/snapshot.js                    take and restore a snapshot
 js/sound.js                       bell, drive and printer sounds (Web Audio, synthesized)
 js/version.js, js/pwa.js, sw.js   version and build stamp; install, updates, offline
-system/                           loader, BIOS, SYSGEN, PRTDEMO, PLAY; cpm22/: the original CCP and BDOS sources
+system/                           loader, BIOS, SYSGEN, PRTDEMO, PLAY; cpm22/: the original CCP and BDOS sources; cpm3/: the CP/M 3 BIOS, loader and boot sector
 disks/cpm22/                     the files of the boot disk, and its image
 disks/shelf/, disks/shelf.json    the other shelf disks, as files, and their list
 tools/build.js                    assemble the system, make the disks
+tools/build-cpm3.js               build a CP/M 3 disk from your copy of the distribution (docs/cpm3.md)
 tools/play.js                     PLAY.COM for a disk (system/play.asm with its command)
 tools/private-shelf.js            build a private catalog from story files and folders
 tools/private-serve.js            serve a private catalog for a trial (CORS, token)

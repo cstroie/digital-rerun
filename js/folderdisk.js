@@ -28,7 +28,8 @@
 
     /**
      * `items`: [{ path: 'WS.COM' | '2/NOTES.TXT', read: () => Promise<Uint8Array> }], paths relative
-     * to the folder. Returns { disk, format, files, renamed: [[from, to]], skipped: [[path, why]] }.
+     * to the folder. Returns { disk, format, files, renamed: [[from, to]], skipped: [[path, why]],
+     * plan: [{ user, name, path }] (what went where) }.
      */
     async function fromFolder(items, name) {
         const plan = [];
@@ -69,7 +70,7 @@
                 const fsys = new CpmFs(disk);
                 plan.forEach((p, i) => fsys.write(p.name, data[i], p.user));
                 disk.dirty = false;
-                return { disk, format, files: plan.length, renamed, skipped };
+                return { disk, format, files: plan.length, renamed, skipped, plan: plan.map(p => ({ user: p.user, name: p.name, path: p.item.path })) };
             } catch (e) { last = e; }              // too big or too many files: the next size
         }
         throw new Error(`it does not fit on any disk: ${last.message}`);

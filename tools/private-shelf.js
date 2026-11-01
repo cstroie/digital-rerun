@@ -6,9 +6,10 @@
  *
  * Every Z-machine story file found under <sources> (.z1-.z8, or the .dat
  * files of the DOS releases: recognised by their header) becomes a game
- * disk in <out>: the story, VEZZA.COM, its licence, PLAY.COM and a
+ * disk of <out>/<id>/: the story, VEZZA.COM, its licence, PLAY.COM and a
  * README.TXT, as the shelf's own game disks. <out>/shelf.json lists them
- * in the shelf's format. Put <out> on your own web server (docs/private-shelf.md)
+ * in the shelf's format; no disk image is made, the app builds the disk
+ * from those files when it is inserted, as for the public shelf. Put <out> on your own web server (docs/private-shelf.md)
  * and give the app its address: nothing of it is kept in the repository.
  *
  * Every folder inside <sources>/disks/, and every folder one level down in any
@@ -29,8 +30,6 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { Disk } = require('../js/devices/fdc.js');
-const { CpmFs, toCpmText } = require('../js/cpmfs.js');
 const { playCom } = require('./play.js');
 const { fromFolder } = require('../js/folderdisk.js');
 
@@ -74,7 +73,7 @@ async function build(sources, out, { category = 'Private', vezza = path.join(ROO
     const titles = fs.existsSync(titlesFile) ? JSON.parse(fs.readFileSync(titlesFile, 'utf8')) : {};
     fs.mkdirSync(out, { recursive: true });
     const vezzaCom = fs.readFileSync(vezza);
-    const lic = fs.existsSync(vezzaLic) ? toCpmText(fs.readFileSync(vezzaLic)) : null;
+    const lic = fs.existsSync(vezzaLic) ? fs.readFileSync(vezzaLic) : null;
     const used = new Set();
     const entries = [];
     const disksDir = path.join(sources, 'disks');
@@ -105,18 +104,18 @@ async function build(sources, out, { category = 'Private', vezza = path.join(ROO
             'PLAY.COM   types the line above at the CP/M prompt.',
             'VEZZA.COM  Vezza by Shawn Sijnstra, GPL-2.0-or-later: see VEZZA.LIC.', ''
         ].join('\n');
-        const files = [[story, bytes], ['VEZZA.COM', vezzaCom], ['PLAY.COM', playCom(`VEZZA ${story}`)], ['README.TXT', toCpmText(Buffer.from(text))]];
+        const files = [[story, bytes], ['VEZZA.COM', vezzaCom], ['PLAY.COM', playCom(`VEZZA ${story}`)], ['README.TXT', Buffer.from(text)]];
         if (lic) files.push(['VEZZA.LIC', lic]);
         const format = formatFor(files.reduce((t, [, d]) => t + d.length, 0));
-        const disk = new Disk(format);
-        const fsys = new CpmFs(disk);
-        for (const [n, d] of files) fsys.write(n, d);
-        const image = `${id.toLowerCase()}.dsk`;
-        fs.writeFileSync(path.join(out, image), disk.data);
+        const dir = path.join(out, id.toLowerCase());
+        fs.mkdirSync(dir, { recursive: true });
+        for (const [n, d] of files) fs.writeFileSync(path.join(dir, n), d);
         entries.push({
-            id: id.toLowerCase(), name, format, image, category: meta.category || category,
+            id: id.toLowerCase(), name, format, category: meta.category || category,
             description: meta.description || `Z-machine version ${head.version}, release ${head.release}. Type PLAY, or VEZZA ${story}.`,
-            credit: meta.credit || '', licence: meta.licence || 'private', size: disk.data.length
+            credit: meta.credit || '', licence: meta.licence || 'private',
+            size: files.reduce((t, [, d]) => t + d.length, 0),
+            files: files.map(([n]) => ({ name: n, path: `${id.toLowerCase()}/${n}` }))
         });
     }
     return buildFolders(sources, out, entries, titles, used, category).then(all => {
@@ -158,12 +157,20 @@ async function buildFolders(sources, out, entries, titles, used, category) {
         let id = dir.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'disk';
         for (let n = 2; used.has(id.toUpperCase()); n++) id = `${id.replace(/-\d+$/, '')}-${n}`;
         used.add(id.toUpperCase());
-        const image = `${id}.dsk`;
-        fs.writeFileSync(path.join(out, image), r.disk.data);
+        // The files themselves, under their disk names; the page builds the disk when it is inserted.
+        const dest = path.join(out, id);
+        const files = [];
+        for (const p of r.plan) {
+            const rel = `${p.user ? p.user + '/' : ''}${p.name}`;
+            fs.mkdirSync(path.dirname(path.join(dest, rel)), { recursive: true });
+            fs.copyFileSync(path.join(folder, ...p.path.split('/')), path.join(dest, rel));
+            files.push({ name: p.name, path: `${id}/${rel}`, ...(p.user ? { user: p.user } : {}) });
+        }
         entries.push({
-            id, name, format: r.format, image, category: meta.category || category,
+            id, name, format: r.format, category: meta.category || category,
             description: meta.description || `${r.files} file${r.files === 1 ? '' : 's'} from a folder.`,
-            credit: meta.credit || '', licence: meta.licence || 'private', size: r.disk.data.length
+            credit: meta.credit || '', licence: meta.licence || 'private',
+            size: files.reduce((t, f) => t + fs.statSync(path.join(out, f.path)).size, 0), files
         });
         if (r.renamed.length) console.log(`  ${dir.name}: ${r.renamed.length} name${r.renamed.length === 1 ? '' : 's'} made 8.3`);
         for (const [file, why] of r.skipped) console.log(`  ${dir.name}: ${file} left out (${why})`);

@@ -12,7 +12,7 @@ node tools/private-shelf.js <folder with the story files> <out> [--category=Info
 ```
 
 Every Z-machine story (`.z1`–`.z8`, or the `.dat` files of the DOS releases,
-recognised by their header) under the source folder becomes a game disk in `<out>`:
+recognised by their header) under the source folder becomes a game disk, a folder in `<out>`:
 the story, `VEZZA.COM`, `PLAY.COM`, `VEZZA.LIC` and a `README.TXT`, on the smallest
 disk that holds it (8" 250K, 5¼" 400K, or a hard disk). `<out>/shelf.json` lists them.
 Names come from the file names; an optional `<folder>/titles.json` names them:
@@ -35,8 +35,10 @@ this machine. A large story (Trinity, A Mind Forever Voyaging) may need the 400K
 which the tool then chooses by itself. Only Z3 was tried here; if a Z4 or Z5 story
 misbehaves, that is worth knowing.
 
-`shelf.json` has the same shape as the shipped `disks/shelf.json`, with `image` (and
-`format`) per disk, so a disk image you made yourself can be added by hand.
+No disk image is made. Each disk is a folder `<out>/<id>/` holding its files, and
+`shelf.json` lists them (`files`: name, path, and `user` for a user area), as the shipped
+`disks/shelf.json` does for the public shelf; the app builds the disk when you insert it.
+A disk image you made yourself can still be added by hand, with `image` and `format` in place of `files`.
 
 ## 2. Serve it
 

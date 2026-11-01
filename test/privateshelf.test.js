@@ -68,9 +68,11 @@ test('the tool builds a catalog; its disks play, served with a token', async () 
     const entries = await build(src, out);
     assert.deepEqual(entries.map(e => [e.id, e.name, e.format, e.category]), [
         ['biggame', 'Biggame', 'dsdd5', 'Private'], ['game3', 'Game Three', 'sssd8', 'Test'], ['wordstar', 'WordStar 4', 'sssd8', 'Writing']]);
-    const ws = new CpmFs(Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(out, 'wordstar.dsk')))));
+    assert.deepEqual(fs.readdirSync(out).filter(f => f.endsWith('.dsk')), []);                // no image is made
+    const read = async p => new Uint8Array(fs.readFileSync(path.join(out, p)));
+    const ws = new CpmFs(await Shelf.buildDisk(Shelf.resolveCatalog(entries, 'http://h/').find(e => e.id === 'wordstar'), async p => read(p.slice('http://h/'.length))));
     assert.deepEqual(ws.list().map(f => `${f.user}:${f.name}`).sort(), ['0:INSIDE.DAT', '0:MYDOC.TXT', '0:WS.COM', '2:HELP.TXT']);
-    const files = new CpmFs(Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(out, 'biggame.dsk')))));
+    const files = new CpmFs(await Shelf.buildDisk(Shelf.resolveCatalog(entries, 'http://h/').find(e => e.id === 'biggame'), async p => read(p.slice('http://h/'.length))));
     assert.ok(files.find('BIGGAME.Z4') && files.find('PLAY.COM') && files.find('VEZZA.COM'));
 
     const srv = server(out, { token: 's3cret' });

@@ -745,6 +745,7 @@
     const ARROWS = {
         wordstar: { ArrowUp: [5], ArrowDown: [24], ArrowLeft: [19], ArrowRight: [4], PageUp: [18], PageDown: [3], Home: [17, 83], End: [17, 68], Delete: [7], Insert: [22] },
         vt100: { ArrowUp: [27, 91, 65], ArrowDown: [27, 91, 66], ArrowRight: [27, 91, 67], ArrowLeft: [27, 91, 68], Delete: [127] },
+        vt52: { ArrowUp: [27, 65], ArrowDown: [27, 66], ArrowRight: [27, 67], ArrowLeft: [27, 68], Home: [27, 72], Delete: [127] },
         adm3a: { ArrowUp: [11], ArrowDown: [10], ArrowLeft: [8], ArrowRight: [12], Home: [30], Delete: [127] }
     };
 

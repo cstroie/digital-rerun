@@ -19,7 +19,7 @@
 DigitalRerun is a complete CP/M 2.2 machine that runs in a web page:
 - a **Z80 with 64K** of RAM;
 - **8" floppy drives** and a 4 MB hard disk;
-- a **VT100** or **ADM-3A** console with a glowing phosphor screen;
+- a **VT100**, **VT52** or **ADM-3A** console with a glowing phosphor screen;
 - an **FX-80 dot matrix printer** that strikes its dots onto fanfold paper, tractor holes and all.
 
 It is not a CP/M look-alike. The machine boots the **original CP/M 2.2 CCP and BDOS**, byte for byte as they shipped, read by a real BIOS from the system tracks of an 8" disk. Everything CP/M did then, it does here: `PIP`, `ED`, `ASM`, `DDT`, `SUBMIT`. You can even rebuild the BIOS inside CP/M with the 1980 recipe and boot the result.
@@ -75,7 +75,7 @@ A: holds the CP/M 2.2 tools (PIP, STAT, ED, ASM, LOAD, DDT, SUBMIT, XSUB, DUMP),
 | Memory | 64K RAM. CCP at `E400h`, BDOS at `EC00h`, BIOS at `FA00h` |
 | A: to D: | 8" single-sided, single-density: 77 tracks of 26 × 128-byte sectors, skew 6, 2 system tracks, 241K (boots). Also three 5¼" double-density data formats: SSDD 200K and DSDD 400K with 512-byte sectors, and SSDD 200K with 1K sectors. All are raw images, compatible with cpmtools (`ibm-3740`, `kpii`, `kpiv`, `osborne1`: the Kaypro II, Kaypro 4 and Osborne 1 formats) and z80pack |
 | I: | 4 MB hard disk, z80pack geometry |
-| Console | VT100 (subset) or ADM-3A, chosen in SETUP; exactly 80 × 24 at any window size, green, amber or white phosphor; WordStar, VT100 or ADM-3A arrow keys. Typing reaches the machine wherever the focus is on the page (except form fields) |
+| Console | VT100 (subset), VT52 or ADM-3A, chosen in SETUP; exactly 80 × 24 at any window size, green, amber or white phosphor; WordStar, VT100 or ADM-3A arrow keys. Typing reaches the machine wherever the focus is on the page (except form fields) |
 | Printer | FX-80 compatible, on `LST:` |
 | Lights | POWER, RUN (bright while working, dim while waiting), one per drive, PRN |
 
@@ -137,9 +137,10 @@ On a phone the page scrolls instead, and the paper is the PAPER tab.
 
 ### The console
 
-SETUP chooses the terminal: **VT100** (the default) or **ADM-3A**. Install your programs for the same one; WordStar, Turbo Pascal and most CP/M software list both. You can switch at any time, and the screen is kept.
+SETUP chooses the terminal: **VT100** (the default), **VT52** or **ADM-3A**. Install your programs for the same one; WordStar, Turbo Pascal and most CP/M software list both. You can switch at any time, and the screen is kept.
 
 - **VT100:** cursor moves and addressing, erasing, bold, dim, underline, blink and reverse video, scroll regions, inserting and deleting lines and characters, and cursor and status reports.
+- **VT52:** `ESC A B C D` moves (stopping at the edges), `ESC H` home, `ESC I` reverse line feed, `ESC J` / `ESC K` erase to the end of the screen or line, `ESC Y` row column addressing and `ESC Z` identify. The 80th column is overwritten, not wrapped. `ESC <` makes it a VT100, as on the real one; the graphics set and keypad modes are ignored.
 - **ADM-3A:** `ESC =` cursor addressing, `^Z` clear, `^^` home, and `^H ^J ^K ^L` moves. The 80th character wraps at once, as on the real terminal. It also accepts the extensions that later ADM-compatible terminals added and many CP/M programs send:
   - `ESC T` / `ESC Y` erase to the end of the line or the screen;
   - `ESC *` clears the screen;
@@ -148,7 +149,7 @@ SETUP chooses the terminal: **VT100** (the default) or **ADM-3A**. Install your 
   - `ESC )` / `ESC (` half intensity;
   - `ESC G n` and `ESC B n` / `ESC C n` attributes.
 
-The arrow keys send WordStar's `^E ^X ^S ^D`, VT100's `ESC [ A …` or ADM-3A's `^K ^J ^H ^L`. Terminal arrow keys follow the terminal when you switch.
+The arrow keys send WordStar's `^E ^X ^S ^D`, VT100's `ESC [ A …`, VT52's `ESC A …` or ADM-3A's `^K ^J ^H ^L`. Terminal arrow keys follow the terminal when you switch.
 
 ### The debugger
 
@@ -236,7 +237,7 @@ DigitalRerun is a progressive web app:
 git clone https://github.com/cstroie/DigitalRerun.git
 cd DigitalRerun
 python3 -m http.server 8000         # any static server; then open http://localhost:8000
-node --test                         # 80 tests: assembler, file system, Altair images, terminal, printer, CP/M, shelf disks, folder and private shelf, snapshots, PWA
+node --test                         # 82 tests: assembler, file system, Altair images, terminal, printer, CP/M, shelf disks, folder and private shelf, snapshots, PWA
 ZEX=1 node --test test/zex.test.js  # ZEXDOC on the Z80 core (a few minutes; ZEX=all adds ZEXALL, CI runs both)
 ```
 
@@ -255,7 +256,7 @@ index.html, css/, js/app.js       the page
 js/z80.js                         the Z80 core (vendored)
 js/machine.js                     RAM, ports, run loop, boot ROM, machine state
 js/devices/fdc.js, serial.js      disk controller, console and printer ports
-js/terminal.js                    VT100 terminal and its view
+js/terminal.js                    VT100, VT52 and ADM-3A terminal and its view
 js/fx80.js, js/font9.js           printer, paper view, dot matrix font
 js/cpmfs.js                       CP/M file system on a disk image, from outside the machine
 js/altair.js                      the files of an AltairZ80 disk image (LOAD copies them onto a disk)
@@ -322,4 +323,4 @@ DigitalRerun's own code is under the [MIT licence](LICENSE). The parts that come
 - Vezza under GPL-2.0-or-later (its licence is in `disks/shelf/zork1/`);
 - F83 in the public domain, and twelve Z-machine games as freeware (`disks/shelf/forth83/`, `advent/`, `catseye/`, `fantasy/`, `moonglow/`, `subsab/`, `curses/`, `aisle/`, `905/`, `photopia/`, `shade/`, `spiderweb/`, `suvehnux/` under `disks/shelf/`).
 
-**Trademarks.** CP/M was created by Gary Kildall at Digital Research, Inc.; the rights now belong to DRDOS, Inc. Epson and FX-80 are trademarks of Seiko Epson Corporation. Z80 is a trademark of Zilog, Inc. IBM and IBM Plex are trademarks of International Business Machines Corporation. Kaypro and Osborne are the names of their makers. VT100 was a terminal by Digital Equipment Corporation, and ADM-3A one by Lear Siegler, Inc. ZORK is a trademark of its owner. Names are used only to say what DigitalRerun emulates or contains. DigitalRerun is not affiliated with, or endorsed by, any of these companies.
+**Trademarks.** CP/M was created by Gary Kildall at Digital Research, Inc.; the rights now belong to DRDOS, Inc. Epson and FX-80 are trademarks of Seiko Epson Corporation. Z80 is a trademark of Zilog, Inc. IBM and IBM Plex are trademarks of International Business Machines Corporation. Kaypro and Osborne are the names of their makers. VT100 and VT52 were terminals by Digital Equipment Corporation, and ADM-3A one by Lear Siegler, Inc. ZORK is a trademark of its owner. Names are used only to say what DigitalRerun emulates or contains. DigitalRerun is not affiliated with, or endorsed by, any of these companies.

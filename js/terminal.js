@@ -1,6 +1,7 @@
 /*
- * terminal.js: an 80x24 terminal for the console, a VT100 (subset) or an
- * ADM-3A (mode 'vt100' | 'adm3a', switchable at any time).
+ * terminal.js: an 80x24 terminal for the console, a VT100 (subset), a
+ * VT52 or an ADM-3A (mode 'vt100' | 'vt52' | 'adm3a', switchable at any
+ * time).
  *
  * Terminal holds the screen as cells and interprets the bytes the
  * machine sends; TerminalView draws it into an element. They are apart
@@ -16,6 +17,14 @@
  *           restore), L M (insert, delete lines), @ P (insert, delete
  *           characters), X (erase characters), n (status/cursor report),
  *           c (device attributes), h l (?7 wrap, ?25 cursor, 4 insert)
+ *
+ * VT52 mode:
+ *   C0      BEL BS HT LF CR; no autowrap: the 80th column is overwritten
+ *   ESC     A B C D (move, stopping at the edges), H (home), I (reverse
+ *           line feed, scrolls down at the top), J K (erase to end of
+ *           screen, of line), Y row+32 col+32 (cursor address), Z (identify:
+ *           answers ESC / Z), < (enter ANSI mode: the terminal becomes a
+ *           VT100); F G (graphics set) and = > (keypad) are ignored
  *
  * ADM-3A mode:
  *   C0      BEL, BS (left), LF (down, scrolls), VT (up), FF (right),
@@ -38,7 +47,7 @@
         constructor(cols = 80, rows = 24, mode = 'vt100') {
             this.cols = cols;
             this.rows = rows;
-            /** 'vt100' or 'adm3a': which codes the terminal answers to. */
+            /** 'vt100', 'vt52' or 'adm3a': which codes the terminal answers to. */
             this.mode = mode;
             /** Called with an array of bytes to send back (status reports). */
             this.reply = null;
@@ -70,6 +79,8 @@
         write(byte) {
             const b = byte & 0x7F;
             if (this.mode === 'adm3a') return this.writeAdm(b);
+            if (this.mode === 'vt52') return this.writeVt52(b);
+            if (this.state.startsWith('vt52') || this.state.startsWith('adm')) this.state = 'ground';   // left over from another mode
             if (b === 0x18 || b === 0x1A) { this.state = 'ground'; return; }
             if (b === 0x1B) { this.state = 'esc'; this.params = ''; return; }
             switch (this.state) {
@@ -84,6 +95,61 @@
             if (b < 0x20) return this.control(b);
             if (b === 0x7F) return;
             this.print(b);
+        }
+
+        /* ---------- VT52 ---------- */
+
+        writeVt52(b) {
+            switch (this.state) {
+                case 'vt52-esc': return this.vt52Escape(b);
+                case 'vt52-row': this.admRow = b - 32; this.state = 'vt52-col'; return;
+                case 'vt52-col':
+                    this.state = 'ground';
+                    this.y = Math.max(0, Math.min(this.rows - 1, this.admRow));
+                    this.x = Math.max(0, Math.min(this.cols - 1, b - 32));
+                    this.dirty.add(this.y);
+                    return;
+            }
+            if (this.state !== 'ground') this.state = 'ground';     // left over from another mode
+            this.wrapPending = false;
+            if (b === 0x1B) { this.state = 'vt52-esc'; return; }
+            if (b >= 0x20 && b < 0x7F) {
+                this.chars[this.y][this.x] = b;
+                this.attrs[this.y][this.x] = this.attr;
+                this.dirty.add(this.y);
+                if (this.x < this.cols - 1) this.x++;               // no wrap: the last column is overwritten
+                return;
+            }
+            switch (b) {
+                case 0x07: if (this.bell) this.bell(); break;
+                case 0x08: if (this.x > 0) this.x--; break;
+                case 0x09: this.control(b); break;
+                case 0x0A: this.lineFeed(); break;
+                case 0x0D: this.x = 0; break;
+            }
+            this.dirty.add(this.y);
+        }
+
+        vt52Escape(b) {
+            this.state = 'ground';
+            switch (String.fromCharCode(b)) {
+                case 'A': if (this.y > 0) this.y--; break;
+                case 'B': if (this.y < this.rows - 1) this.y++; break;
+                case 'C': if (this.x < this.cols - 1) this.x++; break;
+                case 'D': if (this.x > 0) this.x--; break;
+                case 'H': this.x = 0; this.y = 0; break;
+                case 'I': this.y === 0 ? this.scrollDown(0, this.rows - 1, 1) : this.y--; break;
+                case 'J':
+                    this.erase(this.y, this.x, this.cols);
+                    for (let r = this.y + 1; r < this.rows; r++) this.erase(r, 0, this.cols);
+                    break;
+                case 'K': this.erase(this.y, this.x, this.cols); break;
+                case 'Y': this.state = 'vt52-row'; break;
+                case 'Z': this.send('\x1b/Z'); break;
+                case '<': this.mode = 'vt100'; break;
+                // F G (graphics), = > (keypad) and anything else: ignored
+            }
+            this.dirty.add(this.y);
         }
 
         /* ---------- ADM-3A ---------- */

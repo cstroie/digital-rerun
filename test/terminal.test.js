@@ -95,3 +95,35 @@ test('switching modes keeps the screen; VT100 codes are text to an ADM-3A', () =
     assert.equal(t.text().trim(), '');
     assert.equal(structuredClone(t.getState()).mode, 'vt100');
 });
+
+test('VT52: moves stop at the edges, addressing, erase, identify, no wrap', () => {
+    const t = new Terminal(80, 24, 'vt52');
+    const replies = [];
+    t.reply = b => replies.push(String.fromCharCode(...b));
+    t.writeString('\x1bYS!ab');                               // 'S' is row 51: clamped to 23
+    assert.deepEqual([t.x, t.y], [3, 23]);
+    t.writeString('\x1bH\x1bA\x1bD');                         // home; up and left do nothing
+    assert.deepEqual([t.x, t.y], [0, 0]);
+    t.writeString('\x1bY#%X\x1bB\x1bC');                      // row 3, column 5
+    assert.equal(row(t, 3), '     X');
+    assert.deepEqual([t.x, t.y], [7, 4]);
+    t.writeString('\x1bK\x1bH\x1bJ');
+    assert.equal(t.text().trim(), '');
+    t.writeString('\x1bY ' + String.fromCharCode(32 + 79) + 'abc');   // last column is overwritten
+    assert.deepEqual([t.x, t.y], [79, 0]);
+    assert.equal(t.chars[0][79], 99);
+    t.writeString('\x1bZ');
+    assert.deepEqual(replies, ['\x1b/Z']);
+});
+
+test('VT52: reverse line feed scrolls down, LF scrolls up, ESC < becomes a VT100', () => {
+    const t = new Terminal(80, 24, 'vt52');
+    t.writeString('top\x1bH\x1bI');
+    assert.deepEqual([row(t, 0), row(t, 1)], ['', 'top']);
+    t.writeString('\x1bY7 \n');                               // last row, then LF: the screen scrolls up
+    assert.equal(t.y, 23);
+    assert.equal(row(t, 0), 'top');
+    t.writeString('\x1b<\x1b[2J');
+    assert.equal(t.mode, 'vt100');
+    assert.equal(t.text().trim(), '');
+});

@@ -1151,14 +1151,6 @@
                 if (!machine.fdc.drives[1]) await newDisk(1, false);
             } catch (e) { note(e.message, false); }
         }
-        // The Zork I game disk goes in D: once; after that D: is the owner's.
-        if (!settings.zorkGiven) {
-            try {
-                if (!machine.fdc.drives[3]) mount(3, await shippedDisk('disks/zork1.dsk', 'Zork I'));
-                settings.zorkGiven = true;
-                Storage.set('settings', settings).catch(() => {});
-            } catch (e) { note(e.message, false); }
-        }
         placeTray();
         renderDrives();
         renderSnapshots();

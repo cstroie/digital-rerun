@@ -9,6 +9,7 @@ const { Terminal } = require('../js/terminal.js');
 const { FX80 } = require('../js/fx80.js');
 const Snapshot = require('../js/snapshot.js');
 
+const { shelfDisk } = require('./shelfdisk.js');
 const disk = name => Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks', name))));
 
 /** A booted machine wired to a terminal and a printer, as in the page. */
@@ -18,7 +19,7 @@ function computer() {
     machine.printer.output = b => printer.write(b);
     machine.fdc.mount(0, disk('cpm22.dsk'));
     machine.fdc.mount(1, new Disk('sssd8'));
-    machine.fdc.mount(3, disk('zork1.dsk'));
+    machine.fdc.mount(3, shelfDisk('zork1'));
     machine.reset();
     const pc = { machine, terminal, printer };
     pc.settle = () => {

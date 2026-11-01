@@ -27,11 +27,7 @@ Not covered by this licence (see LICENSE-DRI and the file headers):
   disks/cpm22/*.ASM    DEBLOCK.ASM, DISKDEF.LIB: Digital Research
   disks/cpm22/*.LIB
   disks/cpm22.dsk      holds the above
-  disks/zork1/ZORK1.Z3 Zork I, MIT licence, Microsoft (disks/zork1/LICENSE-ZORK1)
-  disks/zork1/VEZZA.COM  Vezza by Shawn Sijnstra, GPL-2.0-or-later
-                       (disks/zork1/LICENSE-VEZZA, gitlab.com/sijnstra1/vezza)
-  disks/zork1.dsk      holds the above
-  disks/shelf/zork2/, zork3/   Zork II and III (MIT, Microsoft) and Vezza (GPL-2.0-or-later)
+  disks/shelf/zork1/, zork2/, zork3/   Zork I, II and III (MIT, Microsoft) and Vezza (GPL-2.0-or-later)
   disks/shelf/advent/, catseye/, fantasy/, moonglow/, subsab/,
                                curses/, aisle/, 905/, photopia/, shade/, spiderweb/, suvehnux/
                                twelve freeware Z-machine games (their authors' rights; shared as the IF Archive

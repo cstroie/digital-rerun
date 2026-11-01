@@ -22,7 +22,7 @@ test('the service worker caches every file the page loads, and they exist', () =
     assert.ok(local.length > 10);
     for (const f of local) assert.ok(cached.has(f), `${f} is loaded by index.html but not cached by sw.js`);
     for (const f of cached) assert.ok(fs.existsSync(path.join(ROOT, f)), `sw.js caches ${f}, which does not exist`);
-    for (const f of ['disks/cpm22.dsk', 'disks/zork1.dsk']) assert.ok(cached.has(f), `${f} is fetched by the app`);
+    for (const f of ['disks/cpm22.dsk']) assert.ok(cached.has(f), `${f} is fetched by the app`);
 });
 
 test('manifest icons exist at their stated sizes, with a maskable one', () => {

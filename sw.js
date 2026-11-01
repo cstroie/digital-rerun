@@ -33,7 +33,6 @@ const SHELL = [
     'js/pwa.js',
     'js/app.js',
     'disks/cpm22.dsk',
-    'disks/zork1.dsk',
     'disks/shelf.json',
     'manifest.webmanifest',
     'icons/icon-32.png',

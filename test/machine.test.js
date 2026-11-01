@@ -6,6 +6,7 @@ const path = require('node:path');
 const { Machine } = require('../js/machine.js');
 const { Disk } = require('../js/devices/fdc.js');
 const { CpmFs, toCpmText, fromCpmText } = require('../js/cpmfs.js');
+const { shelfDisk } = require('./shelfdisk.js');
 
 /** A machine booted from disks/cpm22.dsk, with a blank B:. */
 function boot() {
@@ -137,7 +138,7 @@ test('a changed BIOS, assembled and installed inside CP/M, boots', () => {
 
 test('Zork I plays from the D: game disk under Vezza', () => {
     const m = boot();
-    m.fdc.mount(3, Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/zork1.dsk')))));
+    m.fdc.mount(3, shelfDisk('zork1'));
     command(m, 'D:');
     assert.match(command(m, 'VEZZA ZORK1.Z3'), /West of House/);
     // Keys at typing pace: a whole line at once can lose one, as on a real machine.
@@ -156,7 +157,7 @@ test('Zork I plays from the D: game disk under Vezza', () => {
 
 test('pasted text arrives whole, even in a program that reads ahead', () => {
     const m = boot();
-    m.fdc.mount(3, Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/zork1.dsk')))));
+    m.fdc.mount(3, shelfDisk('zork1'));
     command(m, 'D:');
     command(m, 'VEZZA ZORK1.Z3');
     m.out = '';

@@ -104,7 +104,7 @@ test('PLAY on the Zork I disk', async () => {
     m.out = '';
     m.console.output = b => { m.out += String.fromCharCode(b); };
     m.fdc.mount(0, Disk.fromImage(await read('disks/cpm22.dsk')));
-    m.fdc.mount(3, Disk.fromImage(await read('disks/zork1.dsk')));
+    m.fdc.mount(3, await buildDisk(entry('zork1'), read));
     m.reset();
     const settle = () => { for (let i = 0; i < 40000; i++) { m.run(200000); if (m.waiting) return; } };
     settle();

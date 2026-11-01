@@ -57,11 +57,11 @@ A>DIR                        what is on the disk
 A>STAT B:                    room on the empty disk in B:
 A>PIP B:=A:*.COM             copy the programs to B:
 A>PRTDEMO                    print a page (see PAPER)
-A>D:                         to the game disk
+A>D:                         to a shelf disk, Zork I here
 D>VEZZA ZORK1.Z3             and you are standing west of a white house
 ```
 
-A: holds the CP/M 2.2 tools (PIP, STAT, ED, ASM, LOAD, DDT, SUBMIT, XSUB, DUMP), SYSGEN, PRTDEMO, and the sources of the BIOS, the loader and SYSGEN. B: holds an empty disk, and D: holds Zork I.
+A: holds the CP/M 2.2 tools (PIP, STAT, ED, ASM, LOAD, DDT, SUBMIT, XSUB, DUMP), SYSGEN, PRTDEMO, and the sources of the BIOS, the loader and SYSGEN. B: holds an empty disk. Games and tools are on the shelf (SHELF tab): put Zork I in D: and `D:` `PLAY` starts it.
 
 `^C` warm-starts the system, `^S` pauses the output and `^P` echoes the console to the printer. In Zork, `SAVE` and `RESTORE` keep your progress on the disk.
 
@@ -194,7 +194,7 @@ A>SYSGEN                      source RETURN (use memory), destination A
 
 Then press RESET and your BIOS boots. In the SYSGEN image the loader sits at `0900h`, the CCP at `0980h`, the BDOS at `1180h` and the BIOS at `1F80h`, so the same recipe also swaps in another CCP or BDOS (ZCPR, ZSDOS …).
 
-On the host, `node tools/build.js` assembles everything with [`js/asm8080.js`](js/asm8080.js), a two-pass 8080 assembler that reads both the ASM.COM and the Macro Assembler AS dialects. It writes `system/cpm22.bin` (the system tracks), `disks/cpm22.dsk` and `disks/zork1.dsk`.
+On the host, `node tools/build.js` assembles everything with [`js/asm8080.js`](js/asm8080.js), a two-pass 8080 assembler that reads both the ASM.COM and the Macro Assembler AS dialects. It writes `system/cpm22.bin` (the system tracks), and `disks/cpm22.dsk`, then the shelf list.
 
 ### The printer
 
@@ -237,7 +237,7 @@ DigitalRerun is a progressive web app:
 git clone https://github.com/cstroie/DigitalRerun.git
 cd DigitalRerun
 python3 -m http.server 8000         # any static server; then open http://localhost:8000
-node --test                         # 82 tests: assembler, file system, Altair images, terminal, printer, CP/M, shelf disks, folder and private shelf, snapshots, PWA
+node --test                         # 83 tests: assembler, file system, Altair images, terminal, printer, CP/M, shelf disks, folder and private shelf, snapshots, PWA
 ZEX=1 node --test test/zex.test.js  # ZEXDOC on the Z80 core (a few minutes; ZEX=all adds ZEXALL, CI runs both)
 ```
 
@@ -269,7 +269,7 @@ js/snapshot.js                    take and restore a snapshot
 js/sound.js                       bell, drive and printer sounds (Web Audio, synthesized)
 js/version.js, js/pwa.js, sw.js   version and build stamp; install, updates, offline
 system/                           loader, BIOS, SYSGEN, PRTDEMO, PLAY; cpm22/: the original CCP and BDOS sources
-disks/cpm22/, disks/shelf/zork1/       the files of the boot disk and the game disk, and their images
+disks/cpm22/                     the files of the boot disk, and its image
 disks/shelf/, disks/shelf.json    the other shelf disks, as files, and their list
 tools/build.js                    assemble the system, make the disks
 tools/play.js                     PLAY.COM for a disk (system/play.asm with its command)

@@ -237,7 +237,7 @@ DigitalRerun is a progressive web app:
 git clone https://github.com/cstroie/DigitalRerun.git
 cd DigitalRerun
 python3 -m http.server 8000         # any static server; then open http://localhost:8000
-node --test                         # 83 tests: assembler, file system, Altair images, terminal, printer, CP/M, shelf disks, folder and private shelf, snapshots, PWA
+node --test                         # 84 tests: assembler, file system, Altair images, terminal, printer, CP/M, shelf disks, folder and private shelf, snapshots, PWA
 ZEX=1 node --test test/zex.test.js  # ZEXDOC on the Z80 core (a few minutes; ZEX=all adds ZEXALL, CI runs both)
 ```
 

@@ -342,6 +342,7 @@
             box.appendChild(row);
         }
         renderFiles();
+        markInserted();
     }
 
     function renderFiles() {
@@ -460,11 +461,13 @@
                 const where = e.format === HARD ? 'I' : floppy;
                 card(box, {
                     title: e.name, desc: e.description, meta: `${kindOf(e.format)}${e.credit ? ' · ' + e.credit : ''}`,
+                    origin: `private:${e.id}`,
                     buttons: [[`INSERT IN ${where}:`, `Put a fresh copy in ${where}:`,
-                        () => insertDisk(() => Shelf.buildDisk(e, async p => new Uint8Array(await (await fetchPrivate(p, token)).arrayBuffer())), e.name, e.format)]]
+                        () => insertDisk(() => Shelf.buildDisk(e, async p => new Uint8Array(await (await fetchPrivate(p, token)).arrayBuffer())), e.name, e.format, `private:${e.id}`)]]
                 });
             }
         }
+        markInserted();
     }
 
     $('privateConnectBtn').addEventListener('click', () => connectPrivate($('privateUrl').value, $('privateToken').value.trim()));
@@ -481,7 +484,7 @@
     /** Which drive a disk of this format goes into: I: for a hard disk, else the one chosen. */
     const targetFor = format => (format === HARD ? 8 : Number($('shelfDrive').value));
 
-    async function insertDisk(make, label, format) {
+    async function insertDisk(make, label, format, origin) {
         const drive = targetFor(format);
         const old = machine.fdc.drives[drive];
         if (old && !confirm(`Replace "${old.name}" in ${LETTER(drive)}: with ${label}? Keep it on My disks first if you need it.`)) return;
@@ -489,6 +492,7 @@
         try {
             const disk = await make();
             disk.name = label;
+            disk.origin = origin;
             mount(drive, disk);
             selected = drive;
             renderDrives();
@@ -498,9 +502,31 @@
         focusScreen();
     }
 
-    function card(box, { title, desc, meta, buttons }) {
+    /** Mark the shelf cards whose disk is in a drive now (the disk remembers where it came from). */
+    function markInserted() {
+        const where = new Map();
+        for (const d of DRIVES) {
+            const disk = machine.fdc.drives[d];
+            if (disk && disk.origin) where.set(disk.origin, [...(where.get(disk.origin) || []), LETTER(d) + ':']);
+        }
+        for (const el of document.querySelectorAll('.disk-card[data-origin]')) {
+            const drives = where.get(el.dataset.origin);
+            el.classList.toggle('in', !!drives);
+            let tag = el.querySelector('.inside');
+            if (!drives) { if (tag) tag.remove(); continue; }
+            if (!tag) {
+                tag = document.createElement('span');
+                tag.className = 'inside';
+                el.querySelector('.title').appendChild(tag);
+            }
+            tag.textContent = `in ${drives.join(' ')}`;
+        }
+    }
+
+    function card(box, { title, desc, meta, buttons, origin }) {
         const el = document.createElement('div');
         el.className = 'disk-card';
+        el.dataset.origin = origin;
         el.innerHTML = '<span class="title"></span><span class="acts"></span><span class="desc"></span><span class="meta"></span>';
         el.querySelector('.title').textContent = title;
         el.querySelector('.desc').textContent = desc;
@@ -528,11 +554,13 @@
                 const where = e.format === HARD ? 'I' : floppy;
                 card(box, {
                     title: e.name, desc: e.description, meta: `${kindOf(e.format)} · ${e.credit}`,
+                    origin: `shelf:${e.id}`,
                     buttons: [[`INSERT IN ${where}:`, `Put a fresh copy in ${where}:`,
-                        () => insertDisk(() => Shelf.buildDisk(e, fetchBytes), e.name, e.format)]]
+                        () => insertDisk(() => Shelf.buildDisk(e, fetchBytes), e.name, e.format, `shelf:${e.id}`)]]
                 });
             }
         }
+        markInserted();
     }
 
     async function renderMyDisks() {
@@ -550,12 +578,12 @@
         for (const d of list) {
             const where = d.format === HARD ? 'I' : floppy;
             card(box, {
-                title: d.name, desc: `Kept ${when(d.time)}`, meta: kindOf(d.format),
+                title: d.name, desc: `Kept ${when(d.time)}`, meta: kindOf(d.format), origin: `my:${d.id}`,
                 buttons: [
                     [`INSERT IN ${where}:`, `Put a copy in ${where}:`, () => insertDisk(async () => {
                         const rec = await Storage.getMyDisk(d.id);
                         return new Disk(rec.format, rec.data.slice(), { name: rec.name });
-                    }, d.name, d.format)],
+                    }, d.name, d.format, `my:${d.id}`)],
                     ['SAVE', 'Download the disk image', async () => {
                         const rec = await Storage.getMyDisk(d.id);
                         download(`${rec.name.replace(/[^\w.-]+/g, '_')}.dsk`, rec.data);
@@ -566,6 +594,7 @@
                 ]
             });
         }
+        markInserted();
     }
 
     async function keepDisk(disk, name) {
@@ -1143,7 +1172,7 @@
         let disks = new Map();
         try { disks = await Storage.loadDisks(); } catch (e) { /* none */ }
         for (const [drive, d] of disks) {
-            try { machine.fdc.mount(drive, new Disk(d.format, new Uint8Array(d.data), { name: d.name, readOnly: d.readOnly })); } catch (e) { /* skip */ }
+            try { machine.fdc.mount(drive, new Disk(d.format, new Uint8Array(d.data), { name: d.name, readOnly: d.readOnly, origin: d.origin || '' })); } catch (e) { /* skip */ }
         }
         if (!machine.fdc.drives[0]) {
             try {

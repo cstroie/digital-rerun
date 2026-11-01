@@ -96,7 +96,7 @@
                 state: this.state,
                 fdc: { drive: f.drive, track: f.track, sector: f.sector, dma: f.dma, status: f.status },
                 printerOnline: this.printer.online,
-                drives: f.drives.map((d, i) => d && { drive: i, name: d.name, format: d.format, readOnly: d.readOnly, data: d.data.slice() }).filter(Boolean)
+                drives: f.drives.map((d, i) => d && { drive: i, name: d.name, origin: d.origin, format: d.format, readOnly: d.readOnly, data: d.data.slice() }).filter(Boolean)
             };
         }
 
@@ -108,7 +108,7 @@
             Object.assign(this.fdc, s.fdc);
             this.printer.online = s.printerOnline;
             this.fdc.drives.fill(null);
-            for (const d of s.drives) this.fdc.mount(d.drive, new Disk(d.format, d.data.slice(), { name: d.name, readOnly: d.readOnly }));
+            for (const d of s.drives) this.fdc.mount(d.drive, new Disk(d.format, d.data.slice(), { name: d.name, readOnly: d.readOnly, origin: d.origin || '' }));
             this.console.queue.length = 0;
             this.console.idlePolls = 0;
         }

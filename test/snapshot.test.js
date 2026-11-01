@@ -81,3 +81,12 @@ test('a snapshot of another format is refused', () => {
     const pc = computer();
     assert.throws(() => Snapshot.restore({ format: 99 }, pc), /another version/);
 });
+
+test('a disk keeps where it came from across a snapshot', () => {
+    const pc = computer();
+    pc.machine.fdc.drives[3].origin = 'shelf:zork1';
+    const snap = structuredClone(Snapshot.take(pc));
+    pc.machine.fdc.eject(3);
+    Snapshot.restore(snap, pc);
+    assert.equal(pc.machine.fdc.drives[3].origin, 'shelf:zork1');
+});

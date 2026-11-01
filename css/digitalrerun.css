@@ -286,6 +286,8 @@ kbd, code {
     border: 1px solid transparent;
 }
 .disk-card:hover { border-color: var(--edge); }
+.disk-card.in { border-color: var(--edge); }
+.disk-card .inside { margin-left: 8px; font-family: inherit; font-size: 11px; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; }
 .disk-card .title { color: var(--fg); font-family: 'VT323', monospace; font-size: 19px; line-height: 1; }
 .disk-card .acts { display: flex; gap: 3px; grid-row: span 3; align-self: center; }
 .disk-card .desc { color: var(--text); font-size: 12px; line-height: 1.35; }

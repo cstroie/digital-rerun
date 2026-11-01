@@ -2,7 +2,7 @@
  * storage.js: disks and settings kept in the browser (IndexedDB), so a
  * reload finds the drives as they were left.
  *
- *   disks:     key = drive number, value = { name, format, data, readOnly }
+ *   disks:     key = drive number, value = { name, origin, format, data, readOnly }
  *   settings:  key = name, value = anything
  *   snapshots: key = id ('auto' or 'm{time}'), value = a snapshot (js/snapshot.js)
  *   snapmeta:  key = the same id, value = { id, kind, time, preview, version, size }: the list
@@ -45,7 +45,7 @@
     const Storage = {
         saveDisk(drive, disk) {
             return call('disks', 'readwrite', s => s.put({
-                name: disk.name, format: disk.format, readOnly: disk.readOnly, data: disk.data.slice()
+                name: disk.name, origin: disk.origin, format: disk.format, readOnly: disk.readOnly, data: disk.data.slice()
             }, drive));
         },
         removeDisk(drive) { return call('disks', 'readwrite', s => s.delete(drive)); },

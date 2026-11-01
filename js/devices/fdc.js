@@ -56,7 +56,7 @@
 
     /** A disk: an image plus its format. `data` is used in place. */
     class Disk {
-        constructor(format, data = null, { name = '', readOnly = false } = {}) {
+        constructor(format, data = null, { name = '', readOnly = false, origin = '' } = {}) {
             const f = FORMATS[format];
             if (!f) throw new Error(`unknown disk format '${format}'`);
             this.format = format;
@@ -69,6 +69,8 @@
             if (this.data.length !== f.size) throw new Error(`a ${format} image is ${f.size} bytes, not ${this.data.length}`);
             this.name = name;
             this.readOnly = readOnly;
+            /** Where it came from on the SHELF tab ('shelf:id', 'private:id', 'my:id'), else ''. */
+            this.origin = origin;
             this.dirty = false;
         }
 

@@ -4,13 +4,13 @@
 
 ### CP/M 2.2, running again: a whole 1980s computer in your browser
 
-[![test](https://github.com/cstroie/DigitalRerun/actions/workflows/test.yml/badge.svg)](https://github.com/cstroie/DigitalRerun/actions/workflows/test.yml)
-[![live demo](https://img.shields.io/badge/live-cstroie.github.io%2FDigitalRerun-9dff8a?labelColor=0d0f0c)](https://cstroie.github.io/DigitalRerun/)
+[![test](https://github.com/cstroie/digital-rerun/actions/workflows/test.yml/badge.svg)](https://github.com/cstroie/digital-rerun/actions/workflows/test.yml)
+[![live demo](https://img.shields.io/badge/live-cstroie.github.io%2Fdigital-rerun-9dff8a?labelColor=0d0f0c)](https://cstroie.github.io/digital-rerun/)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-ffcf5c?labelColor=0d0f0c)](LICENSE)
 ![no dependencies](https://img.shields.io/badge/dependencies-none-c9d6c4?labelColor=0d0f0c)
 ![offline PWA](https://img.shields.io/badge/PWA-works%20offline-c9d6c4?labelColor=0d0f0c)
 
-**[▶ Boot it now](https://cstroie.github.io/DigitalRerun/)**: no install, no sign-up, no download.
+**[▶ Boot it now](https://cstroie.github.io/digital-rerun/)**: no install, no sign-up, no download.
 
 ![DigitalRerun: the CP/M prompt, the drives and a page from the dot matrix printer](docs/screenshot.png)
 
@@ -50,7 +50,7 @@ It is a single web page with no dependencies, no build step and no server. It in
 
 ## Try it
 
-Open **https://cstroie.github.io/DigitalRerun/**, click the screen and type:
+Open **https://cstroie.github.io/digital-rerun/**, click the screen and type:
 
 ```
 A>DIR                        what is on the disk
@@ -234,7 +234,7 @@ DigitalRerun is a progressive web app:
 ## For developers
 
 ```
-git clone https://github.com/cstroie/DigitalRerun.git
+git clone https://github.com/cstroie/digital-rerun.git
 cd DigitalRerun
 python3 -m http.server 8000         # any static server; then open http://localhost:8000
 node --test                         # 84 tests: assembler, file system, Altair images, terminal, printer, CP/M, shelf disks, folder and private shelf, snapshots, PWA

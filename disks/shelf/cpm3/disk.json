@@ -1,0 +1,10 @@
+{
+ "name": "CP/M 3",
+ "format": "dsdd5",
+ "description": "CP/M Plus, non-banked: about 53K for programs, drives A: to D: and I:. Boots from this disk in A:. Press ^C or reset: the loader starts. GEN.SUB rebuilds CPM3.SYS from BIOS3.ASM.",
+ "credit": "CP/M 3 by Digital Research, free under the DRDOS, Inc. licence (the build with the year 2000 fixes is John Elliott's); the BIOS, loader and boot sector are DigitalRerun's, MIT.",
+ "licence": "DRDOS, Inc. grant; MIT",
+ "category": "System",
+ "system": "SYSTEM.BIN",
+ "text": ["GENCPM.DAT"]
+}

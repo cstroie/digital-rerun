@@ -131,13 +131,16 @@ function buildShelf() {
         const meta = JSON.parse(fs.readFileSync(path.join(dir, 'disk.json'), 'utf8'));
         if (meta.bbcbasic) tokenizeBbc(dir);
         if (meta.play) writePlay(dir, meta.play);
-        const names = fs.readdirSync(dir).filter(f => f !== 'disk.json').sort();
+        // a bootable disk keeps the bytes of its system tracks in a file beside its files (not on the disk)
+        const names = fs.readdirSync(dir).filter(f => f !== 'disk.json' && f !== meta.system).sort();
         const entry = { id, ...meta, files: names.map(n => ({ name: n, path: `disks/shelf/${id}/${n}` })) };
+        if (meta.system) entry.system = `disks/shelf/${id}/${meta.system}`;
         delete entry.bbcbasic;
         delete entry.play;
         // It must fit: build it as the page will.
         const disk = new Disk(entry.format);
         const fsys = new CpmFs(disk);
+        if (meta.system) fsys.writeSystem(new Uint8Array(fs.readFileSync(path.join(dir, meta.system))));
         for (const n of names) {
             const data = fs.readFileSync(path.join(dir, n));
             fsys.write(n, isText(entry, n, data) ? toCpmText(data) : data);

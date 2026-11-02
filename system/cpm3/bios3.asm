@@ -7,13 +7,12 @@
 ;	controller reports which), I: a 4 MB hard disk. The controller
 ;	moves 128-byte records, so the BDOS needs no sector blocking.
 ;
-;	Assemble with M80, link with LINK as BIOS3.SPR (tools/build-cpm3.js
-;	does it inside the machine, with the original SCB.MAC edited for
-;	this memory map).
+;	8080 code, assembled with RMAC and linked with LINK as BIOS3.SPR
+;	(tools/build-cpm3.js does it inside the machine, as GEN.SUB does on
+;	the disk): RMAC BIOS3, LINK BIOS3[OS]=BIOS3,SCB, GENCPM.
 ;
 ;	Copyright (c) 2026 Costin Stroie, MIT licence.
 
-	.z80
 
 ;	I/O ports
 cons	equ	0		;console status: 0FFh when a key waits
@@ -54,96 +53,96 @@ baud$none	equ	0
 	cseg
 
 ;	jump table
-	jp	boot		;cold start
-warmpt:	jp	wboot		;warm start
-	jp	const		;console input status
-	jp	conin		;console character in
-	jp	conout		;console character out
-	jp	list		;list character out
-	jp	auxout		;aux character out
-	jp	auxin		;aux character in
-	jp	home		;move to track 0
-	jp	seldsk		;select disk
-	jp	settrk		;set track
-	jp	setsec		;set sector
-	jp	setdma		;set DMA address
-	jp	read		;read sector
-	jp	write		;write sector
-	jp	listst		;list status
-	jp	sectrn		;sector translate
-	jp	conost		;console output status
-	jp	auxist		;aux input status
-	jp	auxost		;aux output status
-	jp	devtbl		;character device table
-	jp	devini		;initialise a character device
-	jp	drvtbl		;disk drive table
-	jp	multio		;multi-sector count
-	jp	flush		;flush buffers
-	jp	move		;memory to memory
-	jp	time		;time and date
-	jp	selmem		;select bank
-	jp	setbnk		;set bank for DMA
-	jp	xmove		;set banks for a move
-	jp	0		;reserved
-	jp	0
-	jp	0
+	jmp boot	;cold start
+warmpt:	jmp wboot	;warm start
+	jmp const	;console input status
+	jmp conin	;console character in
+	jmp conout	;console character out
+	jmp list	;list character out
+	jmp auxout	;aux character out
+	jmp auxin	;aux character in
+	jmp home	;move to track 0
+	jmp seldsk	;select disk
+	jmp settrk	;set track
+	jmp setsec	;set sector
+	jmp setdma	;set DMA address
+	jmp read	;read sector
+	jmp write	;write sector
+	jmp listst	;list status
+	jmp sectrn	;sector translate
+	jmp conost	;console output status
+	jmp auxist	;aux input status
+	jmp auxost	;aux output status
+	jmp devtbl	;character device table
+	jmp devini	;initialise a character device
+	jmp drvtbl	;disk drive table
+	jmp multio	;multi-sector count
+	jmp flush	;flush buffers
+	jmp move	;memory to memory
+	jmp time	;time and date
+	jmp selmem	;select bank
+	jmp setbnk	;set bank for DMA
+	jmp xmove	;set banks for a move
+	jmp 0	;reserved
+	jmp 0
+	jmp 0
 
 ;	cold start: CON for the console, LPT for the list device, PTR and PTP for aux
-boot:	ld	hl,8000h
-	ld	(@civec),hl
-	ld	(@covec),hl
-	ld	hl,4000h
-	ld	(@lovec),hl
-	ld	hl,2000h
-	ld	(@aivec),hl
-	ld	hl,1000h
-	ld	(@aovec),hl
-	ld	b,1		;1: say hello
-	jp	wboot1
+boot:	lxi h,8000h
+	shld @civec
+	shld @covec
+	lxi h,4000h
+	shld @lovec
+	lxi h,2000h
+	shld @aivec
+	lxi h,1000h
+	shld @aovec
+	mvi b,1	;1: say hello
+	jmp wboot1
 
 ;	warm start: page zero again, then the CCP from CCP.COM on A:
-wboot:	ld	b,0
-wboot1:	ld	sp,bstack
-	ld	hl,warmpt
-	ld	(bootram+1),hl
-	ld	hl,(@mxtpa)
-	ld	(bdos+1),hl
-	ld	a,0c3h
-	ld	(bootram),a
-	ld	(bdos),a
-	ld	a,b
-	or	a
-	jr	z,ldccp
-	ld	de,signon
-	call	printf
-ldccp:	xor	a
-	ld	(ccpfcb+15),a	;extent 0
-	ld	hl,0
-	ld	(fcbnr),hl	;from the start
-	ld	de,ccpfcb
-	ld	c,open
-	call	bdos
-	ld	de,opnmsg
-	inc	a
-	jr	z,prterr
-	ld	de,ccp
-	ld	c,dma
-	call	bdos
-	ld	de,128
-	ld	c,multisec
-	call	bdos		;up to 16K at once
-	ld	de,ccpfcb
-	ld	c,readseq
-	call	bdos
-	ld	de,iomsg
-	inc	a
-	jp	nz,ccp
-prterr:	call	printf
-	ld	c,getch
-	call	bdos
-	jp	boot
-printf:	ld	c,print
-	jp	bdos
+wboot:	mvi b,0
+wboot1:	lxi sp,bstack
+	lxi h,warmpt
+	shld bootram+1
+	lhld @mxtpa
+	shld bdos+1
+	mvi a,0c3h
+	sta bootram
+	sta bdos
+	mov a,b
+	ora a
+	jz ldccp
+	lxi d,signon
+	call printf
+ldccp:	xra a
+	sta ccpfcb+15	;extent 0
+	lxi h,0
+	shld fcbnr	;from the start
+	lxi d,ccpfcb
+	mvi c,open
+	call bdos
+	lxi d,opnmsg
+	inr a
+	jz prterr
+	lxi d,ccp
+	mvi c,dma
+	call bdos
+	lxi d,128
+	mvi c,multisec
+	call bdos	;up to 16K at once
+	lxi d,ccpfcb
+	mvi c,readseq
+	call bdos
+	lxi d,iomsg
+	inr a
+	jnz ccp
+prterr:	call printf
+	mvi c,getch
+	call bdos
+	jmp boot
+printf:	mvi c,print
+	jmp bdos
 
 	ds	16
 bstack:
@@ -157,7 +156,7 @@ iomsg:	db	cr,lf,'BIOS error: CCP.COM does not read',cr,lf,'$'
 
 ;	console and other character devices: 0 CRT, 1 LPT, 2 PTR, 3 PTP;
 ;	a vector has bit 15 for device 0, bit 14 for device 1 ...
-devtbl:	ld	hl,ctbla
+devtbl:	lxi h,ctbla
 	ret
 devini:	ret
 ctbla:	db	'CRT   ',mb$in$out,baud$none
@@ -166,169 +165,169 @@ ctbla:	db	'CRT   ',mb$in$out,baud$none
 	db	'PTP   ',mb$output,baud$none
 	db	0
 
-conout:	ld	hl,(@covec)
-	jr	out$scan
-auxout:	ld	hl,(@aovec)
-	jr	out$scan
-list:	ld	hl,(@lovec)
+conout:	lhld @covec
+	jmp out$scan
+auxout:	lhld @aovec
+	jmp out$scan
+list:	lhld @lovec
 out$scan:
-	ld	b,0
+	mvi b,0
 co$next:
-	add	hl,hl
-	jr	nc,not$out
-	push	hl
-	push	bc
-	call	?co
-	pop	bc
-	pop	hl
+	dad h
+	jnc not$out
+	push h
+	push b
+	call ?co
+	pop b
+	pop h
 not$out:
-	inc	b
-	ld	a,h
-	or	l
-	jr	nz,co$next
+	inr b
+	mov a,h
+	ora l
+	jnz co$next
 	ret
 
-conost:	ld	hl,(@covec)
-	jr	ost$scan
-auxost:	ld	hl,(@aovec)
-	jr	ost$scan
-listst:	ld	hl,(@lovec)
+conost:	lhld @covec
+	jmp ost$scan
+auxost:	lhld @aovec
+	jmp ost$scan
+listst:	lhld @lovec
 ost$scan:
-	ld	b,0
+	mvi b,0
 cos$next:
-	add	hl,hl
-	jr	nc,not$ost
-	push	hl
-	push	bc
-	call	?cost
-	pop	bc
-	pop	hl
-	or	a
-	ret	z		;one is not ready
+	dad h
+	jnc not$ost
+	push h
+	push b
+	call ?cost
+	pop b
+	pop h
+	ora a
+	rz	;one is not ready
 not$ost:
-	inc	b
-	ld	a,h
-	or	l
-	jr	nz,cos$next
-	ld	a,0ffh
+	inr b
+	mov a,h
+	ora l
+	jnz cos$next
+	mvi a,0ffh
 	ret
 
-const:	ld	hl,(@civec)
-	jr	ist$scan
-auxist:	ld	hl,(@aivec)
+const:	lhld @civec
+	jmp ist$scan
+auxist:	lhld @aivec
 ist$scan:
-	ld	b,0
+	mvi b,0
 cis$next:
-	add	hl,hl
-	jr	nc,not$ist
-	push	hl
-	push	bc
-	call	?cist
-	pop	bc
-	pop	hl
-	or	a
-	ret	nz		;one has a character
+	dad h
+	jnc not$ist
+	push h
+	push b
+	call ?cist
+	pop b
+	pop h
+	ora a
+	rnz	;one has a character
 not$ist:
-	inc	b
-	ld	a,h
-	or	l
-	jr	nz,cis$next
-	xor	a
+	inr b
+	mov a,h
+	ora l
+	jnz cis$next
+	xra a
 	ret
 
-conin:	ld	hl,(@civec)
-	jr	in$scan
-auxin:	ld	hl,(@aivec)
+conin:	lhld @civec
+	jmp in$scan
+auxin:	lhld @aivec
 in$scan:
-	ld	a,h
-	or	l
-	jr	nz,in$some
-	ld	a,1ah		;no device: end of file
+	mov a,h
+	ora l
+	jnz in$some
+	mvi a,1ah	;no device: end of file
 	ret
 in$some:
-	push	hl
-	ld	b,0
+	push h
+	mvi b,0
 ci$next:
-	add	hl,hl
-	jr	nc,not$in
-	push	hl
-	push	bc
-	call	?cist
-	pop	bc
-	pop	hl
-	or	a
-	jr	z,not$in
-	pop	de		;the vector
-	jp	?ci
+	dad h
+	jnc not$in
+	push h
+	push b
+	call ?cist
+	pop b
+	pop h
+	ora a
+	jz not$in
+	pop d	;the vector
+	jmp ?ci
 not$in:
-	inc	b
-	ld	a,h
-	or	l
-	jr	nz,ci$next
-	pop	hl
-	jr	in$scan		;none yet: look again
+	inr b
+	mov a,h
+	ora l
+	jnz ci$next
+	pop h
+	jmp in$scan	;none yet: look again
 
 ;	device B: character in
-?ci:	ld	a,b
-	or	a
-	jr	z,ci0
-	cp	2
-	jr	z,ci2
-	ld	a,1ah
+?ci:	mov a,b
+	ora a
+	jz ci0
+	cpi 2
+	jz ci2
+	mvi a,1ah
 	ret
-ci0:	in	a,(cons)
-	or	a
-	jr	z,ci0
-	in	a,(cond)
-	and	7fh
+ci0:	in cons
+	ora a
+	jz ci0
+	in cond
+	ani 7fh
 	ret
-ci2:	in	a,(rdrd)	;1Ah when the tape has run out
+ci2:	in rdrd	;1Ah when the tape has run out
 	ret
 
 ;	device B: input ready?
-?cist:	ld	a,b
-	or	a
-	jr	z,cist0
-	cp	2
-	ld	a,0ffh
-	ret	z
-	xor	a
+?cist:	mov a,b
+	ora a
+	jz cist0
+	cpi 2
+	mvi a,0ffh
+	rz
+	xra a
 	ret
-cist0:	in	a,(cons)
+cist0:	in cons
 	ret
 
 ;	device B: character C out
-?co:	ld	a,b
-	or	a
-	jr	z,co0
-	cp	1
-	jr	z,co1
-	cp	3
-	ret	nz
-	ld	a,c
-	out	(pund),a
+?co:	mov a,b
+	ora a
+	jz co0
+	cpi 1
+	jz co1
+	cpi 3
+	rnz
+	mov a,c
+	out pund
 	ret
-co0:	ld	a,c
-	out	(cond),a
+co0:	mov a,c
+	out cond
 	ret
-co1:	in	a,(prts)	;wait while off line
-	or	a
-	jr	z,co1
-	ld	a,c
-	out	(prtd),a
+co1:	in prts	;wait while off line
+	ora a
+	jz co1
+	mov a,c
+	out prtd
 	ret
 
 ;	device B: output ready?
-?cost:	ld	a,b
-	cp	1
-	jr	z,cost1
-	ld	a,0ffh
+?cost:	mov a,b
+	cpi 1
+	jz cost1
+	mvi a,0ffh
 	ret
-cost1:	in	a,(prts)
+cost1:	in prts
 	ret
 
 ;	disks. DRVTBL lists the DPHs of A: to P:
-drvtbl:	ld	hl,dtbla
+drvtbl:	lxi h,dtbla
 	ret
 dtbla:	dw	dph0,dph1,dph2,dph3,0,0,0,0
 	dw	dphi,0,0,0,0,0,0,0
@@ -410,98 +409,104 @@ trans:	db	1,7,13,19,25,5,11,17,23,3,9,15,21
 	db	2,8,14,20,26,6,12,18,24,4,10,16,22
 
 ;	select drive C: HL = its DPH, or 0 when there is none or no disk in it
-seldsk:	ld	a,c
-	cp	16
-	jr	nc,selno
-	ld	l,c
-	ld	h,0
-	add	hl,hl
-	ld	de,dtbla
-	add	hl,de
-	ld	e,(hl)
-	inc	hl
-	ld	d,(hl)		;DE = DPH
-	ld	a,d
-	or	e
-	jr	z,selno
-	ld	a,c
-	out	(fdcd),a
-	in	a,(fdcd)	;a disk in it?
-	or	a
-	jr	z,selno
-	ld	a,c
-	cp	8
-	jr	z,seldone	;the hard disk is what it is
-	in	a,(fdcfmt)	;which format is the disk?
-	cp	nfmts
-	jr	nc,selno
-	push	de
-	pop	ix		;IX = DPH
-	add	a,a
-	add	a,a		;4 bytes an entry
-	ld	l,a
-	ld	h,0
-	ld	bc,fmttab
-	add	hl,bc
-	ld	c,(hl)
-	inc	hl
-	ld	b,(hl)		;BC = its skew table
-	inc	hl
-	ld	e,(hl)
-	inc	hl
-	ld	d,(hl)		;DE = its DPB
-	ld	(ix+0),c
-	ld	(ix+1),b
-	ld	(ix+12),e
-	ld	(ix+13),d
-	push	ix
-	pop	hl
+seldsk:	mov a,c
+	cpi 16
+	jnc selno
+	mov l,c
+	mvi h,0
+	dad h
+	lxi d,dtbla
+	dad d
+	mov e,m
+	inx h
+	mov d,m	;DE = DPH
+	mov a,d
+	ora e
+	jz selno
+	mov a,c
+	out fdcd
+	in fdcd	;a disk in it?
+	ora a
+	jz selno
+	mov a,c
+	cpi 8
+	jz seldone	;the hard disk is what it is
+	in fdcfmt	;which format is the disk?
+	cpi nfmts
+	jnc selno
+	push d
+	add a
+	add a	;4 bytes an entry
+	mov l,a
+	mvi h,0
+	lxi b,fmttab
+	dad b
+	mov c,m
+	inx h
+	mov b,m	;BC = its skew table
+	inx h
+	mov e,m
+	inx h
+	mov d,m	;DE = its DPB
+	pop	h		;HL = DPH
+	push	h
+	mov	m,c
+	inx	h
+	mov	m,b
+	push	d
+	lxi	d,11
+	dad	d
+	pop	d
+	mov	m,e
+	inx	h
+	mov	m,d
+	pop	h
 	ret
 seldone:
-	ex	de,hl
+	xchg
 	ret
-selno:	ld	hl,0
-	ret
-
-home:	ld	c,0
-settrk:	ld	a,c
-	out	(fdct),a
+selno:	lxi h,0
 	ret
 
-setsec:	ld	a,c
-	out	(fdcs),a
-	ld	a,b
-	out	(fdcsh),a
+home:	mvi c,0
+settrk:	mov a,c
+	out fdct
 	ret
 
-setdma:	ld	a,c
-	out	(dmal),a
-	ld	a,b
-	out	(dmah),a
+setsec:	mov a,c
+	out fdcs
+	mov a,b
+	out fdcsh
 	ret
 
-read:	xor	a
-	jr	rwop
-write:	ld	a,1
-rwop:	out	(fdcop),a
-	in	a,(fdcst)
-	or	a
-	ret	z
-	ld	a,1		;permanent error
+setdma:	mov a,c
+	out dmal
+	mov a,b
+	out dmah
+	ret
+
+read:	xra a
+	jmp rwop
+write:	mvi a,1
+rwop:	out fdcop
+	in fdcst
+	ora a
+	rz
+	mvi a,1	;permanent error
 	ret
 
 ;	logical sector BC (from 0) to the controller's (from 1) through the table at DE
-sectrn:	ld	a,d
-	or	e
-	jr	z,notran
-	ex	de,hl
-	add	hl,bc
-	ld	l,(hl)
-	ld	h,0
+sectrn:	mov a,d
+	ora e
+	jz notran
+	xchg
+	dad b
+	mov l,m
+	mvi h,0
 	ret
-notran:	ld	h,b
-	ld	l,c
-	inc	hl
+notran:	mov h,b
+	mov l,c
+	inx h
 	ret
 
 ;	the rest has nothing to do on this machine
@@ -510,13 +515,23 @@ selmem:
 setbnk:
 xmove:
 time:	ret
-flush:	xor	a
+flush:	xra a
 	ret
 
 ;	copy BC bytes from DE to HL; leave HL and DE after the ends
-move:	ex	de,hl
-	ldir
-	ex	de,hl
+move:	xchg
+	mov	a,b
+mv1:	ora	c
+	jz	mv2
+	mov	a,m
+	stax	d
+	inx	h
+	inx	d
+	dcx	b
+	mov	a,b
+	jmp	mv1
+mv2:
+	xchg
 	ret
 
 	end

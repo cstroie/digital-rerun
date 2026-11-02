@@ -1,10 +1,10 @@
 ;	DigitalRerun cold-start loader for CP/M 3
 ;
 ;	The boot ROM reads this sector (track 0, sector 1 of A:) into
-;	0000h and starts the CPU there. It reads CPMLDR (LDR.COM, which
+;	0000h and starts the CPU there. It reads CPMLDR (CPMLDR.COM, which
 ;	tools/build-cpm3.js writes behind it, from sector 2 on) into 0100h
 ;	and starts it; CPMLDR then loads CPM3.SYS from the disk's files.
-;	nsects is the size of LDR.COM in records, given by the build.
+;	nsects is the size of CPMLDR.COM in records, given by the build.
 ;
 ;	Copyright (c) 2026 Costin Stroie, MIT licence.
 

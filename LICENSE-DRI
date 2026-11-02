@@ -3,7 +3,13 @@ CP/M 2.2: Digital Research
 
 The CP/M 2.2 CCP and BDOS sources (system/cpm22/), the CP/M 2.2 utilities and
 sources in disks/cpm22/, and the copies of them on disks/cpm22.dsk are
-Digital Research's. They are redistributed under the permission DRDOS, Inc.
+Digital Research's. So are CP/M 3 (CP/M Plus): its source distribution in
+system/cpm3/dri/ (the developers' build directory, cpm3src.zip) and the binaries
+in disks/shelf/cpm3/ (cpm3bin.zip, the build with the year 2000 fixes by John
+Elliott; RMAC, LINK, LIB, SID, XREF, the SCB and the CCP/BDOS objects from
+cpm3on2.zip), all from The Unofficial CP/M Web Site (http://www.cpm.z80.de/source.html
+and binary.html). What DigitalRerun adds to that disk (BIOS3.ASM, LDRBIOS3.ASM,
+BOOT3.ASM, GEN.SUB, CPM3.SYS built from them) is MIT. They are redistributed under the permission DRDOS, Inc.
 gave on 7 July 2022, as published on The Unofficial CP/M Web Site,
 http://www.cpm.z80.de/license.html, and quoted below.
 

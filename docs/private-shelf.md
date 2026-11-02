@@ -38,7 +38,7 @@ misbehaves, that is worth knowing.
 No disk image is made. Each disk is a folder `<out>/<id>/` holding its files, and
 `shelf.json` lists them (`files`: name, path, and `user` for a user area), as the shipped
 `disks/shelf.json` does for the public shelf; the app builds the disk when you insert it.
-An entry with `system` (a file holding the bytes of the system tracks) makes a bootable disk; `tools/build-cpm3.js` writes such an entry for CP/M 3 (`docs/cpm3.md`).
+An entry with `system` (a file holding the bytes of the system tracks) makes a bootable disk; the public shelf's CP/M 3 disk is one (`docs/cpm3.md`).
 A disk image you made yourself can still be added by hand, with `image` and `format` in place of `files`.
 
 ## 2. Serve it

@@ -1,0 +1,2 @@
+rmac ldrbios3
+link cpmldr=cpmldr,scb,ldrbios3

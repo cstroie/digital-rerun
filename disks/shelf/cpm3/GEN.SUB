@@ -1,0 +1,3 @@
+rmac bios3
+link bios3[os]=bios3,scb
+gencpm auto

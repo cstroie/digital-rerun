@@ -277,6 +277,183 @@
   "free": 201728
  },
  {
+  "id": "cpm3",
+  "name": "CP/M 3",
+  "format": "dsdd5",
+  "description": "CP/M Plus, non-banked: about 53K for programs, drives A: to D: and I:. Boots from this disk in A:. Press ^C or reset: the loader starts. GEN.SUB rebuilds CPM3.SYS from BIOS3.ASM.",
+  "credit": "CP/M 3 by Digital Research, free under the DRDOS, Inc. licence (the build with the year 2000 fixes is John Elliott's); the BIOS, loader and boot sector are DigitalRerun's, MIT.",
+  "licence": "DRDOS, Inc. grant; MIT",
+  "category": "System",
+  "system": "disks/shelf/cpm3/SYSTEM.BIN",
+  "text": [
+   "GENCPM.DAT"
+  ],
+  "files": [
+   {
+    "name": "BDOS3.SPR",
+    "path": "disks/shelf/cpm3/BDOS3.SPR"
+   },
+   {
+    "name": "BIOS3.ASM",
+    "path": "disks/shelf/cpm3/BIOS3.ASM"
+   },
+   {
+    "name": "BOOT3.ASM",
+    "path": "disks/shelf/cpm3/BOOT3.ASM"
+   },
+   {
+    "name": "CCP.COM",
+    "path": "disks/shelf/cpm3/CCP.COM"
+   },
+   {
+    "name": "CPM3.SYS",
+    "path": "disks/shelf/cpm3/CPM3.SYS"
+   },
+   {
+    "name": "CPMLDR.REL",
+    "path": "disks/shelf/cpm3/CPMLDR.REL"
+   },
+   {
+    "name": "DATE.COM",
+    "path": "disks/shelf/cpm3/DATE.COM"
+   },
+   {
+    "name": "DEVICE.COM",
+    "path": "disks/shelf/cpm3/DEVICE.COM"
+   },
+   {
+    "name": "DIR.COM",
+    "path": "disks/shelf/cpm3/DIR.COM"
+   },
+   {
+    "name": "DUMP.COM",
+    "path": "disks/shelf/cpm3/DUMP.COM"
+   },
+   {
+    "name": "ED.COM",
+    "path": "disks/shelf/cpm3/ED.COM"
+   },
+   {
+    "name": "ELLIOTT.TXT",
+    "path": "disks/shelf/cpm3/ELLIOTT.TXT"
+   },
+   {
+    "name": "ERASE.COM",
+    "path": "disks/shelf/cpm3/ERASE.COM"
+   },
+   {
+    "name": "GEN.SUB",
+    "path": "disks/shelf/cpm3/GEN.SUB"
+   },
+   {
+    "name": "GENCOM.COM",
+    "path": "disks/shelf/cpm3/GENCOM.COM"
+   },
+   {
+    "name": "GENCPM.COM",
+    "path": "disks/shelf/cpm3/GENCPM.COM"
+   },
+   {
+    "name": "GENCPM.DAT",
+    "path": "disks/shelf/cpm3/GENCPM.DAT"
+   },
+   {
+    "name": "GENLDR.SUB",
+    "path": "disks/shelf/cpm3/GENLDR.SUB"
+   },
+   {
+    "name": "GET.COM",
+    "path": "disks/shelf/cpm3/GET.COM"
+   },
+   {
+    "name": "HELP.COM",
+    "path": "disks/shelf/cpm3/HELP.COM"
+   },
+   {
+    "name": "HELP.HLP",
+    "path": "disks/shelf/cpm3/HELP.HLP"
+   },
+   {
+    "name": "HEXCOM.CPM",
+    "path": "disks/shelf/cpm3/HEXCOM.CPM"
+   },
+   {
+    "name": "LDRBIOS3.ASM",
+    "path": "disks/shelf/cpm3/LDRBIOS3.ASM"
+   },
+   {
+    "name": "LIB.COM",
+    "path": "disks/shelf/cpm3/LIB.COM"
+   },
+   {
+    "name": "LINK.COM",
+    "path": "disks/shelf/cpm3/LINK.COM"
+   },
+   {
+    "name": "PATCH.COM",
+    "path": "disks/shelf/cpm3/PATCH.COM"
+   },
+   {
+    "name": "PIP.COM",
+    "path": "disks/shelf/cpm3/PIP.COM"
+   },
+   {
+    "name": "PUT.COM",
+    "path": "disks/shelf/cpm3/PUT.COM"
+   },
+   {
+    "name": "RENAME.COM",
+    "path": "disks/shelf/cpm3/RENAME.COM"
+   },
+   {
+    "name": "RMAC.COM",
+    "path": "disks/shelf/cpm3/RMAC.COM"
+   },
+   {
+    "name": "SAVE.COM",
+    "path": "disks/shelf/cpm3/SAVE.COM"
+   },
+   {
+    "name": "SCB.ASM",
+    "path": "disks/shelf/cpm3/SCB.ASM"
+   },
+   {
+    "name": "SCB.REL",
+    "path": "disks/shelf/cpm3/SCB.REL"
+   },
+   {
+    "name": "SET.COM",
+    "path": "disks/shelf/cpm3/SET.COM"
+   },
+   {
+    "name": "SETDEF.COM",
+    "path": "disks/shelf/cpm3/SETDEF.COM"
+   },
+   {
+    "name": "SHOW.COM",
+    "path": "disks/shelf/cpm3/SHOW.COM"
+   },
+   {
+    "name": "SID.COM",
+    "path": "disks/shelf/cpm3/SID.COM"
+   },
+   {
+    "name": "SUBMIT.COM",
+    "path": "disks/shelf/cpm3/SUBMIT.COM"
+   },
+   {
+    "name": "TYPE.COM",
+    "path": "disks/shelf/cpm3/TYPE.COM"
+   },
+   {
+    "name": "XREF.COM",
+    "path": "disks/shelf/cpm3/XREF.COM"
+   }
+  ],
+  "size": 310003,
+  "free": 45056
+ },
+ {
   "id": "curses",
   "name": "Curses",
   "format": "dsdd5",

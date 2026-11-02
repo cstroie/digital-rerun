@@ -5,32 +5,39 @@ programs, the same drives as CP/M 2.2 (A: to D: and the hard disk I:), `CCP.COM`
 loaded from A: at each warm start, and CP/M 3's own commands (`DIR`, `PIP`, `SHOW`,
 `SET`, `DEVICE`, `HELP`, `ED` …). Nothing in the emulator changed for it.
 
-**Digital Research's files are not in this repository.** What is here is new
-(MIT): the BIOS, the loader's BIOS, the boot sector and the tool that builds the disk.
-The disk is made from your own copy of the CP/M 3 distribution.
+**It is a disk of the public shelf**: SHELF tab, *CP/M 3*, insert it in A: and press
+`^C` (or reset). The loader starts and reads `CPM3.SYS`.
 
-## Build the disk
+Digital Research's CP/M 3 is free to distribute under the same DRDOS, Inc. grant as
+CP/M 2.2 (`LICENSE-DRI`). It comes from The Unofficial CP/M Web Site
+(<http://www.cpm.z80.de/source.html>):
 
-You need the CP/M 3 disk of the AltairZ80 (SIMH) distribution, `cpm3.dsk` in
-`cpm3.zip` (1,113,536 bytes), or a folder with its files:
+- `system/cpm3/dri/`: the developers' build directory (`cpm3src.zip`), the sources of the
+  CCP, BDOS, BIOS samples and the commands, with `MAKING.DOC`. Reference; it is not built here
+  (the BDOS and the commands are PL/M, whose compiler is not part of this project).
+- `disks/shelf/cpm3/`: the binaries (`cpm3bin.zip`, the build with the year 2000 fixes, and
+  `RMAC`, `LINK`, `LIB`, `SID`, `XREF`, `SCB.REL` from `cpm3on2.zip`).
+
+What is DigitalRerun's (MIT): `system/cpm3/bios3.asm` (the BIOS), `ldrbios3.asm` (the loader's
+BIOS), `boot3.asm` (the boot sector), `disks/shelf/cpm3/GEN.SUB`.
+
+## Build
 
 ```
-node tools/build-cpm3.js <cpm3.dsk | folder> <out> [--category=<name>]
+node tools/build-cpm3.js [--check]
+node tools/build.js            # lists the folder in disks/shelf.json
 ```
 
-The CP/M 3 tools run inside the machine itself, as `SYSGENNB.SUB` does on the real thing:
-`M80`, `LINK` build the BIOS (`system/cpm3/bios3.mac`), `GENCPM` makes `CPM3.SYS`
-(top page of memory `FF`, no banking), `M80` and `L80` build the loader (`CPMLDR` with
-`system/cpm3/ldrbios3.mac`). The boot sector (`system/cpm3/boot3.asm`) and the loader
-are the disk's system tracks, `SYSTEM.BIN`.
+The CP/M 3 tools run inside the machine itself, as `GEN.SUB` does on the finished disk:
+`RMAC` and `LINK` build the BIOS (`BIOS3.SPR`), `GENCPM` makes `CPM3.SYS` (top page of memory
+`FF`, no banking), `RMAC` and `LINK` build the loader (`CPMLDR.COM`). The boot sector and the
+loader are the disk's system tracks, `SYSTEM.BIN`. Written into `disks/shelf/cpm3/`: `CPM3.SYS`,
+`SYSTEM.BIN`, `GENCPM.DAT` (the answers GENCPM was given) and a copy of the BIOS sources;
+`--check` only compares. The test fails when they are stale.
 
-The result is a private catalog (`docs/private-shelf.md`): `<out>/cpm3/` holds the files,
-`<out>/shelf.json` the entry (merged into the catalog already there). Serve `<out>`,
-connect the SHELF tab's *Private shelf* to it and insert *CP/M 3* in A:. The page builds
-the 400K disk (5¼" DSDD) when you insert it; press `^C`, or reset, and the loader starts.
-
-To try it without a server: `CPM3_DSK=<cpm3.dsk> node --test test/cpm3.test.js` builds the
-disk, boots it and runs `DIR`, `PIP`, `TYPE`, `DEVICE` and a warm start.
+On the disk itself, `SUBMIT GEN` rebuilds `CPM3.SYS` from `BIOS3.ASM` (change the BIOS, run it,
+press `^C`), `SUBMIT GENLDR` the loader (`CPMLDR.COM`; the system tracks need `SYSTEM.BIN`'s
+boot sector in front, so that is the tool's).
 
 ## What the BIOS does
 
@@ -41,13 +48,15 @@ disk, boots it and runs `DIR`, `PIP`, `TYPE`, `DEVICE` and a warm start.
   (`system/bios.asm`): 8" SSSD and three 5¼" formats on A: to D:, the 4 MB hard disk on I:.
 - No clock: `DATE` shows the BDOS's default date and `TIME` does nothing. The BIOS has no
   bank switching (`SELMEMORY`, `XMOVE` do nothing), so a banked `CPM3.SYS` cannot run.
+- Written in 8080 code, because RMAC (Digital Research's own assembler) takes nothing else.
 
 ## Notes for changing it
 
 - `GENCPM` rewrites every reference to the System Control Block, so the stock
-  `SCB.MAC` (`scb$base` `0FE00h`) is used unchanged, whatever the real place of the SCB
-  (`F59Ch` here, just under the BIOS).
-- The loader reads `LDR.COM` from sector 2 on, up to 25 records; the boot sector knows 26
+  `SCB.REL` (`scb$base` `0FE00h`) is used unchanged, whatever the real place of the SCB.
+- The loader reads `CPMLDR.COM` from sector 2 on, up to 25 records; the boot sector knows 26
   records a track for the 8" format and 40 for the 5¼" ones.
-- A shelf entry may carry `system`, a file with the bytes of the system tracks
-  (`Shelf.buildDisk` writes them before the files).
+- A shelf disk's `disk.json` may name `system`, a file with the bytes of the system tracks
+  (kept beside the files, not on the disk); `text` lists names to convert as CP/M text
+  (`GENCPM.DAT`). `Shelf.buildDisk` writes the tracks before the files.
+- `INITDIR.COM` is missing from the distribution (it is PL/I); `SET [...]` and everything else works.

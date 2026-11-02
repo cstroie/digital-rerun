@@ -281,7 +281,7 @@
   "name": "CP/M 3",
   "format": "dsdd5",
   "description": "CP/M Plus, non-banked: about 53K for programs, drives A: to D: and I:. Boots from this disk in A:. Press ^C or reset: the loader starts. GEN.SUB rebuilds CPM3.SYS from BIOS3.ASM.",
-  "credit": "CP/M 3 by Digital Research, free under the DRDOS, Inc. licence (the build with the year 2000 fixes is John Elliott's); the BIOS, loader and boot sector are DigitalRerun's, MIT.",
+  "credit": "CP/M 3 by Digital Research, free under the DRDOS, Inc. licence (the build with the year 2000 fixes is John Elliott's); the BIOS, loader and boot sector are DigitalRerun's, MIT. DSTAT80 (disk status, 2015), LS and SURVEY (system survey, 1982) are small free utilities added to the disk.",
   "licence": "DRDOS, Inc. grant; MIT",
   "category": "System",
   "system": "disks/shelf/cpm3/SYSTEM.BIN",
@@ -324,6 +324,10 @@
    {
     "name": "DIR.COM",
     "path": "disks/shelf/cpm3/DIR.COM"
+   },
+   {
+    "name": "DSTAT80.COM",
+    "path": "disks/shelf/cpm3/DSTAT80.COM"
    },
    {
     "name": "DUMP.COM",
@@ -390,6 +394,10 @@
     "path": "disks/shelf/cpm3/LINK.COM"
    },
    {
+    "name": "LS.COM",
+    "path": "disks/shelf/cpm3/LS.COM"
+   },
+   {
     "name": "PATCH.COM",
     "path": "disks/shelf/cpm3/PATCH.COM"
    },
@@ -442,6 +450,10 @@
     "path": "disks/shelf/cpm3/SUBMIT.COM"
    },
    {
+    "name": "SURVEY.COM",
+    "path": "disks/shelf/cpm3/SURVEY.COM"
+   },
+   {
     "name": "TYPE.COM",
     "path": "disks/shelf/cpm3/TYPE.COM"
    },
@@ -450,8 +462,8 @@
     "path": "disks/shelf/cpm3/XREF.COM"
    }
   ],
-  "size": 310003,
-  "free": 45056
+  "size": 322106,
+  "free": 30720
  },
  {
   "id": "curses",

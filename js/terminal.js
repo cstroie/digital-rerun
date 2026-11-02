@@ -12,7 +12,8 @@
  *   ESC     7 8 (save/restore cursor), D (index), M (reverse index),
  *           E (next line), c (reset), = > (keypad, ignored),
  *           ( ) charset (ignored), # 8 (screen of E)
- *   CSI     A B C D (move), H f (position), J K (erase), m (bold, dim,
+ *   CSI     A B C D (move), H f (position), J K (erase; K's blanks keep reverse
+ *           video, so a bar of reverse text and spaces stays one bar), m (bold, dim,
  *           underline, blink, reverse), r (scroll region), s u (save,
  *           restore), L M (insert, delete lines), @ P (insert, delete
  *           characters), X (erase characters), n (status/cursor report),
@@ -318,9 +319,10 @@
             for (let r = top; r <= bottom; r++) this.dirty.add(r);
         }
 
-        erase(row, from, to) {
+        /** `attr`: what the blanks carry (a line erase keeps reverse video, see CSI K). */
+        erase(row, from, to, attr = 0) {
             this.chars[row].fill(32, from, to);
-            this.attrs[row].fill(0, from, to);
+            this.attrs[row].fill(attr, from, to);
             this.dirty.add(row);
         }
 
@@ -371,9 +373,10 @@
                 }
                 case 'K': {
                     const mode = Number.isNaN(list[0]) ? 0 : list[0];
-                    if (mode === 0) this.erase(this.y, this.x, this.cols);
-                    else if (mode === 1) this.erase(this.y, 0, this.x + 1);
-                    else this.erase(this.y, 0, this.cols);
+                    const keep = this.attr & REVERSE;    // erased blanks stay reverse: a status bar is "reverse, text, erase to end of line"
+                    if (mode === 0) this.erase(this.y, this.x, this.cols, keep);
+                    else if (mode === 1) this.erase(this.y, 0, this.x + 1, keep);
+                    else this.erase(this.y, 0, this.cols, keep);
                     break;
                 }
                 case 'm':

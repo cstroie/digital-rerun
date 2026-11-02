@@ -127,3 +127,14 @@ test('VT52: reverse line feed scrolls down, LF scrolls up, ESC < becomes a VT100
     assert.equal(t.mode, 'vt100');
     assert.equal(t.text().trim(), '');
 });
+
+test('erase to end of line keeps reverse video (a status bar), other erases do not', () => {
+    const t = term('\x1b[7m Room\x1b[1;10H\x1b[K\x1b[0m');
+    assert.equal(t.attrs[0][0], ATTR.REVERSE);
+    assert.equal(t.attrs[0][20], ATTR.REVERSE);
+    assert.equal(t.attrs[0][79], ATTR.REVERSE);
+    t.writeString('\x1b[2;1H\x1b[7m\x1b[J\x1b[0m');
+    assert.equal(t.attrs[1][0], 0);
+    t.writeString('\x1b[1;1H\x1b[0m\x1b[K');
+    assert.equal(t.attrs[0][0], 0);
+});

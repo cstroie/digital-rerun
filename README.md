@@ -97,6 +97,7 @@ The I/O ports follow z80pack for the disk controller:
 | 13 | | command: 0 read, 1 write |
 | 14 | status of the last command (0 = ok) | |
 | 18 | the format of the disk in the selected drive (0 8", 1–3 the 5¼" ones, 4 hard disk) | |
+| 20 | the next byte of the latched date and time record (`0FFh` before a latch) | latch the date and time and rewind the record ([docs/cpm3.md](docs/cpm3.md)) |
 
 ### The shelf
 
@@ -255,7 +256,7 @@ Releasing a change: raise `VERSION` in [`js/version.js`](js/version.js) and run 
 index.html, css/, js/app.js       the page
 js/z80.js                         the Z80 core (vendored)
 js/machine.js                     RAM, ports, run loop, boot ROM, machine state
-js/devices/fdc.js, serial.js      disk controller, console and printer ports
+js/devices/fdc.js, serial.js, clock.js   disk controller, console and printer ports, the date and time port (docs/cpm3.md)
 js/terminal.js                    VT100, VT52 and ADM-3A terminal and its view
 js/fx80.js, js/font9.js           printer, paper view, dot matrix font
 js/cpmfs.js                       CP/M file system on a disk image, from outside the machine

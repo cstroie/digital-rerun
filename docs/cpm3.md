@@ -46,8 +46,9 @@ boot sector in front, so that is the tool's).
   so the BDOS does no sector blocking; the 5¼" formats and the hard disk need no more.
 - The disk's format decides its parameter block, as in the CP/M 2.2 BIOS
   (`system/bios.asm`): 8" SSSD and three 5¼" formats on A: to D:, the 4 MB hard disk on I:.
-- No clock: `DATE` shows the BDOS's default date and `TIME` does nothing. The BIOS has no
-  bank switching (`SELMEMORY`, `XMOVE` do nothing), so a banked `CPM3.SYS` cannot run.
+- A clock: the BIOS's `TIME` reads the machine's clock port (below), so `DATE` and `DATE CONTINUOUS`
+  show the host's date and time, moving with the machine. The clock is the host's: `DATE SET` is accepted
+  and ignored. The BIOS has no bank switching (`SELMEMORY`, `XMOVE` do nothing), so a banked `CPM3.SYS` cannot run.
 - Written in 8080 code, because RMAC (Digital Research's own assembler) takes nothing else.
 
 ## Notes for changing it
@@ -60,3 +61,23 @@ boot sector in front, so that is the tool's).
   (kept beside the files, not on the disk); `text` lists names to convert as CP/M text
   (`GENCPM.DAT`). `Shelf.buildDisk` writes the tracks before the files.
 - `INITDIR.COM` is missing from the distribution (it is PL/I); `SET [...]` and everything else works.
+
+## The clock port
+
+`js/devices/clock.js`, read only, for any program (a CP/M 2.2 program or a game as well):
+
+```
+OUT 20,n    latch the date and time and rewind the record
+IN  20      the next byte of the latched record (0FFh before a latch and after the record)
+```
+
+The record, 15 bytes: `1` (a clock is here); the days since 31 Dec 1977 (1 Jan 1978 is 1),
+2 bytes, low first (CP/M 3's date); hour, minute, second (BCD); year (2 bytes, low first),
+month, day, weekday (0 Sunday); and the milliseconds since reset, 4 bytes, low first,
+wrapping at 2^32, for timing. The record is latched whole, so the minute and the second are of
+one moment. A machine without the port answers `0FFh` to the first read.
+
+The time is the host's local time at reset, moved on by the machine's own time: its T-states at
+the speed setting (4 MHz is one second per 4,000,000), so a paused or stepped machine stands
+still, a faster machine's seconds are shorter, and a snapshot keeps the counter. There is no
+interrupt: a program polls the counter (a timed wait is a loop on it). Speed *Max* counts as 4 MHz.

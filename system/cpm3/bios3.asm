@@ -30,6 +30,7 @@ fdcst	equ	14		;status: 0 ok
 dmal	equ	15		;DMA address, low byte
 dmah	equ	16		;DMA address, high byte
 fdcfmt	equ	18		;IN: format of the selected drive's disk
+clk	equ	20		;OUT: latch the date and time; IN: the next byte of it
 
 bootram	equ	0000h
 bdos	equ	0005h
@@ -49,6 +50,7 @@ mb$in$out	equ	03h
 baud$none	equ	0
 
 	extrn	@civec, @covec, @aivec, @aovec, @lovec, @mxtpa
+	extrn	@date, @hour, @min, @sec
 
 	cseg
 
@@ -514,7 +516,27 @@ multio:
 selmem:
 setbnk:
 xmove:
-time:	ret
+	ret
+
+;	time and date: the host's, from the clock port (js/devices/clock.js)
+time:	mov a,c
+	ora a
+	rnz		;setting the clock: it is the host's
+	out clk		;latch: status 1, days, hour, minute, second (BCD)
+	in clk
+	cpi 1
+	rnz		;no clock port: the date stays what it was
+	in clk
+	sta @date
+	in clk
+	sta @date+1
+	in clk
+	sta @hour
+	in clk
+	sta @min
+	in clk
+	sta @sec
+	ret
 flush:	xra a
 	ret
 

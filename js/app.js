@@ -50,6 +50,7 @@
         $('resume').checked = settings.resume;
         $('sound').checked = settings.sound;
         sound.enabled = settings.sound;
+        machine.clock.hz = (settings.speed || 4) * 1000000;      // the machine's seconds follow its speed
         $('crt').classList.toggle('amber', settings.phosphor === 'amber');
         $('crt').classList.toggle('white', settings.phosphor === 'white');
     }

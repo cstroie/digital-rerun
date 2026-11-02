@@ -40,6 +40,8 @@ test('the CP/M 3 shelf disk boots, and runs its commands', { timeout: 300000 }, 
     assert.equal(entry.licence, 'DRDOS, Inc. grant; MIT');
     const disk = await buildDisk(entry, async p => new Uint8Array(fs.readFileSync(path.join(ROOT, p.slice('http://h/'.length)))));
     const m = new Machine();
+    const at = new Date(2026, 10, 2, 9, 30, 15).getTime();
+    m.clock.now = () => at;
     m.out = '';
     m.console.output = b => { m.out += String.fromCharCode(b); };
     m.fdc.mount(0, disk);
@@ -54,6 +56,10 @@ test('the CP/M 3 shelf disk boots, and runs its commands', { timeout: 300000 }, 
     assert.match(cmd('PIP B:=A:SHOW.COM'), /B>|A>/);
     assert.match(cmd('DIR B:'), /SHOW\s+COM/);
     assert.match(cmd('TYPE BIOS3.ASM [NOPAGE]'), /DigitalRerun BIOS for CP\/M 3/);
+    // the BIOS reads the host's clock (js/devices/clock.js): DATE shows it, and it moves with the machine
+    assert.match(cmd('DATE'), /Mon 11\/02\/2026 09:3[01]:\d\d/);
+    m.cycles += 4000000 * 120;                                  // two minutes of the machine's time
+    assert.match(cmd('DATE'), /Mon 11\/02\/2026 09:32:\d\d/);
     assert.match(cmd('DEVICE'), /CONOUT: = CRT/);
     cmd('');                                                // leave DEVICE's question
     assert.match(cmd('SHOW'), /A: RW, Space:/);

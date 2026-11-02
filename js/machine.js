@@ -1,6 +1,6 @@
 /*
- * machine.js: a Z80 with 64K of RAM, a console, a printer and a disk
- * controller on I/O ports.
+ * machine.js: a Z80 with 64K of RAM, a console, a printer, a clock and a
+ * disk controller on I/O ports.
  *
  * Reset works like z80pack's: the "boot ROM" reads sector 1 of track 0 of
  * drive A: into 0000h and starts the CPU there. That sector is the loader
@@ -15,6 +15,7 @@
     const Z80 = node ? require('./z80.js') : root.DigitalRerun.Z80;
     const { FDC, Disk } = node ? require('./devices/fdc.js') : root.DigitalRerun;
     const { Console, PrinterPort, TapeReader, TapePunch } = node ? require('./devices/serial.js') : root.DigitalRerun;
+    const { Clock } = node ? require('./devices/clock.js') : root.DigitalRerun;
 
     const IDLE_GAP = 20000;
 
@@ -27,6 +28,7 @@
             this.punch = new TapePunch();
             this.fdc = new FDC(this.memory);
             this.cycles = 0;
+            this.clock = new Clock(this);
             /** Addresses the debugger stops at; empty: the run loop never looks. */
             this.breakpoints = new Set();
             /** Called with the address when a breakpoint stops the machine. */
@@ -53,6 +55,7 @@
                 case 2: return this.printer.status();
                 case 4: return this.reader.read();
                 case 10: case 14: case 18: return this.fdc.in(port);
+                case 20: return this.clock.read();
                 default: return 0xFF;
             }
         }
@@ -63,6 +66,7 @@
                 case 1: this.console.write(value); break;
                 case 3: this.printer.write(value); break;
                 case 5: this.punch.write(value); break;
+                case 20: this.clock.latch(); break;
                 case 10: case 11: case 12: case 13: case 15: case 16: case 17:
                     this.fdc.out(port, value);
                     break;
@@ -74,6 +78,7 @@
             this.memory.fill(0);
             this.cpu.reset();
             this.cycles = 0;
+            this.clock.reset();
             const fdc = this.fdc;
             Object.assign(fdc, { drive: 0, track: 0, sector: 1, dma: 0x0000 });
             const status = fdc.command(0);
@@ -93,6 +98,7 @@
                 memory: this.memory.slice(),
                 cpu: this.cpu.getState(),
                 cycles: this.cycles,
+                clock: this.clock.getState(),
                 state: this.state,
                 fdc: { drive: f.drive, track: f.track, sector: f.sector, dma: f.dma, status: f.status },
                 printerOnline: this.printer.online,
@@ -104,6 +110,7 @@
             this.memory.set(s.memory);
             this.cpu.setState(s.cpu);
             this.cycles = s.cycles;
+            this.clock.setState(s.clock);
             this.state = s.state;
             Object.assign(this.fdc, s.fdc);
             this.printer.online = s.printerOnline;
@@ -159,16 +166,19 @@
                     const pc = cpu.get_pc();
                     if (!first && bp.has(pc)) { this.pause(); if (this.onBreak) this.onBreak(pc); break; }
                     first = false;
-                    used += cpu.run_instruction();
+                    const t = cpu.run_instruction();
+                    used += t;
+                    this.cycles += t;
                     if (con.idlePolls > 64) break;
                 }
             } else {
                 while (used < budget) {
-                    used += cpu.run_instruction();
+                    const t = cpu.run_instruction();
+                    used += t;
+                    this.cycles += t;       // current at every port read: the clock counts on it
                     if (con.idlePolls > 64) break;
                 }
             }
-            this.cycles += used;
             const polls = con.idlePolls;
             this.waiting = polls > 64;
             this.idle = this.waiting || (polls >= 4 && used / polls < IDLE_GAP);

@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "DigitalRerun: CP/M 2.2 on a Z80",
+  "name": "DigitalRerun: CP/M 2.2 and 3 on a Z80",
   "short_name": "DigitalRerun",
-  "description": "A CP/M 2.2 computer in the browser: Z80, 64K, the original CCP and BDOS, 8-inch drives and an FX-80 dot matrix printer.",
+  "description": "A CP/M 2.2 and CP/M 3 computer in the browser: Z80, 64K, the original CCP and BDOS, 8-inch drives and an FX-80 dot matrix printer.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

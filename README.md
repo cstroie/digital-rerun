@@ -2,7 +2,7 @@
 
 # DigitalRerun
 
-### CP/M 2.2, running again: a whole 1980s computer in your browser
+### CP/M 2.2 and CP/M 3, running again: a whole 1980s computer in your browser
 
 [![test](https://github.com/cstroie/digital-rerun/actions/workflows/test.yml/badge.svg)](https://github.com/cstroie/digital-rerun/actions/workflows/test.yml)
 [![live demo](https://img.shields.io/badge/live-cstroie.github.io%2Fdigital-rerun-9dff8a?labelColor=0d0f0c)](https://cstroie.github.io/digital-rerun/)
@@ -16,13 +16,13 @@
 
 </div>
 
-DigitalRerun is a complete CP/M 2.2 machine that runs in a web page:
+DigitalRerun is a complete CP/M machine that runs in a web page, with a choice of **CP/M 2.2** (the default) or **CP/M 3** (CP/M Plus, from the shelf):
 - a **Z80 with 64K** of RAM;
 - **8" floppy drives** and a 4 MB hard disk;
 - a **VT100**, **VT52** or **ADM-3A** console with a glowing phosphor screen;
 - an **FX-80 dot matrix printer** that strikes its dots onto fanfold paper, tractor holes and all.
 
-It is not a CP/M look-alike. The machine boots the **original CP/M 2.2 CCP and BDOS**, byte for byte as they shipped, read by a real BIOS from the system tracks of an 8" disk. Everything CP/M did then, it does here: `PIP`, `ED`, `ASM`, `DDT`, `SUBMIT`. You can even rebuild the BIOS inside CP/M with the 1980 recipe and boot the result.
+It is not a CP/M look-alike. The machine boots the **original CP/M 2.2 CCP and BDOS**, byte for byte as they shipped, read by a real BIOS from the system tracks of an 8" disk. Everything CP/M did then, it does here: `PIP`, `ED`, `ASM`, `DDT`, `SUBMIT`. You can even rebuild the BIOS inside CP/M with the 1980 recipe and boot the result. CP/M 3 is there too: insert its disk from the shelf in A:, press `^C`, and Digital Research's own CP/M Plus boots (see [docs/cpm3.md](docs/cpm3.md)).
 
 It is a single web page with no dependencies, no build step and no server. It installs as an app, works offline, and keeps your disks and your place between visits.
 
@@ -104,6 +104,7 @@ The SHELF tab is the disk collection. INSERT puts a fresh copy into a drive: flo
 | Disk | What it is | Try |
 |---|---|---|
 | CP/M 2.2 | the system disk | `DIR` |
+| CP/M 3 | CP/M Plus, non-banked, a bootable disk: insert it in A:, press `^C` | `DIR`, `SHOW`, `DATE` |
 | Zork I, II, III | the Infocom trilogy (MIT licence) and the Vezza interpreter | `PLAY` (or `VEZZA ZORK2.Z3`) |
 | Colossal Cave, Moonglow, Cat's Eye, The Fantasy Dimension, Submarine Sabotage | five freeware Z3 adventures, one disk each | `PLAY` |
 | Curses, Aisle, 9:05, Photopia, Shade, Spider and Web, Suveh Nux | seven freeware Z5 games from the IF Archive, one disk each | `PLAY` |

@@ -1,0 +1,9 @@
+{
+ "name": "Z80-μLM",
+ "format": "sssd8",
+ "description": "Z80-μLM by HarryR: a tiny language model, 2-bit weights and 16-bit integer maths, in a 40K .COM file. Chat with CHAT, or play GUESS, a game of 20 questions the model answers with YES, NO or MAYBE. Type PLAY (GUESS), or CHAT.",
+ "credit": "HarryR (github.com/HarryR/z80ai); MIT or Apache-2.0, as you see fit.",
+ "licence": "MIT or Apache-2.0",
+ "category": "Games",
+ "play": "GUESS"
+}

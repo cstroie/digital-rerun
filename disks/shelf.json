@@ -989,6 +989,35 @@
   "free": 114688
  },
  {
+  "id": "z80ulm",
+  "name": "Z80-μLM",
+  "format": "sssd8",
+  "description": "Z80-μLM by HarryR: a tiny language model, 2-bit weights and 16-bit integer maths, in a 40K .COM file. Chat with CHAT, or play GUESS, a game of 20 questions the model answers with YES, NO or MAYBE. Type PLAY (GUESS), or CHAT.",
+  "credit": "HarryR (github.com/HarryR/z80ai); MIT or Apache-2.0, as you see fit.",
+  "licence": "MIT or Apache-2.0",
+  "category": "Games",
+  "files": [
+   {
+    "name": "CHAT.COM",
+    "path": "disks/shelf/z80ulm/CHAT.COM"
+   },
+   {
+    "name": "GUESS.COM",
+    "path": "disks/shelf/z80ulm/GUESS.COM"
+   },
+   {
+    "name": "PLAY.COM",
+    "path": "disks/shelf/z80ulm/PLAY.COM"
+   },
+   {
+    "name": "README.TXT",
+    "path": "disks/shelf/z80ulm/README.TXT"
+   }
+  ],
+  "size": 80148,
+  "free": 162816
+ },
+ {
   "id": "zork1",
   "name": "Zork I",
   "format": "sssd8",

@@ -34,7 +34,7 @@ test('every shelf entry is listed with what the page needs, and its files exist'
         if (e.image) assert.ok(fs.existsSync(path.join(ROOT, e.image)), e.image);
         else for (const f of e.files) assert.ok(fs.existsSync(path.join(ROOT, f.path)), f.path);
     }
-    assert.deepEqual(shelf.map(e => e.id).sort(), ['905', 'advent', 'aisle', 'bbcbasic', 'bdsc', 'catseye', 'cpm22', 'cpm3', 'curses', 'fantasy', 'forth83', 'hitech', 'moonglow', 'photopia', 'shade', 'spiderweb', 'subsab', 'suvehnux', 'zork1', 'zork2', 'zork3']);
+    assert.deepEqual(shelf.map(e => e.id).sort(), ['905', 'advent', 'aisle', 'bbcbasic', 'bdsc', 'catseye', 'cpm22', 'cpm3', 'curses', 'fantasy', 'forth83', 'hitech', 'moonglow', 'photopia', 'shade', 'spiderweb', 'subsab', 'suvehnux', 'z80ulm', 'zork1', 'zork2', 'zork3']);
 });
 
 test('each shelf disk builds as the page builds it, every file on it', async () => {
@@ -111,4 +111,15 @@ test('PLAY on the Zork I disk', async () => {
     const cmd = text => { m.out = ''; m.console.paste(text + '\r'); settle(); return m.out; };
     cmd('D:');
     assert.match(cmd('PLAY'), /ZORK I/i);
+});
+
+test('Z80-μLM: CHAT answers a line, and PLAY starts GUESS', async () => {
+    const m = await withDisk('z80ulm', 1);
+    m.cmd('B:');
+    m.cmd('CHAT');
+    assert.match(m.cmd('hello'), /\r\nHI\r\n/);
+    const g = await withDisk('z80ulm', 1);
+    g.cmd('B:');
+    assert.match(g.cmd('PLAY'), /> $/);
+    assert.match(g.cmd('does it have a trunk'), /\r\n(YES|NO|MAYBE)\r\n/);
 });

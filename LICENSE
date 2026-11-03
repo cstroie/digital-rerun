@@ -78,6 +78,10 @@ This project contains software from multiple sources with different licenses:
    - Used with Zork games
    - **License**: GPL-2.0-or-later
 
+10. **Z80-μLM**: HarryR (github.com/HarryR/z80ai)
+   - `disks/shelf/z80ulm/` directory (CHAT.COM and GUESS.COM, release v0.2, unchanged)
+   - **License**: MIT or Apache-2.0, as its README says
+
 **Trademarks and Acknowledgments:**
 - CP/M was created by Gary Kildall at Digital Research, Inc.; rights now belong to DRDOS, Inc.
 - Epson and FX-80 are trademarks of Seiko Epson Corporation
@@ -106,6 +110,7 @@ For license information about specific files or components, see their individual
   disks/shelf/bbcbasic/        BBC BASIC (Z80), R.T. Russell, zlib licence (BBCBASIC.LIC);
                                the .BAS/.BBC examples are this project's (MIT)
   disks/shelf/bdsc/            BDS C 1.60, Leor Zolman, public domain (HELLO.C is this project's)
+  disks/shelf/z80ulm/          Z80-μLM, HarryR, MIT or Apache-2.0 (CHAT.COM, GUESS.COM, unchanged)
   disks/shelf/hitech/          HI-TECH C 3.09-21, HI-TECH Software, free for any use
                                (HITECH.LIC); updates by Tony Nicholson (HELLO.C is this project's)
   js/z80.js            Z80.js, MIT licence, Molly Howell and contributors

@@ -138,3 +138,10 @@ test('erase to end of line keeps reverse video (a status bar), other erases do n
     t.writeString('\x1b[1;1H\x1b[0m\x1b[K');
     assert.equal(t.attrs[0][0], 0);
 });
+
+test('ADM-3A: erase to end of line keeps reverse video, erase to end of screen does not', () => {
+    const t = adm('\x1bB0 Room\x1b=  \x1bT\x1bC0\x1b=!!\x1bB0\x1bY\x1bC0');
+    assert.equal(t.attrs[0][0], ATTR.REVERSE);
+    assert.equal(t.attrs[0][79], ATTR.REVERSE);
+    assert.equal(t.attrs[1][0], 0);
+});

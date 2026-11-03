@@ -204,7 +204,7 @@
             const ch = String.fromCharCode(b);
             switch (ch) {
                 case '=': this.state = 'adm-row'; break;
-                case 'T': case 't': this.erase(this.y, this.x, this.cols); break;
+                case 'T': case 't': this.erase(this.y, this.x, this.cols, this.attr & REVERSE); break;   // blanks keep reverse, as CSI K does
                 case 'Y': case 'y':
                     this.erase(this.y, this.x, this.cols);
                     for (let r = this.y + 1; r < this.rows; r++) this.erase(r, 0, this.cols);

@@ -10,9 +10,9 @@
 ![no dependencies](https://img.shields.io/badge/dependencies-none-c9d6c4?labelColor=0d0f0c)
 ![offline PWA](https://img.shields.io/badge/PWA-works%20offline-c9d6c4?labelColor=0d0f0c)
 
-**[▶ Boot it now](https://cstroie.github.io/digital-rerun/)**: no install, no sign-up, no download.
+**[▶ Boot it now](https://cstroie.github.io/digital-rerun/)**: no install, no sign-up, no download. &nbsp;·&nbsp; **[📖 User guide (wiki)](https://github.com/cstroie/digital-rerun/wiki)**
 
-![DigitalRerun: the CP/M prompt, the drives and a page from the dot matrix printer](docs/screenshot.png)
+![DigitalRerun: the CP/M prompt and the drives](docs/screenshot.png)
 
 </div>
 

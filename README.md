@@ -43,8 +43,6 @@ It is a single web page with no dependencies, no build step and no server. It in
 <div align="center">
 
 <img src="docs/zork.png" alt="Zork I running in DigitalRerun" width="640">
-&nbsp;
-<img src="docs/phone.png" alt="DigitalRerun on a phone" width="200">
 
 </div>
 

@@ -21,7 +21,77 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 -------------------------------------------------------------------------------
-Not covered by this licence (see LICENSE-DRI and the file headers):
+DigitalRerun License Information
+===============================
+
+This project contains software from multiple sources with different licenses:
+
+**DigitalRerun (this repository):**
+- The main application code (index.html, js/*.js, css/*, system/boot.asm, system/bios.asm, etc.)
+- Build tools (tools/build.js, tools/stamp.js, tools/private-shelf.js)
+- Documentation files (README.md, docs/*.md)
+- All software created specifically for DigitalRerun
+- **License**: MIT License
+
+**External Components (not part of DigitalRerun's MIT license):**
+
+1. **CP/M 2.2 and CP/M 3**: Digital Research
+   - Files in `system/cpm22/` (CCP and BDOS sources)
+   - Files in `disks/cpm22/*.COM` (CP/M 2.2 utilities)
+   - Files in `disks/cpm22/*.ASM` (assembly sources)
+   - `disks/cpm22.dsk` (contains CP/M 2.2 system)
+   - Files in `system/cpm3/dri/` (Digital Research's CP/M 3 sources)
+   - Files in `disks/shelf/cpm3/` (CP/M 3 binaries)
+   - **License**: DRDOS, Inc. grant (see LICENSE-DRI)
+
+2. **Z80.js Emulator**: Molly Howell and contributors
+   - `js/z80.js` - The Z80 core
+   - **License**: MIT License
+
+3. **Zork I, II, III**: Infocom / Microsoft
+   - Files in `disks/shelf/zork1/`, `disks/shelf/zork2/`, `disks/shelf/zork3/`
+   - Includes Z-machine story files and Vezza interpreter
+   - **License**: MIT License (Microsoft, 2025)
+
+4. **Twelve Freeware Z-Machine Games**: IF Archive authors
+   - Files in `disks/shelf/advent/`, `catseye/`, `fantasy/`, `moonglow/`, `subsab/`,
+     `curses/`, `aisle/`, `905/`, `photopia/`, `shade/`, `spiderweb/`, `suvehnux/`
+   - **License**: Freeware (authors' rights, shared as IF Archive shares them)
+
+5. **Forth-83**: Henry Laxen and Michael Perry
+   - `disks/shelf/forth83/` directory
+   - **License**: Public domain
+
+6. **BBC BASIC (Z80)**: R.T. Russell
+   - `disks/shelf/bbcbasic/` directory
+   - **License**: zlib license (BBCBASIC.LIC)
+
+7. **BDS C 1.60**: Leor Zolman
+   - `disks/shelf/bdsc/` directory
+   - **License**: Public domain
+
+8. **HI-TECH C 3.09-21**: HI-TECH Software / Tony Nicholson
+   - `disks/shelf/hitech/` directory
+   - **License**: Free for any use
+
+9. **Vezza Z-Machine Interpreter**: Shawn Sijnstra
+   - Used with Zork games
+   - **License**: GPL-2.0-or-later
+
+**Trademarks and Acknowledgments:**
+- CP/M was created by Gary Kildall at Digital Research, Inc.; rights now belong to DRDOS, Inc.
+- Epson and FX-80 are trademarks of Seiko Epson Corporation
+- Z80 is a trademark of Zilog, Inc.
+- IBM and IBM Plex are trademarks of International Business Machines Corporation
+- Kaypro and Osborne are the names of their makers
+- VT100 and VT52 were terminals by Digital Equipment Corporation
+- ADM-3A was a terminal by Lear Siegler, Inc.
+- ZORK is a trademark of its owner
+
+DigitalRerun is not affiliated with, or endorsed by, any of these companies.
+
+-------------------------------------------------------------------------------
+For license information about specific files or components, see their individual headers and LICENSE-DRI.
   system/cpm22/          CP/M 2.2 CCP and BDOS sources, Digital Research
   disks/cpm22/*.COM    CP/M 2.2 utilities, and DUMP.ASM, CBIOS.ASM,
   disks/cpm22/*.ASM    DEBLOCK.ASM, DISKDEF.LIB: Digital Research

@@ -5,10 +5,29 @@
  *   node tools/stamp.js            write it
  *   node tools/stamp.js --check    exit 1 when it is stale
  *
- * The stamp is the first 12 hex digits of a SHA-256 over every file the
- * service worker caches (its SHELL list), js/version.js taken with the
- * stamp blanked. Run it after any change to those files, and raise
- * VERSION in js/version.js for a release.
+ * This tool maintains DigitalRerun's versioning and cache consistency:
+ *
+ * The BUILD stamp is the first 12 hex digits of a SHA-256 hash over every file
+ * that the service worker caches (listed in `sw.js`). The hash includes
+ * js/version.js but with the BUILD field temporarily set to '000000000000'
+ * to avoid it being part of the hash of itself (a circular dependency).
+ *
+ * The SHELL array in sw.js lists all files that the app caches for offline use:
+ * - The main page and static assets (HTML, CSS, icons)
+ * - Core application files (js/*.js)
+ * - Disk images and configuration (disks/*.dsk, disks/*.json)
+ * - Service worker files (sw.js)
+ *
+ * This tool should be run after any change to files in the SHELL list or
+ * to js/version.js. A test in the test suite fails when the stamp is stale,
+ * ensuring that no change ships under an old cache.
+ *
+ * For releases:
+ *   1. Raise VERSION in js/version.js (using semantic versioning: MAJOR.MINOR.PATCH)
+ *   2. Run node tools/stamp.js to update the BUILD stamp
+ *
+ * The cache naming follows the pattern: digitalrerun-{VERSION}-{BUILD}
+ * so that new releases have a completely new cache, ensuring consistency.
  */
 'use strict';
 const fs = require('fs');

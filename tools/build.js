@@ -4,16 +4,29 @@
  *
  *   node tools/build.js
  *
- * system/boot.asm, system/cpm22/ccp.asm, system/cpm22/bdos.asm and
- * system/bios.asm are assembled with js/asm8080.js into
- *   system/boot.bin   the loader (track 0, sector 1)
- *   system/cpm22.bin  the system tracks: loader + CCP + BDOS + BIOS
- *   system/*.lst      listings (not kept in git)
- * system/sysgen.asm and prtdemo.asm become SYSGEN.COM and PRTDEMO.COM on the disk.
- * and disks/cpm22.dsk is made: an 8" disk with those system tracks and
- * every file of disks/cpm22/ (plus the system sources) on it.
- * A shelf disk whose disk.json has "play": "CMD" gets a PLAY.COM that runs CMD (system/play.asm).
- * Only needed after changing a source: the app loads the results.
+ * This tool builds DigitalRerun's CP/M 2.2 system from source code:
+ *
+ * Source files in `system/` are assembled with `js/asm8080.js`:
+ *   - system/boot.asm → system/boot.bin (track 0, sector 1)
+ *   - system/cpm22/ccp.asm → CCP at E400h
+ *   - system/cpm22/bdos.asm → BDOS at EC00h
+ *   - system/bios.asm → BIOS at FA00h
+ *   - system/sysgen.asm and prtdemo.asm → SYSGEN.COM and PRTDEMO.COM
+ *
+ * The system tracks (two 8" tracks, 256 sectors total) are written to:
+ *   system/cpm22.bin (for the boot ROM) and disks/cpm22.dsk (the boot disk)
+ *
+ * The boot disk (`disks/cpm22.dsk`) contains:
+ *   - The system tracks with the CCP, BDOS, and BIOS
+ *   - All files from `disks/cpm22/`
+ *   - System source files (converted to CP/M text format)
+ *   - SYSGEN.COM and PRTDEMO.COM utilities
+ *
+ * A shelf disk whose disk.json has "play": "CMD" gets a PLAY.COM that runs
+ * CMD (from system/play.asm). This enables the `PLAY` command for game disks.
+ *
+ * This tool is only needed after changing source code. The running app
+ * loads the built results directly from memory.
  */
 'use strict';
 const fs = require('fs');

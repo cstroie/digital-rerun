@@ -4,22 +4,36 @@
  *
  *   node tools/build-cpm3.js [--check]
  *
- * The folder holds Digital Research's CP/M 3 (commands, GENCPM, BDOS3.SPR,
- * RMAC, LINK, the loader and SCB objects: redistributed under the DRDOS, Inc.
- * grant, LICENSE-DRI). What is built here is this machine's own: the BIOS
- * (system/cpm3/bios3.asm), the loader's BIOS (ldrbios3.asm) and the boot
- * sector (boot3.asm). The tools run inside the machine itself (CP/M 2.2 from
- * disks/cpm22.dsk, a hard disk with the folder's files), as GEN.SUB does on
- * the finished disk:
+ * This tool builds DigitalRerun's implementation of CP/M 3 (CP/M Plus) from
+ * Digital Research's sources. DigitalRerun extends CP/M 3 by adding its own
+ * BIOS that emulates the Z80 computer, terminal, printer, and disk controller.
  *
- *   RMAC BIOS3, LINK BIOS3[OS]=BIOS3,SCB          the BIOS, BIOS3.SPR
- *   GENCPM                                        CPM3.SYS (non-banked)
- *   RMAC LDRBIOS3, LINK CPMLDR=CPMLDR,SCB,LDRBIOS3   the loader
+ * Source files in `system/cpm3/` are assembled with `js/asm8080.js`:
+ *   - system/cpm3/bios3.asm → DigitalRerun's custom BIOS
+ *   - system/cpm3/ldrbios3.asm → Loader's BIOS (runs CP/M 3)
+ *   - system/cpm3/boot3.asm → Boot sector (reads the loader)
  *
- * The boot sector and CPMLDR.COM become the disk's system tracks, SYSTEM.BIN.
- * CPM3.SYS, SYSTEM.BIN, GENCPM.DAT and the BIOS sources are written into the
- * folder; tools/build.js lists the folder in disks/shelf.json. With --check
- * nothing is written and the exit status says whether the folder is current.
+ * The build runs inside a CP/M 2.2 machine (from disks/cpm22.dsk) with
+ * Digital Research's CP/M 3 tools on a hard disk (I:). These tools are:
+ *   - RMAC.COM, LINK.COM - 8080 assemblers and linker
+ *   - GENCPM.COM - System generator (creates CPM3.SYS)
+ *   - BDOS3.SPR - CP/M 3 BDOS (system call handler)
+ *   - CPMLDR.REL, SCB.REL - Object files (loader and System Control Block)
+ *
+ * The build process runs these commands inside the emulated CP/M 2.2 machine:
+ *   1. RMAC BIOS3, LINK BIOS3[OS]=BIOS3,SCB          → BIOS3.SPR (our BIOS)
+ *   2. GENCPM                                        → CPM3.SYS (non-banked)
+ *   3. RMAC LDRBIOS3, LINK CPMLDR=CPMLDR,SCB,LDRBIOS3 → CPMLDR.COM (the loader)
+ *
+ * Results written to `disks/shelf/cpm3/`:
+ *   - CPM3.SYS - CP/M 3 operating system
+ *   - SYSTEM.BIN - Boot sector + loader (system tracks)
+ *   - GENCPM.DAT - Answers GENCPM was given during build
+ *   - BIOS sources (as CP/M text) - For reference and modification
+ *
+ * tools/build.js lists the `disks/shelf/cpm3/` folder in `disks/shelf.json`
+ * so that it's included in the public shelf. With --check, nothing is written
+ * and the exit status indicates whether the folder is current.
  */
 'use strict';
 const fs = require('fs');

@@ -5,6 +5,7 @@
  * VERSION is raised by hand with each release (semver). BUILD is a hash
  * of every file the service worker caches, written by tools/stamp.js; a
  * test fails when it is stale, so no change ships under an old cache.
+ * This file should not be edited manually; use tools/stamp.js instead.
  */
 (function (root) {
     'use strict';

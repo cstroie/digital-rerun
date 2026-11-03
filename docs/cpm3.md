@@ -41,43 +41,50 @@ boot sector in front, so that is the tool's).
 
 ## What the BIOS does
 
-- Console, printer and paper tape on the CP/M 3 character devices `CRT`, `LPT`, `PTR` and
-  `PTP`, with the usual `DEVICE` assignments. The disk controller moves 128-byte records,
-  so the BDOS does no sector blocking; the 5¼" formats and the hard disk need no more.
-- The disk's format decides its parameter block, as in the CP/M 2.2 BIOS
-  (`system/bios.asm`): 8" SSSD and three 5¼" formats on A: to D:, the 4 MB hard disk on I:.
-- A clock: the BIOS's `TIME` reads the machine's clock port (below), so `DATE` and `DATE CONTINUOUS`
-  show the host's date and time, moving with the machine. The clock is the host's: `DATE SET` is accepted
-  and ignored. The BIOS has no bank switching (`SELMEMORY`, `XMOVE` do nothing), so a banked `CPM3.SYS` cannot run.
-- Written in 8080 code, because RMAC (Digital Research's own assembler) takes nothing else.
+The DigitalRerun implementation of CP/M 3 provides:
 
-## Notes for changing it
+- **Console, printer and paper tape**: CP/M 3 character devices `CRT`, `LPT`, `PTR` and `PTP`, with the usual `DEVICE` assignments. The disk controller moves 128-byte records, so the BDOS does no sector blocking; the 5¼" formats and the hard disk need no more.
 
-- `GENCPM` rewrites every reference to the System Control Block, so the stock
-  `SCB.REL` (`scb$base` `0FE00h`) is used unchanged, whatever the real place of the SCB.
-- The loader reads `CPMLDR.COM` from sector 2 on, up to 25 records; the boot sector knows 26
-  records a track for the 8" format and 40 for the 5¼" ones.
-- A shelf disk's `disk.json` may name `system`, a file with the bytes of the system tracks
-  (kept beside the files, not on the disk); `text` lists names to convert as CP/M text
-  (`GENCPM.DAT`). `Shelf.buildDisk` writes the tracks before the files.
-- `INITDIR.COM` is missing from the distribution (it is PL/I); `SET [...]` and everything else works.
+- **Disk formatting**: The disk's format decides its parameter block, as in the CP/M 2.2 BIOS (`system/bios.asm`). Supports:
+  - 8" single-sided, single-density (SSSD) on drives A: through D:
+  - Three 5¼" formats on A: through D: (SSSD 200K, DSDD 400K with 512-byte sectors, SSDD 200K with 1K sectors)
+  - 4 MB hard disk on I: (z80pack geometry)
 
-## The clock port
+- **Host clock integration**: The BIOS's `TIME` reads the machine's clock port (below), so `DATE` and `DATE CONTINUOUS` show the host's date and time, moving with the machine. The clock is the host's: `DATE SET` is accepted and ignored (the host time cannot be changed through the emulator). The BIOS has no bank switching (`SELMEMORY`, `XMOVE` do nothing), so a banked `CPM3.SYS` cannot run.
 
-`js/devices/clock.js`, read only, for any program (a CP/M 2.2 program or a game as well):
+- **Assembler compatibility**: Written in 8080 code, because RMAC (Digital Research's own assembler) takes nothing else. DigitalRerun uses `js/asm8080.js`, a two-pass 8080 assembler that reads both the ASM.COM and the Macro Assembler AS dialects.
+
+## Notes for changing the CP/M 3 implementation
+
+- **System Control Block**: `GENCPM` rewrites every reference to the System Control Block, so the stock `SCB.REL` (`scb$base` `0FE00h`) is used unchanged, whatever the real place of the SCB.
+
+- **Loader limitations**: The loader reads `CPMLDR.COM` from sector 2 on, up to 25 records; the boot sector knows 26 records a track for the 8" format and 40 for the 5¼" ones.
+
+- **Shelf disk system tracks**: A shelf disk's `disk.json` may name `system`, a file with the bytes of the system tracks (kept beside the files, not on the disk). The `text` field lists names to convert as CP/M text (`GENCPM.DAT`). `Shelf.buildDisk` writes the tracks before the files.
+
+- **Missing INITDIR**: `INITDIR.COM` is missing from the distribution (it is PL/I); `SET [...]` and everything else works.
+
+## The clock port (js/devices/clock.js)
+
+The clock port provides a read-only interface for any program (a CP/M 2.2 program or a game as well):
 
 ```
 OUT 20,n    latch the date and time and rewind the record
 IN  20      the next byte of the latched record (0FFh before a latch and after the record)
 ```
 
-The record, 15 bytes: `1` (a clock is here); the days since 31 Dec 1977 (1 Jan 1978 is 1),
-2 bytes, low first (CP/M 3's date); hour, minute, second (BCD); year (2 bytes, low first),
-month, day, weekday (0 Sunday); and the milliseconds since reset, 4 bytes, low first,
-wrapping at 2^32, for timing. The record is latched whole, so the minute and the second are of
-one moment. A machine without the port answers `0FFh` to the first read.
+The record is 15 bytes total:
+- Byte 0: `1` (a clock is here) - records presence
+- Bytes 1-2: Days since 31 Dec 1977 (1 Jan 1978 is 1), low byte first (CP/M 3's date format)
+- Bytes 3-4: Hour, minute, second (BCD encoding)
+- Bytes 5-6: Year (2 bytes, low first), month, day, weekday (0 = Sunday)
+- Bytes 7-10: Milliseconds since reset, 4 bytes, low first, wrapping at 2^32, for timing
 
-The time is the host's local time at reset, moved on by the machine's own time: its T-states at
-the speed setting (4 MHz is one second per 4,000,000), so a paused or stepped machine stands
-still, a faster machine's seconds are shorter, and a snapshot keeps the counter. There is no
-interrupt: a program polls the counter (a timed wait is a loop on it). Speed *Max* counts as 4 MHz.
+The record is latched whole, so the minute and the second are of one moment. A machine without the port answers `0FFh` to the first read.
+
+The time is the host's local time at reset, moved on by the machine's own time: its T-states at the speed setting (4 MHz is one second per 4,000,000), so:
+- A paused or stepped machine stands still
+- A faster machine's seconds are shorter
+- A snapshot keeps the counter
+
+There is no interrupt: a program polls the counter (a timed wait is a loop on it). Speed *Max* counts as 4 MHz.

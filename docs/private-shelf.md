@@ -1,9 +1,31 @@
 # A private shelf
 
-Software you may not share (the Infocom collections, WordStar, …) never goes into
-this repository or the app. It lives in a **catalog** on your own web server; the
-SHELF tab's *Private shelf* section points the app at it, and a disk is fetched
-only when you insert it. Nothing is cached by the service worker.
+**Private shelf** is DigitalRerun's feature for managing software you own but may not share (such as the Infocom collections, WordStar, compilers, etc.). This software never goes into the DigitalRerun repository or the app itself. Instead, it lives in a catalog on your own web server. The SHELF tab's *Private shelf* section points the app at this catalog, and a disk image is fetched only when you insert it into a drive. Nothing is cached by the service worker, ensuring your private software stays on your servers.
+
+## Purpose and Benefits
+
+- **Privacy**: Software you own but may not share (WordStar, Turbo Pascal, commercial games) never leaves your devices
+- **Scalability**: Keep large collections on a web server instead of embedding them in the app
+- **Access control**: Use tokens to restrict who can access your private catalog
+- **Flexibility**: Add or remove software from your catalog without updating the app
+
+## How it Works
+
+1. **Catalog Creation**: Build a catalog from your software using `tools/private-shelf.js`
+2. **Hosting**: Serve the catalog from your own web server (static file server or specialized tool)
+3. **Connection**: Point DigitalRerun to your catalog via the SHELF tab → Private shelf
+4. **Usage**: Insert disks from your catalog into drives as needed
+
+## Key Differences from Public Shelf
+
+| Feature | Public Shelf | Private Shelf |
+|---------|-------------|---------------|
+| **Source** | Built into the app repository | On your own web server |
+| **Storage** | Cached in the app for offline use | Never cached (fetched on demand) |
+| **Access** | Anyone with the app can use it | Only those who know your catalog URL |
+| **Software** | Free to share software only | Your own software, any license |
+
+Nothing is cached by the service worker, so your private software stays on your servers and doesn't become part of the DigitalRerun app.
 
 ## 1. Build the catalog
 

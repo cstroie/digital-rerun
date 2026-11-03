@@ -250,37 +250,44 @@ The machine tests boot the real disk and type at the CCP. They cover:
 - disks made from a folder;
 - restoring snapshots.
 
-Releasing a change: raise `VERSION` in [`js/version.js`](js/version.js) and run `node tools/stamp.js`. The build stamp is a hash of every file the app keeps offline, and a test fails when it is stale.
+Releasing a change: raise `VERSION` in [`js/version.js`](js/version.js) (using semantic versioning: MAJOR.MINOR.PATCH) and run `node tools/stamp.js`. The build stamp is a hash of every file the app keeps offline (listed in `sw.js`), and a test fails when it is stale.
 
-```
-index.html, css/, js/app.js       the page
-js/z80.js                         the Z80 core (vendored)
-js/machine.js                     RAM, ports, run loop, boot ROM, machine state
-js/devices/fdc.js, serial.js, clock.js   disk controller, console and printer ports, the date and time port (docs/cpm3.md)
-js/terminal.js                    VT100, VT52 and ADM-3A terminal and its view
-js/fx80.js, js/font9.js           printer, paper view, dot matrix font
-js/cpmfs.js                       CP/M file system on a disk image, from outside the machine
-js/altair.js                      the files of an AltairZ80 disk image (LOAD copies them onto a disk)
-js/shelf.js                       the shelf: a disk made from an entry, private catalog addresses
-js/folderdisk.js                  a disk made from a folder (FROM FOLDER, and the catalog tool)
-js/asm8080.js                     8080 assembler
-js/disz80.js                      Z80 disassembler (the debugger's)
-js/storage.js                     disks, settings and snapshots in IndexedDB
-js/snapshot.js                    take and restore a snapshot
-js/sound.js                       bell, drive and printer sounds (Web Audio, synthesized)
-js/version.js, js/pwa.js, sw.js   version and build stamp; install, updates, offline
-system/                           loader, BIOS, SYSGEN, PRTDEMO, PLAY; cpm22/: the original CCP and BDOS sources; cpm3/: the CP/M 3 BIOS, loader and boot sector (dri/: Digital Research's CP/M 3 sources)
-disks/cpm22/                     the files of the boot disk, and its image
-disks/shelf/, disks/shelf.json    the other shelf disks, as files, and their list
-tools/build.js                    assemble the system, make the disks
-tools/build-cpm3.js               build the CP/M 3 shelf disk's CPM3.SYS and system tracks (docs/cpm3.md)
-tools/play.js                     PLAY.COM for a disk (system/play.asm with its command)
-tools/private-shelf.js            build a private catalog from story files and folders
-tools/private-serve.js            serve a private catalog for a trial (CORS, token)
-tools/stamp.js                    write the build stamp
-tools/font9.txt, font9.js         the printer font as dot pictures, and its generator
-docs/private-shelf.md             the private shelf: catalog, serving, connecting
-```
+### Files and Tools:
+**Core Application:**
+- `index.html`, `css/`, `js/app.js` - the web page and application logic
+- `js/z80.js` - the Z80 core (vendored from Z80.js)
+- `js/machine.js` - RAM, ports, run loop, boot ROM, machine state
+- `js/devices/fdc.js`, `serial.js`, `clock.js` - disk controller, console and printer ports, date and time port
+- `js/terminal.js` - VT100, VT52 and ADM-3A terminal and its view
+- `js/fx80.js`, `js/font9.js` - printer, paper view, dot matrix font
+- `js/cpmfs.js` - CP/M file system on a disk image, from outside the machine
+- `js/altair.js` - the files of an AltairZ80 disk image (LOAD copies them onto a disk)
+- `js/shelf.js` - the shelf: a disk made from an entry, private catalog addresses
+- `js/folderdisk.js` - a disk made from a folder (FROM FOLDER, and the catalog tool)
+- `js/asm8080.js` - 8080 assembler
+- `js/disz80.js` - Z80 disassembler (the debugger's)
+- `js/storage.js` - disks, settings and snapshots in IndexedDB
+- `js/snapshot.js` - take and restore a snapshot
+- `js/sound.js` - bell, drive and printer sounds (Web Audio, synthesized)
+- `js/version.js`, `js/pwa.js`, `sw.js` - version and build stamp; install, updates, offline
+
+**System Components:**
+- `system/` - loader, BIOS, SYSGEN, PRTDEMO, PLAY; cpm22/: the original CCP and BDOS sources; cpm3/: the CP/M 3 BIOS, loader and boot sector (dri/: Digital Research's CP/M 3 sources)
+- `disks/cpm22/` - the files of the boot disk, and its image
+- `disks/shelf/`, `disks/shelf.json` - the other shelf disks, as files, and their list
+
+**Build Tools:**
+- `tools/build.js` - assemble the system, make the disks
+- `tools/build-cpm3.js` - build the CP/M 3 shelf disk's CPM3.SYS and system tracks
+- `tools/play.js` - PLAY.COM for a disk (system/play.asm with its command)
+- `tools/private-shelf.js` - build a private catalog from story files and folders
+- `tools/private-serve.js` - serve a private catalog for a trial (CORS, token)
+- `tools/stamp.js` - write the build stamp
+- `tools/font9.txt`, `font9.js` - the printer font as dot pictures, and its generator
+
+**Documentation:**
+- `docs/private-shelf.md` - the private shelf: catalog, serving, connecting
+- `docs/cpm3.md` - CP/M 3 on DigitalRerun
 
 ## Credits
 

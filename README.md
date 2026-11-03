@@ -5,7 +5,7 @@
 ### CP/M 2.2 and CP/M 3, running again: a whole 1980s computer in your browser
 
 [![test](https://github.com/cstroie/digital-rerun/actions/workflows/test.yml/badge.svg)](https://github.com/cstroie/digital-rerun/actions/workflows/test.yml)
-[![live demo](https://img.shields.io/badge/live-cstroie.github.io%2Fdigital-rerun-9dff8a?labelColor=0d0f0c)](https://cstroie.github.io/digital-rerun/)
+[![live demo](https://img.shields.io/badge/live-cstroie.github.io%2Fdigital--rerun-9dff8a?labelColor=0d0f0c)](https://cstroie.github.io/digital-rerun/)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-ffcf5c?labelColor=0d0f0c)](LICENSE)
 ![no dependencies](https://img.shields.io/badge/dependencies-none-c9d6c4?labelColor=0d0f0c)
 ![offline PWA](https://img.shields.io/badge/PWA-works%20offline-c9d6c4?labelColor=0d0f0c)

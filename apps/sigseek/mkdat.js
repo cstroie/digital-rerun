@@ -21,7 +21,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const NMSG = 16, NCALL = 8, NCH = 5, NFRAG = 32, NCARD = 8;
+const NMSG = 32, NCALL = 8, NCH = 5, NFRAG = 32, NCARD = 8;
 const SHORT = 20, LINE = 60, NAME = 30, CAPTION = 50, ART = 58, ART_ROWS = 4;
 
 function parse(text) {

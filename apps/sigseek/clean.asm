@@ -543,7 +543,12 @@ m_ones: db      '  ones ',0
 m_ckeys: db     '   (ones it has / should have)',0
 m_nopk: db      'Nothing in the buffer to clean. Tune in a signal first.',0
 m_clean: db     'Cleaning. Make the ones match: 1-8 flip a bit.',0
-m_byte: db      'That byte is clean. Next one.',0
+m_byte: db      4
+        dw      m_byte_0, m_byte_1, m_byte_2, m_byte_3
+m_byte_0: db      'That byte is clean. Next one.',0
+m_byte_1: db      'Fixed. On to the next.',0
+m_byte_2: db      'That one reads right now.',0
+m_byte_3: db      'Clean! The rest should be easy.',0
 m_aside: db     'Packet put aside. It will wait.',0
 m_deliv: db     'Delivered (+',0
 m_deliv2: db    '): ',0

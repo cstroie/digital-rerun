@@ -238,7 +238,7 @@ An independent colleague, not a pet to manage: warm, earnest, a little absurd.
 `sigseek.txt` is the source, 7-bit ASCII:
 
 ```
-@msg                    16 messages from nobody in particular (<= 20 characters)
+@msg                    32 messages from nobody in particular (<= 20 characters)
 @caller Name, what      8 callers, 5 chapters each:
   packet text | letter line 1 | letter line 2      (<= 20, <= 60, <= 60)
 @frag                   32 fragments:  packet text | the line   (<= 20, <= 60)
@@ -248,8 +248,8 @@ An independent colleague, not a pet to manage: warm, earnest, a little absurd.
 
 `mkdat.js` refuses anything too long for the screen, and packs it as: `SDAT`,
 version 2 and the six counts, a table of word offsets, then the strings. String
-numbers: messages 0-15; caller *i* at 16 + 16*i* (the name), then chapter *j*'s
-three at 16 + 16*i* + 1 + 3*j*; fragment *k*'s two at 144 + 2*k*; postcard *c*'s five at 208 + 5*c*. A test keeps
+numbers: messages 0-31; caller *i* at 32 + 16*i* (the name), then chapter *j*'s
+three at 32 + 16*i* + 1 + 3*j*; fragment *k*'s two at 160 + 2*k*; postcard *c*'s five at 224 + 5*c*. A test keeps
 `SIGSEEK.DAT` current with `sigseek.txt`.
 
 - **Who sends a packet:** a caller half the time, an Archive fragment a quarter,

@@ -1,6 +1,6 @@
 # sigseek.txt: what the station hears. mkdat.js packs it into SIGSEEK.DAT.
 #
-#   @msg                 16 short messages from nobody in particular (<= 20)
+#   @msg                 32 short messages from nobody in particular (<= 20)
 #   @caller Name, what   8 callers, 5 chapters each:
 #                          packet text (<= 20) | letter line 1 | line 2 (<= 60)
 #   @frag                32 Archive fragments: packet text (<= 20) | the line (<= 60)
@@ -25,6 +25,22 @@ Thanks for the fix
 A moth on the lens
 Goodnight, relay
 Testing, testing
+Is anyone awake?
+Rain on Ceres today
+Lost: one glove
+Happy birthday, Jo!
+All quiet on deck 3
+Engine 2 sounds sad
+Whistling past Io
+Coffee is ready
+We named a moon Bob
+Tell the cat hi
+The comet is late
+Night, Kettle-7!
+Good signal tonight
+3, 2, 1... ping!
+Who left a light on?
+Is this thing on?
 
 @caller Mira, a courier
 Lost. Help?         | Kettle-7? I took a shortcut through the nebula. It was    | not short. If you can hear me, tell me which way is out.

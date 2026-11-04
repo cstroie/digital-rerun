@@ -657,22 +657,66 @@ g_con:  db      'PIXEL hops down from the box. She is going somewhere.',0
 g_mug:  db      'PIXEL has noticed your mug.',0
 
 arrmsg: dw      a_home, 0, 0, a_con, a_mug
-a_home: db      'PIXEL is back on the heater. Purring lowers the static.',0
-a_con:  db      'PIXEL lies on the console. She is helping.',0
-a_mug:  db      'PIXEL knocked your mug off the console. The mug is fine.',0
-ml_keys: db     'PIXEL walked across the keyboard. The dial moved. Thanks.',0
-ml_quiet: db    'PIXEL listens at the antenna. All quiet, she says.',0
+a_home: db      3
+        dw      a_home_0, a_home_1, a_home_2
+a_home_0: db      'PIXEL is back on the heater. Purring lowers the static.',0
+a_home_1: db      'PIXEL curls up on the heater again. The hiss goes quiet.',0
+a_home_2: db      'Home: PIXEL on the heater, purring like a small engine.',0
+a_con:  db      3
+        dw      a_con_0, a_con_1, a_con_2
+a_con_0: db      'PIXEL lies on the console. She is helping.',0
+a_con_1: db      'PIXEL sits on the console, exactly where you were looking.',0
+a_con_2: db      'PIXEL stretches across the console. Supervising.',0
+a_mug:  db      3
+        dw      a_mug_0, a_mug_1, a_mug_2
+a_mug_0: db      'PIXEL knocked your mug off the console. The mug is fine.',0
+a_mug_1: db      'PIXEL tests your mug for gravity. Gravity works. Mug: fine.',0
+a_mug_2: db      'PIXEL sits by your mug and stares at it, meaningfully.',0
+ml_keys: db      3
+        dw      ml_keys_0, ml_keys_1, ml_keys_2
+ml_keys_0: db      'PIXEL walked across the keyboard. The dial moved. Thanks.',0
+ml_keys_1: db      'PIXEL types something on the keyboard. The dial agrees.',0
+ml_keys_2: db      'Paws on the keys: the dial jumps. PIXEL looks innocent.',0
+ml_quiet: db      3
+        dw      ml_quiet_0, ml_quiet_1, ml_quiet_2
+ml_quiet_0: db      'PIXEL listens at the antenna. All quiet, she says.',0
+ml_quiet_1: db      'PIXEL',27h,'s ears turn at the antenna, then settle. Nothing.',0
+ml_quiet_2: db      'PIXEL hears nothing new at the antenna. She sulks.',0
 ml_earl: db     'PIXEL',27h,'s ears point left. She heard something.',0
 ml_earr: db     'PIXEL',27h,'s ears point right. She heard something.',0
 ml_earb: db     'PIXEL',27h,'s ears go left, right, left. Busy night.',0
 
 petmsg: dw      e_sleep, e_curi, e_smug, e_needy, e_zoom, e_huff
-e_sleep: db     'You pet PIXEL. She purrs without waking up.',0
-e_curi: db      'PIXEL headbutts your hand, then looks at the dial.',0
-e_smug: db      'You pet PIXEL. She permits this, for now.',0
-e_needy: db     'PIXEL melts into your hand. That was the right amount.',0
-e_zoom: db      'PIXEL is a blur. You pet the air where she was.',0
-e_huff: db      'PIXEL turns her back. Then, slowly, forgives you.',0
+e_sleep: db      3
+        dw      e_sleep_0, e_sleep_1, e_sleep_2
+e_sleep_0: db      'You pet PIXEL. She purrs without waking up.',0
+e_sleep_1: db      'PIXEL sighs in her sleep and leans into your hand.',0
+e_sleep_2: db      'A sleepy chirp from PIXEL. Then nothing. Bliss.',0
+e_curi: db      3
+        dw      e_curi_0, e_curi_1, e_curi_2
+e_curi_0: db      'PIXEL headbutts your hand, then looks at the dial.',0
+e_curi_1: db      'PIXEL sniffs your fingers for news of the band.',0
+e_curi_2: db      'PIXEL accepts the pet and asks, with her eyes, about 1420.',0
+e_smug: db      3
+        dw      e_smug_0, e_smug_1, e_smug_2
+e_smug_0: db      'You pet PIXEL. She permits this, for now.',0
+e_smug_1: db      'PIXEL allows exactly three strokes. You have used two.',0
+e_smug_2: db      'PIXEL closes her eyes slowly at you. High praise.',0
+e_needy: db      3
+        dw      e_needy_0, e_needy_1, e_needy_2
+e_needy_0: db      'PIXEL melts into your hand. That was the right amount.',0
+e_needy_1: db      'PIXEL rolls over. Then rolls back. More, please.',0
+e_needy_2: db      'PIXEL purrs so loudly the static wobbles.',0
+e_zoom: db      3
+        dw      e_zoom_0, e_zoom_1, e_zoom_2
+e_zoom_0: db      'PIXEL is a blur. You pet the air where she was.',0
+e_zoom_1: db      'You reach out; PIXEL is already on the other side of the room.',0
+e_zoom_2: db      'PIXEL ricochets off the console. Petting postponed.',0
+e_huff: db      3
+        dw      e_huff_0, e_huff_1, e_huff_2
+e_huff_0: db      'PIXEL turns her back. Then, slowly, forgives you.',0
+e_huff_1: db      'PIXEL flicks her tail at you. Then lets you, a little.',0
+e_huff_2: db      'A long look from PIXEL. Fine. One pet. Just one.',0
 ml_call: db     'You call PIXEL. She looks at you. She stays put.',0
 ml_comes: db    'You call PIXEL. She comes trotting home at once.',0
 ml_busy: db     'PIXEL is on her way somewhere. Important cat business.',0

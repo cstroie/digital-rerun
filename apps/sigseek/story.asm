@@ -3,17 +3,18 @@
 ;
 ; SIGSEEK.DAT (made by mkdat.js from sigseek.txt) is read whole into
 ; memory after the program. Its strings, by number:
-;   0..15                    messages from nobody in particular
-;   16 + 16i                 caller i's name, then for chapter j:
-;   16 + 16i + 1 + 3j        the packet text, the two letter lines
-;   144 + 2k                 fragment k's packet text, then its line
+;   0..31                    messages from nobody in particular
+;   32 + 16i                 caller i's name, then for chapter j:
+;   32 + 16i + 1 + 3j        the packet text, the two letter lines
+;   160 + 2k                 fragment k's packet text, then its line
+;   224 + 5c                 postcard c: its caption, its four lines
 ;
 ; A packet is from a caller (half the time), an Archive fragment (a
 ; quarter) or nobody. Callers come into the story slowly: two at first,
 ; one more every four packets. Each delivery moves a caller's story on a
 ; chapter; after the last, they keep writing, in their later voice.
 
-NMSG    equ     16
+NMSG    equ     32
 NCALL   equ     8
 NCH     equ     5
 NFRAG   equ     32

@@ -1200,7 +1200,10 @@ helptx: db      ' SIGNAL SEEKER  -  how the night works',0
 ; logmsg: a line for the log (HL). The log shows the last four: the
 ; newest at the bottom, reversed, with a > before it; the one above
 ; plain; the two oldest dim.
-logmsg: call    diary
+logmsg: ld      a,(hl)          ; a count first: a table of variants
+        cp      16
+        call    c,vary
+        call    diary
         push    hl
         ld      hl,logl+LOGW+1  ; the lines up one
         ld      de,logl
@@ -1263,6 +1266,17 @@ lg5:    call    puts
         cp      LOG_Y+NLOG
         jr      nz,lg3
         ret
+
+; vary: HL = a table (a count, then that many pointers): one of them
+vary:   ld      b,a
+        inc     hl
+        push    hl
+        call    rnd
+vr1:    sub     b               ; rnd mod count
+        jr      nc,vr1
+        add     a,b
+        pop     hl
+        jp      msgof
 
 ; padput: HL (0-terminated) then blanks, C characters in all
 padput: ld      a,(hl)
@@ -1619,21 +1633,69 @@ ak1:    ld      hl,(rseed)      ; the wait stirs the seed
 ; ---------------------------------------------------------------- texts
 m_ask:  db      CR,LF,'SIGNAL SEEKER',CR,LF,CR,LF
         db      'Your terminal?  1 VT100   2 VT52   3 ADM-3A  ',0
-m_hello: db     'Shift begins. Kettle warm. PIXEL asleep on the heater.',0
-m_away: db      'The operator has stepped away. The station hums on.',0
-m_back: db      'Welcome back. PIXEL pretends she did not miss you.',0
-m_again: db     'Another shift. PIXEL is already here, of course.',0
+m_hello: db      4
+        dw      m_hello_0, m_hello_1, m_hello_2, m_hello_3
+m_hello_0: db      'Shift begins. Kettle warm. PIXEL asleep on the heater.',0
+m_hello_1: db      'Night shift. The relay hums, the kettle ticks, PIXEL snores.',0
+m_hello_2: db      'You settle in. The band is wide awake, even if PIXEL is not.',0
+m_hello_3: db      '22:00. Headphones on, tea poured. PIXEL claims the heater.',0
+m_away: db      3
+        dw      m_away_0, m_away_1, m_away_2
+m_away_0: db      'The operator has stepped away. The station hums on.',0
+m_away_1: db      'You are away from the dial. The night carries on without you.',0
+m_away_2: db      'Away. The kettle cools, the band murmurs, PIXEL is in charge.',0
+m_back: db      4
+        dw      m_back_0, m_back_1, m_back_2, m_back_3
+m_back_0: db      'Welcome back. PIXEL pretends she did not miss you.',0
+m_back_1: db      'Welcome back. The chair was kept warm (by a cat).',0
+m_back_2: db      'You are back. PIXEL looks up as if you never left.',0
+m_back_3: db      'Back at the dial. The band did not wait, but it is glad.',0
+m_again: db      4
+        dw      m_again_0, m_again_1, m_again_2, m_again_3
+m_again_0: db      'Another shift. PIXEL is already here, of course.',0
+m_again_1: db      'Another shift. Your chair is warm: PIXEL was keeping it.',0
+m_again_2: db      'Another shift. The relay remembers your hand on the dial.',0
+m_again_3: db      'Another shift. PIXEL yawns hello, which is a lot, for her.',0
 m_bye:  db      'Kettle-7 signing off. Goodnight.',CR,LF,0
 m_mhz:  db      ' MHz',0
 m_title: db     ' KETTLE-7 RELAY  :                                 SHIFT              TOK',0
 m_lgold: db     '  ',0
 m_lgnew: db     '> ',0
-m_stir: db      'Something stirs on the band.',0
-m_fade: db      'A signal faded into the hiss. It will be back some night.',0
-m_got:  db      'Packet captured! Press C to clean it.',0
-m_gotcl: db     'Packet captured, and clean already! Press C to send it on.',0
-m_rxin: db      'Locked on. A packet is coming in...',0
-m_rxlost: db    'The signal slipped. The letters scatter back into the hiss.',0
+m_stir: db      5
+        dw      m_stir_0, m_stir_1, m_stir_2, m_stir_3, m_stir_4
+m_stir_0: db      'Something stirs on the band.',0
+m_stir_1: db      'A new peak lifts out of the hiss.',0
+m_stir_2: db      'Someone, somewhere, is on the air.',0
+m_stir_3: db      'The band brightens a little, over there.',0
+m_stir_4: db      'A signal drifts in from the dark.',0
+m_fade: db      4
+        dw      m_fade_0, m_fade_1, m_fade_2, m_fade_3
+m_fade_0: db      'A signal faded into the hiss. It will be back some night.',0
+m_fade_1: db      'A peak sinks back into the static. Next time, maybe.',0
+m_fade_2: db      'Gone again: whoever it was has moved on.',0
+m_fade_3: db      'A signal let go of the band. The hiss closes over it.',0
+m_got:  db      4
+        dw      m_got_0, m_got_1, m_got_2, m_got_3
+m_got_0: db      'Packet captured! Press C to clean it.',0
+m_got_1: db      'Got it! The packet is in the buffer: C to clean it.',0
+m_got_2: db      'In the buffer, safe and a little scrambled. Press C.',0
+m_got_3: db      'Captured. It needs a tidy before it goes on: C.',0
+m_gotcl: db      3
+        dw      m_gotcl_0, m_gotcl_1, m_gotcl_2
+m_gotcl_0: db      'Packet captured, and clean already! Press C to send it on.',0
+m_gotcl_1: db      'A strong one: it came in clean. Press C to send it on.',0
+m_gotcl_2: db      'Not a bit out of place. Press C and it is on its way.',0
+m_rxin: db      4
+        dw      m_rxin_0, m_rxin_1, m_rxin_2, m_rxin_3
+m_rxin_0: db      'Locked on. A packet is coming in...',0
+m_rxin_1: db      'LOCK. Letters start to land in the buffer...',0
+m_rxin_2: db      'Holding the peak. Something is coming through...',0
+m_rxin_3: db      'Locked. Keep the dial still, it is arriving...',0
+m_rxlost: db      3
+        dw      m_rxlost_0, m_rxlost_1, m_rxlost_2
+m_rxlost_0: db      'The signal slipped. The letters scatter back into the hiss.',0
+m_rxlost_1: db      'Lost it. The half-a-message drifts away again.',0
+m_rxlost_2: db      'The lock let go; the letters fall back into the static.',0
 m_rx:   db      'RECEIVING',0
 m_rxat: db      '  at ',0
 m_aon:  db      'AutoTune on. It hums with enormous confidence.',0

@@ -27,8 +27,11 @@ A clean packet is delivered, for tokens.
 
 Some packets come from people: a lost courier, an old lighthouse keeper,
 a child with a toaster radio, a cargo AI with too many socks, and others
-you will meet as the nights go by. Their letters show when you deliver,
-and each one moves their story on. Signals from nobody carry fragments
+you will meet as the nights go by. A packet for one of them still has to
+reach them: rotate the relays (SPACE, or R; the arrows move) until the
+line runs from ANT on the left to their name on the right. The tiles
+lit from the antenna (= and #) show how far it gets. Their letters show
+when you deliver, and each one moves their story on. Signals from nobody carry fragments
 of the old Lantern beacons: they go in the Archive (A), to read again.
 
 PIXEL does as she likes. Asleep on the heater, she purrs and the static

@@ -69,6 +69,10 @@ loop:   call    key
         jp      z,pet
         ld      b,a
         ld      a,(mode)
+        cp      4
+        ld      a,b
+        jp      z,rkey
+        ld      a,(mode)
         cp      3
         ld      a,b
         jp      z,akey
@@ -979,6 +983,7 @@ stack:
         include clean.asm
         include shop.asm
         include story.asm
+        include route.asm
 
 ; SIGSEEK.DAT is read here, after everything else
 datbuf:

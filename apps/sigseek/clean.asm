@@ -128,6 +128,9 @@ clean:  ld      a,(havepk)
         or      a
         ld      hl,m_nopk
         jr      z,ck9
+        ld      a,(pkleft)      ; clean already: only the routing is left
+        or      a
+        jp      z,route1
         ld      a,1
         ld      (mode),a
         call    drawpk
@@ -173,11 +176,16 @@ ckey:   cp      'C'
         call    putc
         ld      hl,pkleft
         dec     (hl)
-        jr      z,deliv
+        jr      z,cdone
         ld      hl,m_byte
         call    logmsg
         call    next
         jr      ckdraw
+; all clean: a caller's packet still has to be routed to them
+cdone:  ld      a,(pkkind)
+        cp      K_CALL
+        jp      z,route0
+        jp      deliv
 ckprev: call    prev
         jr      ckdraw
 cknext: call    next
@@ -218,7 +226,13 @@ deliv:  xor     a
         add     a,a
         add     a,b
         add     a,5
-        ld      (pkgain),a
+        ld      b,a
+        ld      a,(pkkind)      ; and 4 more for routing a caller's
+        cp      K_CALL
+        ld      a,b
+        jr      nz,dv1
+        add     a,4
+dv1:    ld      (pkgain),a
         ld      e,a
         ld      d,0
         ld      hl,(tokens)

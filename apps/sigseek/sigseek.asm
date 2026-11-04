@@ -222,6 +222,9 @@ cshape: db      SH_NARROW, SH_NORM, SH_NORM, SH_SQUARE, SH_WIDE, SH_TWIN, SH_NOR
 
 ; shapeof: IX = a signal -> A = its shape
 shapeof: ld     a,(ix+S_KIND)
+        cp      K_ECHO          ; an echo: faint, from far out
+        ld      b,SH_FAINT
+        jr      z,sh9
         cp      K_GHOST
         ld      b,SH_GHOST
         jr      z,sh9
@@ -262,7 +265,13 @@ sk_0:   call    rnd
         jr      z,sk_9
         cp      3
         jr      nz,sk_1
-        call    rnd             ; nobody in particular: which message
+        call    echoq           ; nobody: or, now and then, an echo
+        jr      nz,sk_m
+        call    rnd
+        and     3
+        ld      c,K_ECHO
+        jr      z,sk_9
+sk_m:   call    rnd             ; nobody in particular: which message
         and     NMSG-1
         ld      (ix+S_WHO),a
         ld      c,K_MSG
@@ -1976,6 +1985,7 @@ stack:
         include weather.asm
         include cards.asm
         include title.asm
+        include echo.asm
 
 ; SIGSEEK.DAT is read here, after everything else
 datbuf:

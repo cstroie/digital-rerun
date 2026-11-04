@@ -109,7 +109,12 @@ pick:   ld      ix,(lockix)     ; who the locked signal carries
         ld      (pkkind),a
         ld      hl,m_bshort
         ret
-pk0:    cp      K_GHOST         ; a ghost: it looks like any message
+pk0:    cp      K_ECHO          ; an echo: the old message itself
+        jr      nz,pk0e
+        ld      (pkkind),a
+        ld      hl,etext
+        ret
+pk0e:   cp      K_GHOST         ; a ghost: it looks like any message
         jr      nz,pk0a
         ld      (pkkind),a
         call    rnd
@@ -205,7 +210,10 @@ ah1:    ld      a,c
 
 ; ---------------------------------------------------------------- delivery
 ; story: after a delivery, the letter (or the fragment) in the packet box
-story:  ld      a,(pkkind)
+story:  call    echkeep         ; (kept, to come back another night)
+        ld      a,(pkkind)
+        cp      K_ECHO
+        jp      z,estory
         cp      K_BEACON
         jp      z,bstory
         cp      K_CALL

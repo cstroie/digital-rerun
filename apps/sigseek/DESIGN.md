@@ -287,6 +287,16 @@ nothing. One time in eight, for a moment, the letters hold still and read a word
 *hello*, *still here*, *listen*, *lantern*, *home*, *goodnight*, *remember*,
 *thank you*. Harmless; a little eerie.
 
+## Echoes
+
+The first message delivered on a night (a caller's, or nobody's) is kept. On a later
+night it may come back: one in four of the signals from nobody is the echo instead,
+faint, from far out. Delivered, it shows the night it was first sent, the message,
+who passed it on (Relay Juniper on the Ceres line, the night crew at Tycho, a
+weather buoy past Io, Kettle-12, a mining tug, the Lighthouse Seven lamp-relay,
+somebody called Dot, an old probe) and what they added; 6 tokens more. Then the
+next message is kept in its place.
+
 ## Weather
 
 At the start of each shift and every 90 s or so, a roll: often the same weather
@@ -337,7 +347,7 @@ One 128-byte record, written on quit and after each purchase:
 | Offset | |
 |---|---|
 | 0 | `SG` |
-| 2 | version (4) |
+| 2 | version (5) |
 | 3 | terminal |
 | 4 | the random seed (word) |
 | 6 | tokens (word) |
@@ -349,9 +359,10 @@ One 128-byte record, written on quit and after each purchase:
 | 20 | the Archive, a bit for each fragment (4 bytes) |
 | 24 | flags: 1 the last lantern found, 2 a Lantern Keeper |
 | 25 | the postcards, a bit for each caller |
+| 40 | an echo: waiting (1 byte), the shift it was sent (1), its text (21) |
 
-Versions 1 (before the story), 2 (before the flags) and 3 (before the
-postcards) still load. No room on the
+Versions 1 (before the story), 2 (before the flags), 3 (before the
+postcards) and 4 (before the echo) still load. No room on the
 disk: no save, no fuss. Delete the file to start afresh.
 
 ## Testing
@@ -387,8 +398,6 @@ New:
   met, the lantern found).
 - **A faster shelf test:** the game never goes idle, so the test's wait runs to its
   limit (about 35 s).
-- **Echoes:** a message delivered tonight comes back on a later night, fainter, from
-  farther out, with a line added by whoever passed it on.
 - **Upkeep, gently:** now and then PWR sags or a relay rattles loose; a small fix
   (a routing grid of two rows, a byte to set) and it is right again. Never urgent.
 - **Another program in `apps/`:** a cozy companion (a tide-table toy, a calm card

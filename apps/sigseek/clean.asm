@@ -257,8 +257,14 @@ dv0:    ld      b,a
         ld      a,(pkkind)      ; and 20 more for the last lantern's
         cp      K_BEACON
         ld      a,b
-        jr      nz,dv1
+        jr      nz,dv1a
         add     a,20
+dv1a:   ld      b,a
+        ld      a,(pkkind)      ; and 6 for bringing an echo home
+        cp      K_ECHO
+        ld      a,b
+        jr      nz,dv1
+        add     a,6
 dv1:    ld      (pkgain),a
         ld      e,a
         ld      d,0

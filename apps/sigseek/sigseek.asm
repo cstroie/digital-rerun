@@ -80,6 +80,10 @@ loop:   call    key
         jp      z,pet
         ld      b,a
         ld      a,(mode)
+        cp      9
+        ld      a,b
+        jp      z,qkey
+        ld      a,(mode)
         cp      7
         ld      a,b
         jp      z,dkey
@@ -746,12 +750,13 @@ hp2:    push    hl
         call    padput          ; would wrap, and scroll the screen
         jp      revoff
 
-keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall, k_dawn
+keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall, k_dawn, 0, k_reply
 k_dial: db      ' [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [W]all  [P]et  [?]help',0
 k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
 k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
 k_arch: db      ' [,.] turn the page  [A] close the Archive  [P]et PIXEL  [Q]uit',0
+k_reply: db     ' REPLY?  [1] a warm reply  [2] a word from PIXEL  [3] no reply',0
 k_dawn: db      ' [any key] end the shift, once the sun is up (the station is saved)',0
 k_wall: db      ' [,.] the next card  [W] close the wall  [P]et PIXEL  [Q]uit',0
 k_scene: db     ' [any key] go on, once it has all been said',0
@@ -1986,6 +1991,7 @@ stack:
         include cards.asm
         include title.asm
         include echo.asm
+        include reply.asm
 
 ; SIGSEEK.DAT is read here, after everything else
 datbuf:

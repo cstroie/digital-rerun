@@ -301,7 +301,9 @@ sy1:    ld      b,PK_Y
         call    skipz
         ld      b,PK_Y+2
         call    putrow
-        jp      opinion         ; and what PIXEL makes of them
+        call    psline          ; a P.S., if they had a reply
+        call    opinion         ; and what PIXEL makes of them
+        jp      askrep          ; and a reply to this one?
 ; putrow: HL = a string, on row B from column 3; HL left on its end
 putrow: ld      c,3
         call    gotoxy

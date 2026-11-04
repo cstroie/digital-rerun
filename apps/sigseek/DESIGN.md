@@ -124,7 +124,7 @@ park the cursor, wait
 ```
 
 Modes: 0 the dial, 1 cleaning, 2 the shop, 3 the Archive, 4 routing, 5 the
-Archive's end, 6 the postcard wall, 7 dawn.
+Archive's end, 6 the postcard wall, 7 dawn, 9 a reply.
 
 ## A shift
 
@@ -266,6 +266,10 @@ three at 32 + 16*i* + 1 + 3*j*; fragment *k*'s two at 160 + 2*k*; postcard *c*'s
   Seven; Pip, age nine, and the toaster radio; BARGE-9, a cargo AI with too many
   socks (later Barry); Dr Wen and the humming ferns; Sol & Dee, newlyweds; Captain
   Ruth, retired; and Nobody, from Nowhere, who becomes Hum.
+- **Replies:** after a caller's letter, when their story is not over: `1` a warm
+  reply, `2` a word from PIXEL (she is smug about it), `3` or `ESC` none. Their next
+  letter has a P.S. that answers it ("P.S. YOU WROTE BACK. I am keeping it forever."
+  "P.S. GREETINGS TO THE CAT UNIT."), in the packet box's fourth row.
 - **Postcards:** when a caller's story reaches its fifth chapter, they send a
   postcard too (a bell, and the log says so). `W` shows the postcard wall, if the
   shop's wall is up: a card at a time, its caption in bold and who it is from, the
@@ -347,7 +351,7 @@ One 128-byte record, written on quit and after each purchase:
 | Offset | |
 |---|---|
 | 0 | `SG` |
-| 2 | version (5) |
+| 2 | version (6) |
 | 3 | terminal |
 | 4 | the random seed (word) |
 | 6 | tokens (word) |
@@ -359,10 +363,11 @@ One 128-byte record, written on quit and after each purchase:
 | 20 | the Archive, a bit for each fragment (4 bytes) |
 | 24 | flags: 1 the last lantern found, 2 a Lantern Keeper |
 | 25 | the postcards, a bit for each caller |
+| 26 | each caller's reply waiting: 0 none, 1 warm, 2 from PIXEL (8 bytes) |
 | 40 | an echo: waiting (1 byte), the shift it was sent (1), its text (21) |
 
 Versions 1 (before the story), 2 (before the flags), 3 (before the
-postcards) and 4 (before the echo) still load. No room on the
+postcards), 4 (before the echo) and 5 (before the replies) still load. No room on the
 disk: no save, no fuss. Delete the file to start afresh.
 
 ## Testing
@@ -392,8 +397,6 @@ New:
 - **Printing on the FX-80:** the Archive, a postcard or the night's log, on
   DigitalRerun's printer, kept as PNG or PDF.
 - **A help screen (`?`):** the rules and the keys, in the game.
-- **Answering callers:** now and then a choice of two replies, which turns their next
-  letter a little.
 - **Stamps:** a small page of milestones (the first clean packet, all eight callers
   met, the lantern found).
 - **A faster shelf test:** the game never goes idle, so the test's wait runs to its

@@ -175,7 +175,7 @@ sh2:    ld      a,(sitem)
 ; ---------------------------------------------------------------- the save file
 ; SIGSEEK.SAV, one record: 'SG', version, terminal, seed, tokens,
 ; upgrades, packets, shift, PIXEL's mood.
-SV_VER  equ     5               ; 1: before the callers; 2: the flags; 3: the cards; 4: the echo
+SV_VER  equ     6               ; 1: before the callers; 2: the flags; 3: the cards; 4: the echo; 5: replies
 
 ; load: at start. A new shift begins: shift + 1.
 load:   call    fcbclr
@@ -196,7 +196,7 @@ load:   call    fcbclr
         call    BDOS
         pop     af
         or      a
-        jr      nz,ld9
+        jp      nz,ld9
         ld      hl,(savbuf)
         ld      de,'G'*256+'S'
         or      a
@@ -227,9 +227,17 @@ load:   call    fcbclr
         pop     af
         cp      5               ; version 5: an echo waiting
         jr      c,ld8
+        push    af
         ld      hl,savbuf+40
         ld      de,eflag
         ld      bc,23
+        ldir
+        pop     af
+        cp      6               ; version 6: replies waiting
+        jr      c,ld8
+        ld      hl,savbuf+26
+        ld      de,reps
+        ld      bc,8
         ldir
 ld8:
         ld      a,(savbuf+3)
@@ -287,6 +295,10 @@ sv0:    ld      (hl),1ah
         ld      hl,eflag        ; an echo waiting
         ld      de,savbuf+40
         ld      bc,23
+        ldir
+        ld      hl,reps         ; replies waiting
+        ld      de,savbuf+26
+        ld      bc,8
         ldir
         ld      de,savbuf
         ld      c,26

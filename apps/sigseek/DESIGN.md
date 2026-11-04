@@ -278,10 +278,11 @@ again. Named in the title bar, told in the log.
 
 | Weather | Chance | |
 |---|---|---|
-| a clear night | 3/8 | as it is |
-| solar wind | 2/8 | more static on the band, one more noisy byte |
-| meteor shower | 1/8 | a signal about every 3 s, weak (3-4) and short (8-20 s) |
+| a clear night | 5/16 | as it is |
+| solar wind | 4/16 | more static on the band, one more noisy byte |
+| meteor shower | 2/16 | a signal about every 3 s, weak (3-4) and short (8-20 s) |
 | a still night | 3/16 | less static, one fewer noisy byte |
+| STATIC STORM | 1/16 | static floods the band, the peaks hide in it; two more noisy bytes; PIXEL slinks under the console |
 | THE NEBULA HUMS | 1/16 | the band glows; new signals one stronger |
 
 ## The last lantern
@@ -368,8 +369,6 @@ New:
   to know who is calling before the packet is in.
 - **Echoes:** a message delivered tonight comes back on a later night, fainter, from
   farther out, with a line added by whoever passed it on.
-- **Static storms:** a rare weather that floods the band; signals hide in it, PIXEL
-  hides under the console, and the hiss is the night's whole music.
 - **Upkeep, gently:** now and then PWR sags or a relay rattles loose; a small fix
   (a routing grid of two rows, a byte to set) and it is right again. Never urgent.
 - **Another program in `apps/`:** a cozy companion (a tide-table toy, a calm card

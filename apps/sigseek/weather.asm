@@ -9,6 +9,8 @@
 ;   a still night     less static, cleaner packets
 ;   THE NEBULA HUMS   rare: the band glows, signals come in strong, and
 ;                     the last lantern is on the air
+;   STATIC STORM      rare: static floods the band and the signals hide
+;                     in it; packets come in very noisy; PIXEL hides
 ;
 ; The last lantern: once fragment 19 ("Look for it at 1420") is in the
 ; Archive, a steady signal can come at exactly 1420.0 MHz: always on a
@@ -24,6 +26,7 @@ WX_WIND equ     1
 WX_METEOR equ   2
 WX_STILL equ    3
 WX_HUM  equ     4
+WX_STORM equ    5
 WX_TIME equ     900             ; ticks between changes (90 s)
 BCN_F   equ     14200           ; 1420.0 MHz
 F_BEACON equ    1               ; flags: the beacon found once
@@ -39,22 +42,25 @@ wxtick: ld      hl,(wxtime)
         ld      a,h
         or      l
         ret     nz
-; wxnew: pick the weather: clear 3/8, wind 2/8, meteor 1/8, still 3/16,
-; hum 1/16
+; wxnew: pick the weather: clear 5/16, wind 4/16, meteor 2/16, still
+; 3/16, a storm 1/16, the hum 1/16
 wxnew:  ld      hl,WX_TIME
         ld      (wxtime),hl
         call    rnd
         and     15
         ld      b,WX_CLEAR
-        cp      6
+        cp      5
         jr      c,wx1
         ld      b,WX_WIND
-        cp      10
+        cp      9
         jr      c,wx1
         ld      b,WX_METEOR
-        cp      12
+        cp      11
         jr      c,wx1
         ld      b,WX_STILL
+        cp      14
+        jr      c,wx1
+        ld      b,WX_STORM
         cp      15
         jr      c,wx1
         ld      b,WX_HUM
@@ -69,6 +75,9 @@ wx1:    ld      a,(wx)
         ld      hl,wxlogs
         call    msgof
         call    logmsg
+        ld      a,(wx)          ; a storm: PIXEL takes cover
+        cp      WX_STORM
+        call    z,hide
 wx3:    ld      a,(wx)          ; the last lantern?
         cp      WX_HUM
         jp      z,bcn
@@ -87,8 +96,11 @@ ws1:    cp      WX_WIND
         jr      nz,ws2
         ld      c,1
 ws2:    cp      WX_HUM
-        jr      nz,ws3
+        jr      nz,ws2a
         ld      c,1
+ws2a:   cp      WX_STORM
+        jr      nz,ws3
+        ld      c,3             ; the static floods the band
 ws3:    ld      a,b
         ld      (wmask),a
         ld      a,c
@@ -113,9 +125,22 @@ wxnoise: ld     a,(wx)
         jr      nz,wn1
         inc     b
 wn1:    cp      WX_STILL
-        ret     nz
+        jr      nz,wn2
         dec     b
+wn2:    cp      WX_STORM
+        ret     nz
+        inc     b               ; a storm: two more
+        inc     b
         ret
+
+; hide: in a storm, PIXEL goes under the console (if she is not walking)
+hide:   ld      a,(cwalk)
+        or      a
+        ret     nz
+        ld      hl,m_hide
+        call    logmsg
+        ld      a,SP_CON
+        jp      goto
 
 ; wxsig: IX = a new signal; the weather's say in it
 wxsig:  ld      a,(wx)
@@ -313,18 +338,45 @@ showkp: ld      a,(flags)
         jp      revoff
 
 ; ---------------------------------------------------------------- data
-wxnames: dw     w0, w1, w2, w3, w4
+wxnames: dw     w0, w1, w2, w3, w4, w5
 w0:     db      'a clear night',0
 w1:     db      'solar wind',0
 w2:     db      'meteor shower',0
 w3:     db      'a still night',0
 w4:     db      'THE NEBULA HUMS',0
-wxlogs: dw      l0, l1, l2, l3, l4
-l0:     db      'The sky clears. A good night for listening.',0
-l1:     db      'Solar wind. The static rises; packets come in noisier.',0
-l2:     db      'A meteor shower: quick little pings all over the band.',0
-l3:     db      'A still night. The band is calm and the packets clean.',0
-l4:     db      'THE NEBULA HUMS. The whole band glows, softly, everywhere.',0
+w5:     db      'STATIC STORM',0
+wxlogs: dw      l0, l1, l2, l3, l4, l5
+l0:     db      3
+        dw      l0_0, l0_1, l0_2
+l0_0: db      'The sky clears. A good night for listening.',0
+l0_1: db      'Clear skies over the nebula. Every star in its place.',0
+l0_2: db      'The weather settles: clear, cool, and quiet.',0
+l1:     db      3
+        dw      l1_0, l1_1, l1_2
+l1_0: db      'Solar wind. The static rises; packets come in noisier.',0
+l1_1: db      'A gust of solar wind: the hiss thickens, bytes get bumped.',0
+l1_2: db      'The sun is busy tonight. Expect noisy packets.',0
+l2:     db      3
+        dw      l2_0, l2_1, l2_2
+l2_0: db      'A meteor shower: quick little pings all over the band.',0
+l2_1: db      'Meteors! Short bright pings, here and gone.',0
+l2_2: db      'A meteor shower begins. Catch them if you can, they do not wait.',0
+l3:     db      3
+        dw      l3_0, l3_1, l3_2
+l3_0: db      'A still night. The band is calm and the packets clean.',0
+l3_1: db      'Stillness. The static lies down like a sleeping dog.',0
+l3_2: db      'A still night: you can almost hear the stars tick.',0
+l4:     db      3
+        dw      l4_0, l4_1, l4_2
+l4_0: db      'THE NEBULA HUMS. The whole band glows, softly, everywhere.',0
+l4_1: db      'THE NEBULA HUMS. Every signal is a little stronger tonight.',0
+l4_2: db      'The old song again: THE NEBULA HUMS, from end to end.',0
+l5:     db      3
+        dw      l5_0, l5_1, l5_2
+l5_0: db      'STATIC STORM. The band is all hiss; the signals hide in it.',0
+l5_1: db      'A STATIC STORM rolls in. Peaks drown; packets come in battered.',0
+l5_2: db      'STATIC STORM. The antenna crackles like a fire.',0
+m_hide: db      'PIXEL does not like the crackle. She slinks under the console.',0
 
 m_bcn:  db      'A steady light at 1420.0 MHz. PIXEL',27h,'s ears go straight up.',0
 m_bshort: db    '~ the last lantern ~',0

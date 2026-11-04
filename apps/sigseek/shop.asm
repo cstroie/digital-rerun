@@ -121,7 +121,7 @@ ds3:    call    gotoxy
         jr      nc,ds5
         inc     h
 ds5:    ld      a,(hl)
-        call    dec2
+        call    dec3
         ld      hl,m_tok
 ds4:    call    puts
         ld      a,(sitem)
@@ -129,6 +129,21 @@ ds4:    call    puts
         cp      8
         jr      nz,ds2
         ret
+
+; dec3: A as three digits, a space for a leading zero
+dec3:   ld      b,'0'-1
+d31:    inc     b
+        sub     100
+        jr      nc,d31
+        add     a,100
+        push    af
+        ld      a,b
+        cp      '0'
+        jr      nz,d32
+        ld      a,' '
+d32:    call    putc
+        pop     af
+        jp      dec2
 
 ; ---------------------------------------------------------------- the shelf
 ; row 17: what has been bought for the station, each in its place
@@ -271,7 +286,7 @@ fc1:    ld      (hl),0
         ret
 
 ; ---------------------------------------------------------------- data
-prices: db      20, 40, 25, 35, 15, 10, 20, 30
+prices: db      60, 120, 75, 105, 45, 30, 60, 90
 names:  dw      n0,n1,n2,n3,n4,n5,n6,n7
 n0:     db      'Fine tuner     ',0
 n1:     db      'Bit hints      ',0

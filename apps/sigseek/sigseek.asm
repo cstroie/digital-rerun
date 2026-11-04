@@ -136,11 +136,15 @@ nokey:  ld      hl,(ticks)
         xor     a
         ld      (ndia),a
         ld      (missed),a
-wait:   call    delay
+wait:   ld      b,24            ; park the cursor in the corner, still
+        ld      c,80
+        call    gotoxy
+        call    delay
         jp      loop
 
 quit:   call    save
         call    cls
+        call    curon
         ld      hl,m_bye
         call    puts
         ld      sp,(oldsp)
@@ -580,7 +584,8 @@ br2:    call    putc
 ; scr holds one 0-terminated string per row, from row 1; a second 0
 ; ends it. Each row is placed with gotoxy: an 80-column line followed
 ; by CR LF would wrap on the VT100 and the ADM-3A.
-frame:  call    cls
+frame:  call    curoff
+        call    cls
         ld      hl,scr
         ld      b,1
 fr1:    ld      a,(hl)
@@ -692,6 +697,26 @@ revoff: ld      a,(term)
         cp      T_ADM
         jp      z,puts
         ret
+
+; the cursor, hidden and shown: VT100 ESC[?25l/h (a VT220 code most VT100s
+; answer), ADM ESC C 4 / ESC B 4 (the later ADM extension); VT52 has none,
+; and there the parked cursor will do
+curoff: ld      hl,h_vt100
+        ld      de,h_adm
+        jr      cur1
+curon:  ld      hl,s_vt100
+        ld      de,s_adm
+cur1:   ld      a,(term)
+        cp      T_VT100
+        jp      z,puts
+        cp      T_ADM
+        ret     nz
+        ex      de,hl
+        jp      puts
+h_vt100: db     ESC,'[?25l',0
+s_vt100: db     ESC,'[?25h',0
+h_adm:  db      ESC,'C4',0
+s_adm:  db      ESC,'B4',0
 
 c_vt100: db     ESC,'[H',ESC,'[2J',0
 c_vt52: db      ESC,'H',ESC,'J',0

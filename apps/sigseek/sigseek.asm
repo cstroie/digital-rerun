@@ -49,6 +49,7 @@ start:  ld      (oldsp),sp
         cp      0ffh
         call    z,askterm
         call    loaddat         ; SIGSEEK.DAT, or a note and back to CP/M
+        call    wxnew           ; tonight's weather
         call    frame
         call    seed
         call    rnd             ; the first signal arrives soon
@@ -74,6 +75,10 @@ loop:   call    key
         cp      'P'
         jp      z,pet
         ld      b,a
+        ld      a,(mode)
+        cp      5
+        ld      a,b
+        jp      z,ekey
         ld      a,(mode)
         cp      4
         ld      a,b
@@ -132,6 +137,8 @@ nokey:  call    help            ; the keys that work now
         call    age             ; signals drift and fade
         call    stamp           ; where they fall on the band
         call    auto            ; AutoTune, if it is on
+        call    wxtick          ; the weather, now and then
+        call    scene           ; the Archive's end, if it is playing
         call    spectr          ; one fresh row of the spectrogram
         call    cat             ; PIXEL does as she pleases
         call    lock            ; lock meter and buffer
@@ -538,12 +545,13 @@ hp2:    push    hl
         call    padput          ; would wrap, and scroll the screen
         jp      revoff
 
-keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route
+keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene
 k_dial: db      ' [,.] tune  [<>] coarse  [T] AutoTune  [S]hop  [A]rchive  [P]et  [Q]uit',0
 k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [P]et',0
 k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
 k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
 k_arch: db      ' [,.] turn the page  [A] close the Archive  [P]et PIXEL  [Q]uit',0
+k_scene: db     ' [any key] go on, once it has all been said',0
 k_route: db     ' [SPACE] turn a relay  [arrows] move  [C] later  [P]et PIXEL  [Q]uit',0
 lasthp: db      0ffh
 
@@ -606,6 +614,10 @@ sp2:    call    rnd
         and     3               ; base noise 0..3
         ld      hl,purr
         and     (hl)            ; 1 while PIXEL purrs on the heater
+        ld      hl,wmask
+        and     (hl)            ; a still night: less static
+        ld      hl,wadd
+        add     a,(hl)          ; solar wind, the hum: more
         ex      de,hl
         add     a,(hl)
         inc     hl
@@ -647,11 +659,19 @@ S_FRQ   equ     0
 S_LIFE  equ     2
 S_STR   equ     4
 S_DRF   equ     5
-S_SIZE  equ     6
+S_BCN   equ     6               ; 1: the last lantern
+S_SIZE  equ     7
 NSIG    equ     3
 
 ; about one new signal every 26 s, while there are fewer than three
-spawn:  call    rnd
+spawn:  ld      a,(wx)          ; meteors: one about every 3 s
+        cp      WX_METEOR
+        jr      nz,spw1
+        call    rnd
+        and     31
+        ret     nz
+        jr      spn0
+spw1:   call    rnd
         or      a
         ret     nz
 spn0:   ld      ix,sigs
@@ -695,6 +715,8 @@ spn2:   call    rnd             ; within 6.4 MHz of the dial
         jr      spn4
 spn3:   dec     a
 spn4:   ld      (ix+S_DRF),a
+        ld      (ix+S_BCN),0
+        call    wxsig           ; the weather's say: meteors, a humming night
         ld      hl,m_stir
 ; quiet: signal news, kept out of the diary while away (only counted)
 quiet:  ld      a,(away)
@@ -1047,6 +1069,8 @@ fr2:    call    showfq
         call    shelf
         call    showau
         call    showpk
+        call    showwx
+        call    showkp
         call    pose
         ld      b,1             ; the shift number
         ld      c,58
@@ -1490,7 +1514,7 @@ m_back: db      'Welcome back. PIXEL pretends she did not miss you.',0
 m_again: db     'Another shift. PIXEL is already here, of course.',0
 m_bye:  db      'Kettle-7 signing off. Goodnight.',CR,LF,0
 m_mhz:  db      ' MHz',0
-m_title: db     ' KETTLE-7 RELAY  :  LANTERN NEBULA                 SHIFT              TOK',0
+m_title: db     ' KETTLE-7 RELAY  :                                 SHIFT              TOK',0
 m_lgold: db     '  ',0
 m_lgnew: db     '> ',0
 m_stir: db      'Something stirs on the band.',0
@@ -1576,6 +1600,7 @@ stack:
         include shop.asm
         include story.asm
         include route.asm
+        include weather.asm
 
 ; SIGSEEK.DAT is read here, after everything else
 datbuf:

@@ -44,6 +44,13 @@ PIXEL does as she likes. Asleep on the heater, she purrs and the static
 drops. At the antenna, her ears point at signals. On the keyboard...
 Leave the station for five minutes and she keeps a diary.
 
+The weather changes through the night, and the title bar names it: a
+clear night, solar wind (more static), a meteor shower (quick little
+pings), a still night (clean packets), and now and then the nebula
+hums. Some say the last lantern can be heard at 1420.0 MHz, once you
+know to listen for it. And when the Archive is whole, read it to the
+cat.
+
 The station is kept in SIGSEEK.SAV. Delete it to start afresh.
 SIGSEEK.DAT holds the letters and fragments; it must sit beside
 SIGSEEK.COM.

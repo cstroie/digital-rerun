@@ -101,7 +101,15 @@ str:    push    de
 
 ; ---------------------------------------------------------------- choosing
 ; pick: what the new packet is. HL = its text.
-pick:   call    rnd
+pick:   ld      ix,(lockix)     ; the last lantern: its own words
+        ld      a,(ix+S_BCN)
+        or      a
+        jr      z,pk0
+        ld      a,K_BEACON
+        ld      (pkkind),a
+        ld      hl,m_bshort
+        ret
+pk0:    call    rnd
         and     3
         jr      z,pkfr
         cp      3
@@ -205,6 +213,8 @@ ah1:    ld      a,c
 ; ---------------------------------------------------------------- delivery
 ; story: after a delivery, the letter (or the fragment) in the packet box
 story:  ld      a,(pkkind)
+        cp      K_BEACON
+        jp      z,bstory
         cp      K_CALL
         jr      z,sycall
         cp      K_FRAG
@@ -227,7 +237,8 @@ story:  ld      a,(pkkind)
         call    fragtx
         call    skipz           ; past the packet text: the line
         ld      b,PK_Y+2
-        jp      putrow
+        call    putrow
+        jp      ending          ; the 32nd? the Archive's end
 sycall: ld      a,(pkwho)       ; the story moves on
         ld      e,a
         ld      d,0

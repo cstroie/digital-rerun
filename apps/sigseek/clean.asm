@@ -50,7 +50,8 @@ np3:    ld      (hl),a
 np4a:   cp      6
         jr      nz,np4b
         dec     b
-np4b:   ld      a,(purr)
+np4b:   call    wxnoise         ; the weather: wind more, a still night less
+        ld      a,(purr)
         cp      3
         jr      nz,np4
         inc     b
@@ -249,8 +250,14 @@ deliv:  xor     a
         ld      a,(pkkind)      ; and 4 more for routing a caller's
         cp      K_CALL
         ld      a,b
-        jr      nz,dv1
+        jr      nz,dv0
         add     a,4
+dv0:    ld      b,a
+        ld      a,(pkkind)      ; and 20 more for the last lantern's
+        cp      K_BEACON
+        ld      a,b
+        jr      nz,dv1
+        add     a,20
 dv1:    ld      (pkgain),a
         ld      e,a
         ld      d,0

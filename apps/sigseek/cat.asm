@@ -60,6 +60,7 @@ cat:    ld      a,(cwalk)
         jr      c,cd1
         xor     a               ; 6, 7: sleepy (she sleeps a lot)
 cd1:    ld      (cmood),a
+        call    showmd
 cd2:    call    rnd
         ld      b,a
         ld      a,(cspot)
@@ -276,7 +277,17 @@ mo1:    ld      a,(hl)
 ; ---------------------------------------------------------------- the box
 ; pose: her mood, drawn in the box when at home; the bed when not.
 ; While she sleeps at home she purrs, and the static is lower.
-pose:   ld      a,3             ; purr is the noise mask: 3, or 1 purring
+; showmd: her mood, under her name: at home or out, it is hers
+showmd: ld      b,PK_Y+4
+        ld      c,68
+        call    gotoxy
+        ld      a,(cmood)
+        ld      hl,moods
+        call    msgof
+        jp      puts
+
+pose:   call    showmd
+        ld      a,3             ; purr is the noise mask: 3, or 1 purring
         ld      (purr),a
         ld      a,(cspot)
         or      a
@@ -295,13 +306,7 @@ po_h:
         jr      nz,po1
 po0:    ld      a,1
         ld      (purr),a
-po1:    ld      b,PK_Y+4        ; her mood, under her name
-        ld      c,68
-        call    gotoxy
-        ld      a,(cmood)
-        ld      hl,moods
-        call    msgof
-        call    puts
+po1:    call    showmd
         ld      a,(cmood)
         ld      hl,poses
         call    msgof

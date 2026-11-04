@@ -273,12 +273,18 @@ sc1:    call    setattr
         ld      a,(eline)       ; PIXEL, as the lines go: listening, asleep
         cp      2
         jr      nz,sc2
+        ld      a,MD_CURI       ; listening
+        ld      (cmood),a
+        call    showmd
         ld      hl,p_curi
         jp      drawp
 sc2:    cp      NEND
         ret     nz
         ld      a,BEL
         call    putc
+        ld      a,MD_SLEEP      ; and asleep
+        ld      (cmood),a
+        call    showmd
         ld      hl,p_sleep
         jp      drawp
 

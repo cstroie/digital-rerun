@@ -376,9 +376,23 @@ dr1:    ld      a,b
 dr2:    djnz    dr1
         ld      a,c
         ld      (arcnt),a
-        call    decn
+        cp      NFRAG           ; all of it: COMPLETE, and read, or not yet
+        jr      nz,dra1
+        ld      a,A_BOLD
+        call    setattr
+        ld      hl,m_arcomp
+        call    puts
+        xor     a
+        call    setattr
+        ld      a,(flags)
+        and     F_KEEPER
+        ld      hl,m_arread
+        call    nz,puts
+        jr      dra2
+dra1:   call    decn
         ld      hl,m_arof
         call    puts
+dra2:
         ld      b,PK_Y+1             ; the sky: * kept, . not yet, @ this one
         ld      c,3
         call    gotoxy
@@ -444,6 +458,8 @@ m_ch1:  db      ' (',0
 m_ch2:  db      '/5):',0
 m_artit: db     'THE ARCHIVE OF THE LANTERN BEACONS: ',0
 m_arof: db      ' of 32',0
+m_arcomp: db    'COMPLETE',0
+m_arread: db    '  (read to PIXEL)',0
 m_arnone: db    'Empty, for now. Fragments come on signals with no sender.',0
 m_arkeys: db    ',. turn the page   A close',0
 

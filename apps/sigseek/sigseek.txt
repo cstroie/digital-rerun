@@ -4,6 +4,7 @@
 #   @caller Name, what   8 callers, 5 chapters each:
 #                          packet text (<= 20) | letter line 1 | line 2 (<= 60)
 #   @frag                32 Archive fragments: packet text (<= 20) | the line (<= 60)
+#   @card Name           8 postcards: a caption, then four lines of picture
 #
 # 7-bit ASCII. Lines starting with # are comments.
 
@@ -114,3 +115,63 @@ Hum says hi         | Hum here. Nothing to report. I just like being on your   |
 ~ lantern 30 ~      | Small things, done kindly, in the dark: that was our way.
 ~ lantern 31 ~      | When you have all our lines, read them to the cat.
 ~ lantern 32 ~      | Thank you for listening. That was all we ever wanted.
+
+# Postcards: one from each caller when their story ends (in caller order).
+#   @card Name           then the caption (<= 50), then four lines of picture
+#                        (<= 58, spaces kept; no line may start with #)
+
+@card Mira
+Greetings from Port Hollow! Great sandwiches.
+      *        .        .    _|_         *
+  .         __/\__          (o o)     PORT HOLLOW
+      ____/  ()  \_____      |        dock 4, berth 9
+ ~~~~/___________________\~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+@card Tobin
+Lighthouse Seven. The lamp still burns.
+          \   |   /
+        --   (*)   --             LIGHTHOUSE SEVEN
+              |=|                 rock 2210
+   ___/\______|=|______/\___      the lamp still burns
+
+@card Pip
+My drawing of PIXEL. She is VERY orange.
+     /\_/\            by PIP, age 9
+    ( ^.^ )
+    /  O  \           she is VERY orange
+   (_/   \_)          (gold star)
+
+@card BARGE-9
+AT PORT. ALL SOCKS ACCOUNTED FOR. - BARRY
+    ____________________________
+   |[S][S][S][S][S][S][S][S][S]|>        BARRY
+   |___________________________|        400 CRATES. 400.
+      o                     o            I COUNTED TWICE.
+
+@card Dr Wen
+The ferns, in B flat. Plant the seeds by a radio.
+     \ | /    \ | /    \ | /        ~  B flat  ~
+    --\|/--  --\|/--  --\|/--
+      \|/      \|/      \|/         Tycho Station,
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~     greenhouse ring
+
+@card Sol & Dee
+Still on the slow shuttle. Flash your lights!
+        .    *       .         *       .
+    _____/=\______________          SOL & DEE
+   <_o__o__o__o__o__o__o__>==--     one toothbrush,
+         *       .          .       one ukulele
+
+@card Captain Ruth
+The old Lantern route, forty years ago.
+    *       .        *        .       *
+       .      ~  ~  ~  ~  ~             CAPTAIN RUTH
+   K-7 o - - - - - - - - - o LANTERN    (cat on the
+    *      .        *         .          console)
+
+@card Hum
+Hum's first postcard, from Hum's first address.
+    .......   .   ..............   ...
+   .   HUM                               .
+   .   c/o the static, 1420-ish          .
+    ......   ................   .......

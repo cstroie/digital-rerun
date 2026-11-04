@@ -69,7 +69,7 @@ la2:    ld      hl,(datbuf)     ; 'SDAT', version 1, the counts we know
         jr      nz,lafail
         ld      hl,datbuf+4
         ld      de,dathdr
-        ld      b,5
+        ld      b,6
 la3:    ld      a,(de)
         cp      (hl)
         jr      nz,lafail
@@ -84,7 +84,7 @@ lafail: ld      hl,m_nodat
         ld      sp,(oldsp)
         ret
 
-dathdr: db      1, NMSG, NCALL, NCH, NFRAG
+dathdr: db      2, NMSG, NCALL, NCH, NFRAG, NCARD
 
 ; str: HL = a string's number -> HL = the string
 str:    push    de
@@ -248,6 +248,10 @@ sycall: ld      a,(pkwho)       ; the story moves on
         cp      NCH
         jr      nc,sy1
         inc     (hl)
+        ld      a,(hl)          ; the story's end: a postcard too
+        cp      NCH
+        ld      a,(pkwho)
+        call    z,gotcard
 sy1:    ld      b,PK_Y
         ld      c,3
         call    gotoxy

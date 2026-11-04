@@ -76,6 +76,10 @@ loop:   call    key
         jp      z,pet
         ld      b,a
         ld      a,(mode)
+        cp      6
+        ld      a,b
+        jp      z,wkey
+        ld      a,(mode)
         cp      5
         ld      a,b
         jp      z,ekey
@@ -101,6 +105,8 @@ loop:   call    key
         jp      z,shop
         cp      'T'
         jp      z,autot
+        cp      'W'
+        jp      z,wall
         cp      'A'
         jp      z,archive
         ld      de,-1
@@ -545,12 +551,13 @@ hp2:    push    hl
         call    padput          ; would wrap, and scroll the screen
         jp      revoff
 
-keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene
-k_dial: db      ' [,.] tune  [<>] coarse  [T] AutoTune  [S]hop  [A]rchive  [P]et  [Q]uit',0
-k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [P]et',0
+keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall
+k_dial: db      ' [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [W]all  [P]et  [Q]uit',0
+k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
 k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
 k_arch: db      ' [,.] turn the page  [A] close the Archive  [P]et PIXEL  [Q]uit',0
+k_wall: db      ' [,.] the next card  [W] close the wall  [P]et PIXEL  [Q]uit',0
 k_scene: db     ' [any key] go on, once it has all been said',0
 k_route: db     ' [SPACE] turn a relay  [arrows] move  [C] later  [P]et PIXEL  [Q]uit',0
 lasthp: db      0ffh
@@ -1601,6 +1608,7 @@ stack:
         include story.asm
         include route.asm
         include weather.asm
+        include cards.asm
 
 ; SIGSEEK.DAT is read here, after everything else
 datbuf:

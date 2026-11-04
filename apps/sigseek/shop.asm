@@ -163,6 +163,9 @@ sh1:    ld      (sitem),a
         ld      hl,decor
         call    msgof
         call    puts
+        ld      a,(sitem)       ; the wall: its cards
+        cp      7
+        call    z,shelfc
 sh2:    ld      a,(sitem)
         inc     a
         cp      8
@@ -172,7 +175,7 @@ sh2:    ld      a,(sitem)
 ; ---------------------------------------------------------------- the save file
 ; SIGSEEK.SAV, one record: 'SG', version, terminal, seed, tokens,
 ; upgrades, packets, shift, PIXEL's mood.
-SV_VER  equ     3               ; 1: before the callers; 2: before the flags
+SV_VER  equ     4               ; 1: before the callers; 2: the flags; 3: the cards
 
 ; load: at start. A new shift begins: shift + 1.
 load:   call    fcbclr
@@ -212,8 +215,14 @@ load:   call    fcbclr
         pop     af
         cp      3               ; version 3: the flags (the lantern, the end)
         jr      c,ld8
+        push    af
         ld      a,(savbuf+24)
         ld      (flags),a
+        pop     af
+        cp      4               ; version 4: the postcards
+        jr      c,ld8
+        ld      a,(savbuf+25)
+        ld      (cards),a
 ld8:
         ld      a,(savbuf+3)
         ld      (term),a
@@ -265,6 +274,8 @@ sv0:    ld      (hl),1ah
         ldir
         ld      a,(flags)
         ld      (savbuf+24),a
+        ld      a,(cards)
+        ld      (savbuf+25),a
         ld      de,savbuf
         ld      c,26
         call    BDOS
@@ -321,7 +332,7 @@ decor:  dw      0,0,0,0, d4,d5,d6,d7
 d4:     db      ' c[_]',0
 d5:     db      '  \|/',0
 d6:     db      '  (*)',0
-d7:     db      '  [~][#][@]',0
+d7:     db      '  wall:',0
 m_shelf: db     'shelf:',0
 
 m_shop: db      'The shop. 1-8 buy, S to close.',0

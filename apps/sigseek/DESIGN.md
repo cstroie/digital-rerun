@@ -20,6 +20,7 @@ does as she pleases. The station keeps running when you step away.
 | `shop.asm` | The shop, the shelf of decorations, the save file |
 | `story.asm` | `SIGSEEK.DAT`: loading, the callers, the Archive |
 | `weather.asm` | Weather, the last lantern at 1420.0 MHz, the Archive's end |
+| `cards.asm` | Postcards from the callers, the postcard wall |
 | `sigseek.txt` | The content: messages, callers' letters, Archive fragments |
 | `mkdat.js` | Packs `sigseek.txt` into `SIGSEEK.DAT`, checking every length against the screen |
 | `build.sh` | pasmo, then mkdat, then copies both onto the shelf disk |
@@ -119,7 +120,7 @@ park the cursor, wait
 ```
 
 Modes: 0 the dial, 1 cleaning, 2 the shop, 3 the Archive, 4 routing, 5 the
-Archive's end. `P` (pet) and `Q` (quit, saving) work in every mode.
+Archive's end, 6 the postcard wall. `P` (pet) and `Q` (quit, saving) work in every mode.
 
 ## Playing
 
@@ -174,7 +175,7 @@ purpose.
 | 5 | Kettle | 45 | on the shelf: `c[_]` |
 | 6 | Small plant | 30 | `\|/` |
 | 7 | Desk lamp | 60 | `(*)` |
-| 8 | Postcard wall | 90 | `[~][#][@]` |
+| 8 | Postcard wall | 90 | the callers' postcards, `W`; on the shelf `wall:[#.......]` |
 
 Nothing makes anything harder.
 
@@ -213,12 +214,14 @@ An independent colleague, not a pet to manage: warm, earnest, a little absurd.
 @caller Name, what      8 callers, 5 chapters each:
   packet text | letter line 1 | letter line 2      (<= 20, <= 60, <= 60)
 @frag                   32 fragments:  packet text | the line   (<= 20, <= 60)
+@card Name              8 postcards, in caller order: a caption (<= 50), then
+                        four lines of picture (<= 58, spaces kept)
 ```
 
-`mkdat.js` refuses anything too long for the screen, and packs it as: `SDAT`, a
-version byte and the five counts, a table of word offsets, then the strings. String
+`mkdat.js` refuses anything too long for the screen, and packs it as: `SDAT`,
+version 2 and the six counts, a table of word offsets, then the strings. String
 numbers: messages 0-15; caller *i* at 16 + 16*i* (the name), then chapter *j*'s
-three at 16 + 16*i* + 1 + 3*j*; fragment *k*'s two at 144 + 2*k*. A test keeps
+three at 16 + 16*i* + 1 + 3*j*; fragment *k*'s two at 144 + 2*k*; postcard *c*'s five at 208 + 5*c*. A test keeps
 `SIGSEEK.DAT` current with `sigseek.txt`.
 
 - **Who sends a packet:** a caller half the time, an Archive fragment a quarter,
@@ -229,6 +232,12 @@ three at 16 + 16*i* + 1 + 3*j*; fragment *k*'s two at 144 + 2*k*. A test keeps
   Seven; Pip, age nine, and the toaster radio; BARGE-9, a cargo AI with too many
   socks (later Barry); Dr Wen and the humming ferns; Sol & Dee, newlyweds; Captain
   Ruth, retired; and Nobody, from Nowhere, who becomes Hum.
+- **Postcards:** when a caller's story reaches its fifth chapter, they send a
+  postcard too (a bell, and the log says so). `W` shows the postcard wall, if the
+  shop's wall is up: a card at a time, its caption in bold and who it is from, the
+  picture under it; `,` `.` turn. Mira from Port Hollow, Tobin's lighthouse, Pip's
+  drawing of PIXEL, Barry's 400 crates, Dr Wen's ferns, Sol & Dee's slow shuttle,
+  Captain Ruth's old route, and Hum's first address.
 - **The Archive** (`A`): the fragments of the Lantern beacons, a sky of 32 stars
   (`*` kept, `.` not yet, `@` the one shown), the kept ones to read with `,` `.`. A
   fragment packet brings one not yet kept while there is one. When whole, the title
@@ -270,7 +279,7 @@ One 128-byte record, written on quit and after each purchase:
 | Offset | |
 |---|---|
 | 0 | `SG` |
-| 2 | version (3) |
+| 2 | version (4) |
 | 3 | terminal |
 | 4 | the random seed (word) |
 | 6 | tokens (word) |
@@ -281,8 +290,10 @@ One 128-byte record, written on quit and after each purchase:
 | 12 | each caller's next chapter (8 bytes) |
 | 20 | the Archive, a bit for each fragment (4 bytes) |
 | 24 | flags: 1 the last lantern found, 2 a Lantern Keeper |
+| 25 | the postcards, a bit for each caller |
 
-Version 1 (before the story) and 2 (before the flags) still load. No room on the
+Versions 1 (before the story), 2 (before the flags) and 3 (before the
+postcards) still load. No room on the
 disk: no save, no fuss. Delete the file to start afresh.
 
 ## Testing
@@ -298,7 +309,6 @@ copies match, an overlong line is refused) and a shelf test (`PLAY` starts a shi
 
 ## Ideas not built
 
-- Postcards from callers whose story has ended, on the postcard wall.
 - PIXEL's opinions of callers (Barry, especially); a gift that turns out useful;
   reactions to the shelf (asleep under the lamp, sniffing the plant).
 - More shop things: a star chart that marks old signals, a second buffer.

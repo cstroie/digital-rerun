@@ -211,6 +211,11 @@ An independent colleague, not a pet to manage: warm, earnest, a little absurd.
   box when you come back (the last four, with the time, and a count of the signals
   that drifted by). While you are away she brings gifts: a chewed screw, a grateful
   moth, a Z80 chip, a sock that belongs to nobody.
+- **Useful gifts:** a quarter of her away-gifts, and one time in eight a thank-you
+  for petting her when needy, turn out to fit: one of the four useful upgrades not
+  yet in (a brass knob for the dial, a chip marked HINTS, a heating coil, a memory
+  chip), installed free and saved at once. When all four are in, she brings the
+  ordinary kind.
 
 ## The story (`SIGSEEK.DAT`)
 
@@ -316,7 +321,6 @@ copies match, an overlong line is refused) and a shelf test (`PLAY` starts a shi
 
 ## Ideas not built
 
-- PIXEL: a gift that turns out useful;
-  reactions to the shelf (asleep under the lamp, sniffing the plant).
+- PIXEL's reactions to the shelf (asleep under the lamp, sniffing the plant).
 - More shop things: a star chart that marks old signals, a second buffer.
 - A tie-in with Z80-uLM (put off).

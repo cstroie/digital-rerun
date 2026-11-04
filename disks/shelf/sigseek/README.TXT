@@ -44,7 +44,8 @@ of the old Lantern beacons: they go in the Archive (A), to read again.
 
 PIXEL does as she likes. Asleep on the heater, she purrs and the static
 drops. At the antenna, her ears point at signals. On the keyboard...
-She has opinions about the callers, too.
+She has opinions about the callers, too, and some of her gifts turn out
+to be just what the station needed.
 Leave the station for five minutes and she keeps a diary.
 
 The weather changes through the night, and the title bar names it: a

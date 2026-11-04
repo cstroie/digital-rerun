@@ -365,8 +365,14 @@ pt1:    ld      a,(cmood)
         jr      z,pt2
         cp      MD_NEEDY
         ld      b,MD_SLEEP
-        jr      z,pt2
+        jr      z,pt3
         jp      nokey
+pt3:    call    rnd             ; a needy cat, petted: one time in eight,
+        and     7               ; she goes off and comes back with something
+        jr      nz,pt2
+        push    bc
+        call    usegift
+        pop     bc
 pt2:    ld      a,b
         ld      (cmood),a
         call    pose
@@ -382,11 +388,52 @@ gift:   ld      a,(away)
         call    rnd
         and     7
         ret     nz
-        call    rnd
+        call    rnd             ; a quarter of them turn out useful
+        and     3
+        jr      nz,gf1
+        call    usegift
+        ret     nz
+gf1:    call    rnd
         and     3
         ld      hl,gifts
         call    msgof
         jp      logmsg
+
+; usegift: PIXEL brings a part that fits: one of the four useful
+; upgrades not yet in (from a random one on), installed free and saved.
+; NZ if she did; Z if they are all in already.
+usegift: call   rnd
+        and     3
+        ld      c,a
+        ld      b,4
+ug1:    ld      a,c
+        push    bc
+        call    mask            ; (mask uses B)
+        pop     bc
+        ld      e,a
+        ld      a,(upg)
+        and     e
+        jr      z,ug2           ; this one is not in: hers
+        ld      a,c
+        inc     a
+        and     3
+        ld      c,a
+        djnz    ug1
+        xor     a               ; Z: nothing she could bring
+        ret
+ug2:    ld      a,(upg)
+        or      e
+        ld      (upg),a
+        ld      a,BEL
+        call    putc
+        ld      a,c
+        ld      hl,usefull
+        call    msgof
+        call    logmsg
+        call    pose            ; (a better heater shows at once)
+        call    save
+        or      1               ; NZ
+        ret
 
 ; ---------------------------------------------------------------- the diary
 ; While away, each log line goes in the diary (the last three, with
@@ -628,6 +675,11 @@ ml_call: db     'You call PIXEL. She looks at you. She stays put.',0
 ml_comes: db    'You call PIXEL. She comes trotting home at once.',0
 ml_busy: db     'PIXEL is on her way somewhere. Important cat business.',0
 
+usefull: dw     u_tuner, u_hints, u_heat, u_buf
+u_tuner: db     'PIXEL brought a tiny brass knob. It fits the dial: a fine tuner!',0
+u_hints: db     'PIXEL brought a chip marked HINTS. It fits! Wrong bits show as !',0
+u_heat: db      'PIXEL dragged in a heating coil. The heater is much better now.',0
+u_buf:  db      'PIXEL brought a memory chip. It fits: the buffer fills faster!',0
 gifts:  dw      f_screw, f_moth, f_chip, f_sock
 f_screw: db     'PIXEL brought you a gift: one (1) screw, slightly chewed.',0
 f_moth: db      'PIXEL brought you a moth. It is alive and grateful.',0

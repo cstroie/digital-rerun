@@ -63,6 +63,13 @@ loop:   call    key
         jp      z,quit
         cp      'P'
         jp      z,pet
+        ld      b,a
+        ld      a,(mode)
+        or      a
+        ld      a,b
+        jp      nz,ckey
+        cp      'C'
+        jp      z,clean
         ld      de,-1
         cp      ','
         jr      z,tune
@@ -474,7 +481,20 @@ lk5:    or      a
 lk6:    ld      (buf),a
         jp      meters
 
-captur: xor     a
+captur: ld      a,(havepk)      ; one packet at a time
+        or      a
+        jr      z,cap1
+        ld      a,99
+        ld      (buf),a
+        ld      a,(fullms)
+        or      a
+        jp      nz,meters
+        inc     a
+        ld      (fullms),a
+        ld      hl,m_full
+        call    logmsg
+        jp      meters
+cap1:   xor     a
         ld      (buf),a
         ld      ix,(lockix)
         ld      (ix+S_LIFE),a
@@ -485,15 +505,8 @@ captur: xor     a
         call    putc
         ld      hl,m_got
         call    logmsg
-        ld      b,8
-        ld      c,4
-        call    gotoxy
-        ld      hl,m_pkt
-        call    puts
-        ld      a,(npkt)
-        call    dec2
-        ld      hl,m_pkt2
-        call    puts
+        call    newpk           ; the packet: a message, some noise
+        call    drawpk
         jp      meters
 
 ; the lock meter (row 5) and BUF (deck, row 4): bars of '*' and '#'
@@ -849,9 +862,8 @@ m_bye:  db      'Kettle-7 signing off. Goodnight.',CR,LF,0
 m_mhz:  db      ' MHz',0
 m_stir: db      'Something stirs on the band.',0
 m_fade: db      'A signal faded into the hiss. It will be back some night.',0
-m_got:  db      'Packet captured! Tucked safely into the buffer.',0
-m_pkt:  db      'Packet #',0
-m_pkt2: db      ' in the buffer. (Cleaning: coming soon.)',0
+m_got:  db      'Packet captured! Press C to clean it.',0
+m_full: db      'The buffer is full. Clean the packet first (C).',0
 m_lock: db      'lock ',0
 
 ; the frame: 80x24, plain ASCII (DigitalRerun ignores the DEC graphics set)
@@ -859,7 +871,7 @@ scr:    db      '+- KETTLE-7 RELAY ----------------------------------- SHIFT 01 
         db      '|                                                               | |   DECK     |',0
         db      '|                                                               | | PWR ######.|',0
         db      '|                                                               | | BUF ...... |',0
-        db      '|                                                               | | HUM low    |',0
+        db      '|                                                               | | TOK      0 |',0
         db      '+- PACKET ------------------------------------------------------+ +- PIXEL ----+',0
         db      '|                                                               | |  /\_/\     |',0
         db      '|              (no signal captured)                             | | ( -.- ) zz |',0
@@ -877,6 +889,7 @@ rseed:  dw      0ace1h
 freq:   dw      14204           ; 1420.4 MHz, the hydrogen line
 ticks:  dw      0
 purr:   db      1
+fullms: db      0
 missed: db      0
 sigs:   ds      NSIG*S_SIZE
 boost:  ds      SPEC_W
@@ -897,5 +910,6 @@ oldsp:  dw      0
 stack:
 
         include cat.asm
+        include clean.asm
 
         end     start

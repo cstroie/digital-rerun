@@ -116,7 +116,8 @@ tune:   ld      hl,(freq)
         ld      (freq),hl
         call    showfq
 
-nokey:  ld      hl,(ticks)
+nokey:  call    help            ; the keys that work now
+        ld      hl,(ticks)
         inc     hl
         ld      (ticks),hl
         call    spawn           ; now and then, a new signal
@@ -159,6 +160,60 @@ back:   call    showdia
         call    logmsg
         ld      a,BEL
         jp      putc
+
+; ---------------------------------------------------------------- the keys line
+; help: row 15 lists the keys that work now: they change with the mode
+; (the dial, cleaning, the shop, the Archive, routing) and with a packet
+; in the buffer or not. Drawn only when that changes.
+help:   ld      a,(havepk)
+        ld      b,a
+        ld      a,(mode)
+        add     a,a
+        or      b
+        ld      hl,lasthp
+        cp      (hl)
+        ret     z
+        ld      (hl),a
+        ld      a,(mode)
+        or      a
+        jr      nz,hp1
+        ld      a,b             ; at the dial: with a packet, or without
+        ld      hl,k_dial
+        or      a
+        jr      z,hp2
+        ld      hl,k_dialc
+        jr      hp2
+hp1:    ld      hl,keylns
+        call    msgof
+hp2:    push    hl
+        ld      b,15
+        ld      c,1
+        call    gotoxy
+        pop     hl
+        ld      c,0             ; C = the characters written
+hp3:    ld      a,(hl)
+        or      a
+        jr      z,hp4
+        call    putc
+        inc     hl
+        inc     c
+        jr      hp3
+hp4:    ld      a,c             ; then blanks, to column 79 (not the
+        cp      79              ; last: the ADM-3A would wrap)
+        ret     nc
+        ld      a,' '
+        call    putc
+        inc     c
+        jr      hp4
+
+keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route
+k_dial: db      ' [,][.] tune  [<][>] coarse  [S]hop  [A]rchive  [P]IXEL  [Q]uit',0
+k_dialc: db     ' [,][.] tune  [<][>] coarse  [C]lean  [S]hop  [A]rchive  [P]IXEL  [Q]uit',0
+k_clean: db     ' [1]-[8] flip a bit  [,][.] pick a byte  [C] later  [P]IXEL  [Q]uit',0
+k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]IXEL  [Q]uit',0
+k_arch: db      ' [,][.] turn the page  [A] close the Archive  [P]IXEL  [Q]uit',0
+k_route: db     ' [SPACE] turn a relay  arrows move  [C] later  [P]IXEL  [Q]uit',0
+lasthp: db      0ffh
 
 ; ---------------------------------------------------------------- timing
 delay:  ld      c,DLY_OUT
@@ -951,7 +1006,7 @@ scr:    db      '+- KETTLE-7 RELAY ----------------------------------- SHIFT 01 
         db      '|                                                               |',0
         db      '+---------------------------------------------------------------+',0
         db      ' ',0
-        db      ' [,][.] tune  [<][>] coarse  [C]lean [S]hop [A]rchive [P]IXEL [Q]uit',0,0
+        db      ' ',0,0
 
 ; ---------------------------------------------------------------- state
 term:   db      0ffh

@@ -433,6 +433,8 @@ ug2:    ld      a,(upg)
         call    msgof
         call    logmsg
         call    pose            ; (a better heater shows at once)
+        ld      a,ST_GIFT
+        call    stampit
         call    save
         or      1               ; NZ
         ret

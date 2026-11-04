@@ -238,7 +238,8 @@ bs1:    ld      b,PK_Y+2
         call    putrow
         ld      hl,flags
         set     0,(hl)          ; F_BEACON
-        ret
+        ld      a,ST_LAMP
+        jp      stampit
 
 ; ---------------------------------------------------------------- the end
 ; ending: when the Archive is whole, once. A scene in the packet box, a
@@ -259,6 +260,8 @@ en2:    djnz    en1
         ret     nz
         ld      hl,flags
         set     1,(hl)          ; F_KEEPER
+        ld      a,ST_ARCH
+        call    stampit
         ld      hl,(tokens)
         ld      de,100
         add     hl,de

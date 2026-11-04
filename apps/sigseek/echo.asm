@@ -91,6 +91,8 @@ estory: call    clrbox
         call    puts
         xor     a
         call    setattr
+        ld      a,ST_ECHO
+        call    stampit
         xor     a               ; the slot is free
         ld      (eflag),a
         ld      hl,m_elog

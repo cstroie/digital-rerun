@@ -300,6 +300,7 @@ dl1:    inc     b
         call    logmsg
         call    drawpk
         call    story           ; the letter, or the fragment
+        call    st100           ; (100 tokens tonight?)
         jp      nokey
 
 ; strcpy: HL (0-terminated) to DE, DE left on the end

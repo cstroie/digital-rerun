@@ -279,6 +279,8 @@ rkturn: ld      a,(rtcur)
         call    putc
         ld      hl,m_rtok
         call    logmsg
+        ld      a,ST_ROUTE
+        call    stampit
         jp      deliv
 rkdraw: call    drawrt
         jp      nokey

@@ -221,6 +221,8 @@ story:  call    echkeep         ; (kept, to come back another night)
         cp      K_FRAG
         ret     nz
         call    tl_frag         ; tonight's tally
+        ld      a,ST_FRAG
+        call    stampit
         ld      a,(pkfrag)      ; a fragment for the Archive
         call    archas
         or      (hl)
@@ -242,6 +244,8 @@ story:  call    echkeep         ; (kept, to come back another night)
         call    putrow
         jp      ending          ; the 32nd? the Archive's end
 sycall: call    tl_let          ; tonight's tally
+        ld      a,ST_LETTER
+        call    stampit
         ld      a,(pkwho)       ; the story moves on
         ld      e,a
         ld      d,0
@@ -302,6 +306,7 @@ sy1:    ld      b,PK_Y
         ld      b,PK_Y+2
         call    putrow
         call    psline          ; a P.S., if they had a reply
+        call    all8            ; (every caller met?)
         call    opinion         ; and what PIXEL makes of them
         jp      askrep          ; and a reply to this one?
 ; putrow: HL = a string, on row B from column 3; HL left on its end
@@ -327,7 +332,9 @@ archive: ld     a,3
         call    drawar
         jp      nokey
 
-akey:   cp      'A'
+akey:   cp      'K'             ; the stamp book, from here too
+        jp      z,stpage
+        cp      'A'
         jr      z,akout
         cp      ESC
         jr      z,akout

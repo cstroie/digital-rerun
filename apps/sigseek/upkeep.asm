@@ -105,7 +105,9 @@ fkey:   cp      ESC
         jr      z,fk5
         call    drawpw
         jp      nokey
-fk5:    xor     a               ; set right
+fk5:    ld      a,ST_FIX
+        call    stampit
+        xor     a               ; set right
         ld      (pwrlow),a
         ld      (mode),a
         ld      a,BEL

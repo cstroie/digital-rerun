@@ -11,6 +11,8 @@ X_CARD  equ     X_FRAG+NFRAG*2
 
 ; gotcard: caller A has sent their postcard (when their story ends)
 gotcard: push   af
+        ld      a,ST_END
+        call    stampit
         call    mask
         ld      hl,cards
         or      (hl)

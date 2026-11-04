@@ -320,6 +320,8 @@ dawnq:  ld      a,(dawned)
         ld      (dtick),a
         ld      hl,m_dawn
         call    logmsg
+        ld      a,ST_DAWN
+        call    stampit
         jp      tally
 
 ; dawntk: each tick of the dawn: the sunrise, a frame every 1.5 s

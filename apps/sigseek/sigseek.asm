@@ -80,6 +80,10 @@ loop:   call    key
         jp      z,pet
         ld      b,a
         ld      a,(mode)
+        cp      11
+        ld      a,b
+        jp      z,kkey
+        ld      a,(mode)
         cp      10
         ld      a,b
         jp      z,fkey
@@ -127,6 +131,8 @@ loop:   call    key
         jp      z,help0
         cp      'F'
         jp      z,fixpw
+        cp      'K'
+        jp      z,stpage
         cp      'A'
         jp      z,archive
         ld      de,-1
@@ -386,8 +392,12 @@ rxbegin: ld     a,(havepk)
         ld      (gfaded),a
         ld      a,(pkkind)      ; a ghost: PIXEL knows
         cp      K_GHOST
+        jr      nz,rb0
         ld      hl,m_stare
-        call    z,logmsg
+        call    logmsg
+        ld      a,ST_GHOST
+        call    stampit
+rb0:
         ld      a,(pklen)       ; the order the letters come in
         ld      b,a
         ld      hl,perm
@@ -766,13 +776,14 @@ hp2:    push    hl
         call    padput          ; would wrap, and scroll the screen
         jp      revoff
 
-keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall, k_dawn, 0, k_reply, k_fix
+keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall, k_dawn, 0, k_reply, k_fix, k_stamp
 k_dial: db      ' [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [W]all  [P]et  [?]help',0
 k_dialf: db     ' [F]IX THE POWER  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
 k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
-k_arch: db      ' [,.] turn the page  [A] close the Archive  [P]et PIXEL  [Q]uit',0
+k_arch: db      ' [,.] turn the page  [K] stamps  [A] close the Archive  [P]et PIXEL  [Q]uit',0
+k_stamp: db     ' [K] close the stamp book  [P]et PIXEL  [Q]uit',0
 k_fix:  db      ' [1]-[8] flip a bit  [F] later  [P]et PIXEL  [Q]uit',0
 k_reply: db     ' REPLY?  [1] a warm reply  [2] a word from PIXEL  [3] no reply',0
 k_dawn: db      ' [any key] end the shift, once the sun is up (the station is saved)',0
@@ -1226,10 +1237,14 @@ cap2:
         ld      a,BEL
         call    putc
         call    showpk
+        ld      a,ST_CATCH
+        call    stampit
         ld      hl,m_got
         ld      a,(pkleft)
         or      a
         jr      nz,cap3
+        ld      a,ST_CLEAN
+        call    stampit
         ld      hl,m_gotcl      ; a strong one: clean already
 cap3:   call    logmsg
         call    first
@@ -2021,6 +2036,7 @@ stack:
         include echo.asm
         include reply.asm
         include upkeep.asm
+        include stamps.asm
 
 ; SIGSEEK.DAT is read here, after everything else
 datbuf:

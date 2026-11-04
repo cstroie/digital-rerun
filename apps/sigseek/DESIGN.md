@@ -1,169 +1,305 @@
 # Signal Seeker (SIGSEEK)
 
-A cozy, endless night shift at a small relay station. Z80 assembly, CP/M 2.2, 4 MHz,
-80x24, VT100 / VT52 / ADM-3A. No colour, no game over.
+A cozy, endless night shift at a small relay station. Z80 assembly, CP/M 2.2,
+4 MHz, 80x24, VT100 / VT52 / ADM-3A. No colour, no hurry, no game over.
 
-## Pitch
-
-You are the night operator of **Relay Station Kettle-7**, a small listening post at the
-edge of the Lantern Nebula. You sweep the dial and catch drifting signals, clean them up
-and pass them on. The station keeps running when you step away, and so does the cat.
+You are the night operator of **Relay Station Kettle-7**, at the edge of the
+**Lantern Nebula**. Signals drift across the band; you catch them, clean them and
+pass them on. Eight callers tell their stories a letter at a time, signals from
+nobody carry the fragments of a lost civilization, and **PIXEL**, the station cat,
+does as she pleases. The station keeps running when you step away.
 
 ## Files
 
-| File         | Role                                                             |
-|--------------|------------------------------------------------------------------|
-| `SIGSEEK.COM` | Engine: terminal driver, main loop, puzzles, procedural generator |
-| `SIGSEEK.DAT` | Read-only content: word lists, message templates, cat lines, ASCII art, lore |
-| `SIGSEEK.SAV` | Progress: seed, shift count, tokens, archive bitmap, upgrades, cat mood |
+| File | Role |
+|------|------|
+| `sigseek.asm` | Main: start, the main loop, keys, the terminal driver, the band, signals, lock and capture, receiving, AutoTune, the screen, the log |
+| `cat.asm` | PIXEL: moods, poses, walks, spots, petting, gifts, the away diary |
+| `clean.asm` | The packet: noise, the bit-flip puzzle, delivery, tokens |
+| `route.asm` | The relay routing puzzle |
+| `shop.asm` | The shop, the shelf of decorations, the save file |
+| `story.asm` | `SIGSEEK.DAT`: loading, the callers, the Archive |
+| `weather.asm` | Weather, the last lantern at 1420.0 MHz, the Archive's end |
+| `sigseek.txt` | The content: messages, callers' letters, Archive fragments |
+| `mkdat.js` | Packs `sigseek.txt` into `SIGSEEK.DAT`, checking every length against the screen |
+| `build.sh` | pasmo, then mkdat, then copies both onto the shelf disk |
 
-Built on the host (assembler TBD, see open questions); packed by a `tools/` script; shipped
-as a disk on the shelf.
+Shipped: `SIGSEEK.COM` (about 16K) and `SIGSEEK.DAT` (about 8K, read whole into
+memory after the program) on the **Signal Seeker** shelf disk
+(`disks/shelf/sigseek/`, with `README.TXT` and `PLAY.COM`). Progress is kept in
+`SIGSEEK.SAV` beside them.
+
+Build: `sh apps/sigseek/build.sh` (needs pasmo; `PASMO=` points at another copy),
+then `node tools/build.js` for `shelf.json` and `node tools/stamp.js`.
 
 ## Terminals
 
-One driver with three back ends, picked on first run (and stored in the save):
+Picked on first run (a menu) or with `SIGSEEK /100`, `/52`, `/ADM`; the save file
+remembers it.
 
-| Feature        | VT100          | VT52        | ADM-3A        |
-|----------------|----------------|-------------|---------------|
-| Cursor address | `ESC[r;cH`     | `ESC Y r c` | `ESC = r c`   |
-| Clear          | `ESC[2J`       | `ESC H ESC J` | `^Z`        |
-| Erase to EOL   | `ESC[K`        | `ESC K`     | spaces        |
-| Reverse        | `ESC[7m`       | —           | —             |
-| Line drawing   | DEC `ESC(0`    | ASCII       | ASCII         |
+| | VT100 | VT52 | ADM-3A |
+|---|---|---|---|
+| Cursor address | `ESC [ r ; c H` | `ESC Y r c` | `ESC = r c` |
+| Clear | `ESC [ H ESC [ 2 J` | `ESC H ESC J` | `^Z` |
+| Looks | bold, dim, blink, reverse (`ESC [ 0;1;2;5;7 m`) | none | reverse, blink (`ESC G n`), half intensity (`ESC )` `ESC (`) |
+| Cursor off / on | `ESC [ ?25 l` / `h` | none: parked at row 24, column 80 | `ESC C 4` / `ESC B 4` |
 
-DigitalRerun (js/terminal.js) **ignores** `ESC(0`, so there's no line drawing; reverse video works
-on VT100 (`ESC[7m`) and ADM-3A (`ESC G4`/`ESC G0`), not on VT52. Arrows arrive as WordStar
-`^E ^X ^S ^D` (the default) or as `ESC [ A`/`ESC A`; the game takes both. Never send a full
-80-column line followed by CR LF: it wraps. Place each row with cursor addressing.
+Rules:
 
-Rule: **everything must read well in plain ASCII** (`+ - | . : * # @`). VT100 adds
-reverse video and box lines as garnish. The spectrogram uses a density ramp
-` .:-=+*#%@` instead of block glyphs.
-
-Only the parts of the screen that change get redrawn (dirty cells), because 9600 baud
-gives about 960 chars/s.
-
-## Real-time loop
-
-```
-loop:
-  poll console (BDOS 6, non-blocking)  -> handle key
-  tick++  (calibrated busy-wait, ~10 ticks/s at 4 MHz)
-  every tick:    advance spectrogram one column, decay signals
-  every ~10 s:   world events roll (new signal, caller, cat moves)
-  every ~60 s:   "station minute" clock advances
-  if idle > N:   operator "away" -> events queue up in the LOG
-```
-
-Away time is the heart of it: when you come back, the log reads like a little diary.
-
-```
-02:41  Faint ping at 1187.2. Didn't catch it.
-02:43  PIXEL knocked the coffee mug off the console. Mug is fine.
-02:44  PIXEL is now sitting on the mug's spot. It is warm there.
-02:50  Courier MIRA left a voicemail. She sounds lost.
-```
+- **Plain ASCII everywhere.** DigitalRerun ignores the DEC graphics set, so frames
+  are `+ - |` and the band is the ramp ` .:-=+*#%@`. Looks are garnish; on a VT52
+  the words carry the meaning (`lock` / `LOCK`, `>` before the newest log line).
+- **Every row is placed by cursor address.** An 80-column line followed by CR LF
+  wraps.
+- **Never write column 80 of row 24.** The ADM-3A wraps at once, and on the last row
+  that scrolls the screen. The keys line stops at column 79.
+- Only what changes is redrawn: one band row a tick, the meters, the keys line when
+  it changes.
+- Arrows come as WordStar `^E ^X ^S ^D` (DigitalRerun's default) or as
+  `ESC [ A`-`D` / `ESC A`-`D`; both work.
 
 ## The screen
 
 ```
-+- KETTLE-7 RELAY ---------------------------- SHIFT 03 -- 02:14 -+ +- DECK ------+
-| .:-=+*#%@%#*+=-:. .  .:-=+*#*+=-:.  . .:-+*#@#*+-:.  ..:-=+=-:. | | PWR ######..|
-| ..:-=+*#*+=-:..  .  ..:-=+*#%#*+=-:.. .  ..:-=+*#*+=-:..  ..:-  | | BUF ###.....|
-| . ..:-=+=-:.. . . ...:-=+*#*+=-:... . . ..:-=+*+=-:.. . .  ..:  | | HUM low     |
-|                         ^                                       | +- PIXEL -----+
-|  1420.4 MHz   [<< <  > >>]   lock: ****......                   | |  /\_/\      |
-+- PACKET -------------------------------------------------------+ | ( -.- ) zz  |
-|                                                                 | |  on: heater |
-+- LOG -----------------------------------------------------------+ +-------------+
-| 02:13 Signal brushed past 1420. Something's there.              |
-+-----------------------------------------------------------------+
- [T]une [C]lean [R]oute [A]rchive [P]ixel [L]og [?]help          > _
+ KETTLE-7 RELAY  :  a clear night                  SHIFT 01    22:01  TOK    0    title bar, reversed
++- BAND  1415.2 MHz --------------------------------------------+ +- DECK -----+
+|.  .  .  .   .....  . ....  =++#*+=. ...  . .... . ..    . ..  | | PWR ######.|  the band: 4 rows,
+|.  .   ..   .    . .....  . ==**+==..      . .. . .    .      .| | BUF ##.... |  6.3 MHz around
+|.. .  .  . .  ... ..   .  ..-=+#++-...   ..... . . .... .. . . | | AUTO   off |  the dial
+|. .. ..  ..    .   ......   =+***+- ... .  .....  ..   .   . ..| | HISS   low |
+|<                              ^      LOCK ******             >| | PKTS     0 |  the dial row
++---------------------------------------------------------------+ +------------+
++- PACKET ------------------------------------------------------+ +- PIXEL ----+
+| RECEIVING  at 1415.2 MHz                                      | |   /\_/\    |  packet box: 5 rows
+| .. .. 73 .. 2E 20 .. .. 6C .. ..                              | |  ( -.- ) zz|  (receiving, cleaning,
+| _  _  s  _  .     _  _  l  _  _                               | |   > ^ <    |   routing, letters,
+|                                                               | |  heater    |   shop, Archive,
+|                                                               | |  (sleepy)  |   the diary, the end)
++---------------------------------------------------------------+ +------------+
++- LOG ------------------------------------------------------------------------+
+|  Shift begins. Kettle warm. PIXEL asleep on the heater.                      |  the last 4 lines:
+|  Something stirs on the band.                                                |  oldest dim,
+|> Locked on. A packet is coming in...                                         |  newest reversed
++------------------------------------------------------------------------------+
+                                                                                  PIXEL's lane
+  shelf: c[_]  \|/                               keyboard [::::::::::]            the floor
+ [,.] tune  [<>] coarse  [T] AutoTune  [S]hop  [A]rchive  [P]et  [Q]uit           keys line, reversed
 ```
 
-## Gameplay loop (one shift is about 10-15 minutes)
+- **Title bar** (row 1): `*` for a Lantern Keeper, the weather, the shift number,
+  the station clock (one station minute every 6 s), tokens.
+- **Band** (rows 2-7): the frequency in its top border. The dial row has `<` and `>`
+  for signals off the band, `^` for the dial, and LOCK with its meter.
+- **Deck** (rows 2-8): PWR (for show), BUF (the buffer), AUTO, HISS (low while
+  PIXEL purrs), PKTS (packets captured).
+- **Packet box** (rows 9-15) and **PIXEL's box** beside it: three rows of pose, the
+  spot she is on, and her mood.
+- **Log** (rows 16-21).
+- **Floor** (rows 22-23): the lane PIXEL walks along; the shelf of things bought; the
+  keyboard, one of her spots.
+- **Keys line** (row 24): only the keys that work now. It follows the mode, and
+  `[C]LEAN THE PACKET` leads it when a packet waits.
 
-1. **Tune.** A live spectrogram scrolls across the top. Signals show up as bright
-   vertical streaks at random frequencies and drift slowly. Sweep the dial with `< >`
-   (coarse `,` `.`, fine `[` `]`). The closer you are, the brighter the streak and the
-   fuller the lock meter. Holding on the peak fills the buffer.
-2. **Clean.** The captured packet appears as hex and ASCII with noisy bytes. Pick one of
-   two puzzles depending on the noise:
-   - **Bit-flip**: the noisy byte shows as 8 bits; toggle bits `1`-`8` until the parity
-     LED and the checksum agree. The ASCII preview updates live, so you can see the word
-     forming.
-   - **Hex patch**: fill a `??` byte so the text reads right, with the checksum as a hint.
-3. **Route** (only for messages addressed to someone): a 5x3 relay grid; rotate tiles so
-   the signal runs from the antenna to the recipient. Small, always solvable.
-4. **Deliver / Archive.** Messages to people: a reply and some tokens. Messages from
-   nowhere: a **fragment** in the Archive (poetry from the old Lantern beacons).
-5. **Spend tokens** on conveniences: a finer tuner, auto-parity hints, a better heater
-   (PIXEL approves), a kettle, a second buffer, a star chart that marks old signals.
+## The main loop
 
-A wrong move only adds a little static. Signals that drift away come back on another
-night.
-
-## PIXEL, the station cat
-
-Independent, warm, a little absurd. She is **not** a pet you manage; she is a colleague
-with her own agenda. Her narration is in the spirit of a childlike, earnest companion
-(Floyd-like innocence, but feline and her own character).
-
-- **Moods**: sleepy, curious, smug, needy, zoomies, offended. Mood drifts with time,
-  warmth, and how much attention she gets.
-- **Spots**: heater, console, keyboard, antenna hatch, mug, your chair, the archive
-  shelf. Wherever she sits changes something:
-  - on the **keyboard**: random keys get pressed (harmless, very funny in the log)
-  - on the **console**: the spectrogram dims ("she is blocking the screen with her
-    whole self")
-  - near the **antenna**: she sometimes *hears* signals before you do. Her ears point
-    at a frequency, which is a free hint
-  - on the **heater**: purring, which calms the static (fewer noisy bytes)
-- **`[P]ixel`**: pet / call / offer a treat. She may ignore you. That is allowed.
-- **Gifts**: when happy and you are away, she brings things: a bolt, a moth, a
-  "very important" chip that turns out to be an upgrade.
-- She has a few opinions about callers. She dislikes Freight Hauler 9.
-
-Sample lines:
+About ten ticks a second at 4 MHz: a calibrated busy-wait, no clock device needed.
+Each tick:
 
 ```
-PIXEL looks at the signal, then at you, then at the signal. She has decided it is a bird.
-PIXEL is helping. (She is lying on the manual.)
-You pet PIXEL. She permits this, for now.
-PIXEL brought you a gift: one (1) screw, slightly chewed. It might go somewhere.
-PIXEL has walked across the keyboard. The deck is now tuned to 0000.0 MHz. Thank you, PIXEL.
+key?  (BDOS 6, no wait)  -> by mode: dial, cleaning, shop, Archive, routing, the end
+the keys line            (if the mode or the buffer changed)
+spawn, age, stamp        signals come, drift, fade; their peaks on the band
+AutoTune                 (if on)
+weather, the end scene
+PIXEL                    a step of a walk, or a decision now and then
+one band row
+lock, buffer, receiving, meters
+clock, away?             (5 min without a key)
+park the cursor, wait
 ```
 
-## Procedural content
+Modes: 0 the dial, 1 cleaning, 2 the shop, 3 the Archive, 4 routing, 5 the
+Archive's end. `P` (pet) and `Q` (quit, saving) work in every mode.
 
-A single 16-bit seed in the save, plus an LFSR or xorshift PRNG.
+## Playing
 
-- **Signals**: frequency, drift, strength, noise level, kind (personal, cargo, weather,
-  beacon, mystery).
-- **Messages**: template + word slots, filled from lists in the `.DAT`:
-  `"{greeting}, Kettle-7! {name} here, {situation}. {request}"`.
-- **Callers**: about 8 recurring archetypes, generated with a name and a few traits, each
-  with a tiny state machine (1-5 "chapters") so they come back with a story. Examples:
-  a lost courier, a lonely lighthouse keeper on an asteroid, a kid with a homemade radio,
-  a sleepy cargo AI, a botanist whose plants are singing.
-- **Archive fragments**: assembled from line fragments into small poems. Each one is
-  stamped with a constellation glyph on the star chart.
-- **Weather**: solar wind (more noise), quiet nights (crisp signals), meteor showers
-  (lots of short pings), "the nebula is humming" (rare, special signals).
+1. **Tune.** Up to three signals at a time, 3..6 strong, drifting or still, living
+   30-80 s; a new one about every 26 s (the first one at once). `,` `.` or
+   left/right move the dial 0.1 MHz, `<` `>` or up/down 1 MHz. The band pans: the
+   peak slides toward the `^` as you near it.
+2. **Lock.** LOCK is dim `lock` with nothing under the dial, bold `LOCK` one step off
+   (half the meter), reversed `LOCK` dead on, blinking when the buffer is nearly
+   full. Dead on, the buffer fills in 10 s (5 s with the big buffer); off, it
+   drains slowly.
+3. **Receive.** From the first moment of the lock, the packet comes in letter by
+   letter, in no order, noise and all: hex over the text, `..` and `_` for what has
+   not come yet. If the buffer drains to nothing, the letters scatter and the
+   packet is lost. A full buffer is a captured packet (and a bell). One packet at a
+   time: the buffer waits, full, until it is dealt with.
+4. **Clean.** `C`. A packet is up to 20 characters with 0-3 noisy bytes, each with
+   one of bits 0-6 flipped. The noise: 0-1 bytes, one more for a weak signal (4 or
+   less), one less for the strongest (6), one more when PIXEL is not purring, one
+   more in solar wind, one less on a still night. **A strong signal on a good night
+   comes in clean.** The box shows hex, the text with `*` after noisy bytes and `>`
+   at the selected one, and the selected byte's bits with its ones against the ones
+   it should have. `1`-`8` flip a bit (wrong flips cost nothing), `,` `.` pick,
+   `C` or `ESC` put it aside.
+5. **Route** (a caller's packet only). Six by three relays, straights and corners,
+   each turned at random; the grid is made from a path first, so there is always a
+   way, and never solved already. `SPACE` or `R` turn the selected relay, the arrows
+   move. The relays lit from the antenna show as `=` and `#`. When the line runs
+   from `ANT` to the caller's name, it is delivered.
+6. **Deliver.** Tokens: 5, plus 3 a noisy byte, plus 4 for routing, plus 20 for the
+   last lantern. A caller's letter shows in the packet box; a fragment goes to the
+   Archive.
 
-## Save
+### AutoTune
 
-About 64-128 bytes: magic, version, terminal type, seed, shift #, tokens, upgrades
-bitmask, archive bitmap (256 bits), caller chapter nibbles, PIXEL mood and affinity,
-counters.
+`T` turns it on and off. Every 0.8 s it steps toward the strongest signal it hears,
+ten at a time when far. A quarter of the time it hunts the wrong way ("AutoTune is
+quite sure it is this way. It is not."). Two steps from the peak it is satisfied
+("close enough!") and only now and then goes on. Not very useful, most nights. On
+purpose.
 
-## Milestones
+### The shop
 
-1. **M0, skeleton**: the terminal driver (3 back ends), the frame layout, the clock and
-   tick loop, quitting.
-2. **M1, the dial**: live spectrogram, tuning, lock meter, capture.
-3. **M2, PIXEL**: moves between spots, mood, log lines, away events.
-4. **M3, clean**: the bit-flip puzzle, delivery, tokens.
-5. **M4, content**: the `.DAT` packer, templates, callers, archive.
-6. **M5, the rest**: routing puzzle, upgrades shop, save/load, the shelf disk.
+`S`; `1`-`8` buy, once each. All 585 tokens' worth takes a few shifts.
+
+| # | | Price | |
+|---|---|---|---|
+| 1 | Fine tuner | 60 | one step off the peak counts as dead on |
+| 2 | Bit hints | 120 | the wrong bits show as `!` |
+| 3 | Good heater | 75 | PIXEL purrs at home in any mood |
+| 4 | Big buffer | 105 | the buffer fills twice as fast |
+| 5 | Kettle | 45 | on the shelf: `c[_]` |
+| 6 | Small plant | 30 | `\|/` |
+| 7 | Desk lamp | 60 | `(*)` |
+| 8 | Postcard wall | 90 | `[~][#][@]` |
+
+Nothing makes anything harder.
+
+## PIXEL
+
+An independent colleague, not a pet to manage: warm, earnest, a little absurd.
+
+- **Moods:** sleepy (the most often), curious, smug, needy, zoomies, huffy. Each has
+  a pose in her box, and the mood is named under her name.
+- **Decisions** every 8-20 s: maybe a new mood, maybe a walk. Curious and zoomy cats
+  go out; sleepy ones come home.
+- **Walks:** out of her box she is `=^.^=`, walking along the floor's lane to a spot,
+  and her box shows the empty bed.
+
+| Spot | Where | What happens |
+|------|-------|--------------|
+| heater | her box (home) | asleep, she purrs: HISS low, less static, fewer noisy bytes |
+| antenna | the band's top border | her ears point at signals off the dial ("left", "right", "left, right, left") |
+| keyboard | the floor's keyboard | she walks across it: the dial jumps |
+| console | on the band | in the way. "She is helping." |
+| mug | the log's bottom border | "The mug is fine." |
+
+- **`P`:** at home, a petting answered by her mood (it mends a huffy or needy cat).
+  Out on a spot, she comes when called only if needy.
+- **Away** (5 minutes without a key): her doings go in a diary, shown in the packet
+  box when you come back (the last four, with the time, and a count of the signals
+  that drifted by). While you are away she brings gifts: a chewed screw, a grateful
+  moth, a Z80 chip, a sock that belongs to nobody.
+
+## The story (`SIGSEEK.DAT`)
+
+`sigseek.txt` is the source, 7-bit ASCII:
+
+```
+@msg                    16 messages from nobody in particular (<= 20 characters)
+@caller Name, what      8 callers, 5 chapters each:
+  packet text | letter line 1 | letter line 2      (<= 20, <= 60, <= 60)
+@frag                   32 fragments:  packet text | the line   (<= 20, <= 60)
+```
+
+`mkdat.js` refuses anything too long for the screen, and packs it as: `SDAT`, a
+version byte and the five counts, a table of word offsets, then the strings. String
+numbers: messages 0-15; caller *i* at 16 + 16*i* (the name), then chapter *j*'s
+three at 16 + 16*i* + 1 + 3*j*; fragment *k*'s two at 144 + 2*k*. A test keeps
+`SIGSEEK.DAT` current with `sigseek.txt`.
+
+- **Who sends a packet:** a caller half the time, an Archive fragment a quarter,
+  nobody a quarter; the last lantern when the lock is on it.
+- **Callers** arrive slowly: two at first, one more every four packets. Each delivery
+  moves a caller's story on a chapter and shows the letter; after the fifth they
+  keep writing in their later voice. Mira, a lost courier; Old Tobin at Lighthouse
+  Seven; Pip, age nine, and the toaster radio; BARGE-9, a cargo AI with too many
+  socks (later Barry); Dr Wen and the humming ferns; Sol & Dee, newlyweds; Captain
+  Ruth, retired; and Nobody, from Nowhere, who becomes Hum.
+- **The Archive** (`A`): the fragments of the Lantern beacons, a sky of 32 stars
+  (`*` kept, `.` not yet, `@` the one shown), the kept ones to read with `,` `.`. A
+  fragment packet brings one not yet kept while there is one. When whole, the title
+  says COMPLETE, and (read to PIXEL) after the end.
+
+## Weather
+
+At the start of each shift and every 90 s or so, a roll: often the same weather
+again. Named in the title bar, told in the log.
+
+| Weather | Chance | |
+|---|---|---|
+| a clear night | 3/8 | as it is |
+| solar wind | 2/8 | more static on the band, one more noisy byte |
+| meteor shower | 1/8 | a signal about every 3 s, weak (3-4) and short (8-20 s) |
+| a still night | 3/16 | less static, one fewer noisy byte |
+| THE NEBULA HUMS | 1/16 | the band glows; new signals one stronger |
+
+## The last lantern
+
+Fragment 19 says: *Our last lantern is still burning. Look for it at 1420.* Once it
+is in the Archive, a steady signal can come at exactly **1420.0 MHz**: strength 6,
+no drift, 90 s. It always comes on a humming night, and at one weather roll in
+eight otherwise (one at a time). Its packet, `~ the last lantern ~`, is the Lantern
+people's own words, one letter the first time and another after, and is worth 20
+tokens more.
+
+## The Archive's end
+
+Keeping the 32nd fragment starts a scene in the packet box, a line every two
+seconds: you read the Archive aloud to PIXEL, as fragment 31 asks; she listens, ears
+forward, then falls asleep; the nebula hums. Then any key. It happens once: 100
+tokens, and a `*` in the title bar for a Lantern Keeper.
+
+## The save file (`SIGSEEK.SAV`)
+
+One 128-byte record, written on quit and after each purchase:
+
+| Offset | |
+|---|---|
+| 0 | `SG` |
+| 2 | version (3) |
+| 3 | terminal |
+| 4 | the random seed (word) |
+| 6 | tokens (word) |
+| 8 | upgrades (a bit for each shop item) |
+| 9 | packets captured (stops at 255) |
+| 10 | the shift number (the next run is one more) |
+| 11 | PIXEL's mood |
+| 12 | each caller's next chapter (8 bytes) |
+| 20 | the Archive, a bit for each fragment (4 bytes) |
+| 24 | flags: 1 the last lantern found, 2 a Lantern Keeper |
+
+Version 1 (before the story) and 2 (before the flags) still load. No room on the
+disk: no save, no fuss. Delete the file to start afresh.
+
+## Testing
+
+Everything was tested headless on DigitalRerun's own Z80 core, terminal and CP/M
+2.2, booted from the system disk, by scripted operators that read the game's memory
+(from pasmo's symbol table) and press keys. They tune, clean, solve routing grids
+by search, and check the screens in all three terminal modes.
+
+In the repository's tests: `test/sigseek.test.js` (the `.DAT` is current, the shelf
+copies match, an overlong line is refused) and a shelf test (`PLAY` starts a shift,
+`Q` saves it, the next run is shift 02).
+
+## Ideas not built
+
+- Postcards from callers whose story has ended, on the postcard wall.
+- PIXEL's opinions of callers (Barry, especially); a gift that turns out useful;
+  reactions to the shelf (asleep under the lamp, sniffing the plant).
+- More shop things: a star chart that marks old signals, a second buffer.
+- A tie-in with Z80-uLM (put off).

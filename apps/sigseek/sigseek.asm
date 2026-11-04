@@ -199,6 +199,77 @@ back:   call    showdia
         ld      a,BEL
         jp      putc
 
+; ---------------------------------------------------------------- fingerprints
+; Every signal knows who it carries from the start, and its peak shows
+; it: how fast it falls away from its centre, at 0..3 columns out.
+SH_NORM equ     0
+SH_NARROW equ   1
+SH_WIDE equ     2
+SH_SQUARE equ   3
+SH_TWIN equ     4
+SH_LAMP equ     5
+SH_FAINT equ    6
+falls:  db      0,1,2,3         ; normal
+        db      0,3,9,9         ; narrow and quick (Mira)
+        db      0,0,1,2         ; wide (Dr Wen's ferns, the Archive)
+        db      0,0,0,9         ; square (Barry)
+        db      2,0,2,9         ; two prongs (Sol & Dee)
+        db      0,1,1,2         ; a lamp, tall and steady (the last lantern)
+        db      1,2,3,4         ; faint, and wavering (Hum)
+cshape: db      SH_NARROW, SH_NORM, SH_NORM, SH_SQUARE, SH_WIDE, SH_TWIN, SH_NORM, SH_FAINT
+
+; shapeof: IX = a signal -> A = its shape
+shapeof: ld     a,(ix+S_KIND)
+        cp      K_BEACON
+        ld      b,SH_LAMP
+        jr      z,sh9
+        cp      K_FRAG
+        ld      b,SH_WIDE
+        jr      z,sh9
+        cp      K_CALL
+        ld      b,SH_NORM
+        jr      nz,sh9
+        ld      a,(ix+S_WHO)
+        ld      hl,cshape
+        add     a,l
+        ld      l,a
+        jr      nc,sh8
+        inc     h
+sh8:    ld      b,(hl)
+sh9:    ld      a,b
+        ret
+
+; sigkind: IX = a new signal: who it carries. A caller half the time
+; (among those met: two at first, one more every four packets), the
+; Archive a quarter, nobody a quarter.
+sigkind: call   rnd
+        and     3
+        ld      c,K_FRAG
+        jr      z,sk_9
+        cp      3
+        jr      nz,sk_1
+        call    rnd             ; nobody in particular: which message
+        and     NMSG-1
+        ld      (ix+S_WHO),a
+        ld      c,K_MSG
+        jr      sk_9
+sk_1:   ld      a,(npkt)        ; a caller: 2 + packets / 4, at most all
+        srl     a
+        srl     a
+        add     a,2
+        cp      NCALL
+        jr      c,sk_2
+        ld      a,NCALL
+sk_2:   ld      b,a
+        call    rnd
+sk_3:   sub     b
+        jr      nc,sk_3
+        add     a,b
+        ld      (ix+S_WHO),a
+        ld      c,K_CALL
+sk_9:   ld      (ix+S_KIND),c
+        ret
+
 ; ---------------------------------------------------------------- receiving
 ; While the lock holds the buffer fills, and the packet comes in letter
 ; by letter, in no order: its noise is decided at the start, by the
@@ -684,8 +755,9 @@ S_FRQ   equ     0
 S_LIFE  equ     2
 S_STR   equ     4
 S_DRF   equ     5
-S_BCN   equ     6               ; 1: the last lantern
-S_SIZE  equ     7
+S_KIND  equ     6               ; who it carries: K_MSG K_CALL K_FRAG K_BEACON ...
+S_WHO   equ     7               ; the caller, or the message
+S_SIZE  equ     8
 NSIG    equ     3
 
 ; about one new signal every 26 s, while there are fewer than three
@@ -740,7 +812,7 @@ spn2:   call    rnd             ; within 6.4 MHz of the dial
         jr      spn4
 spn3:   dec     a
 spn4:   ld      (ix+S_DRF),a
-        ld      (ix+S_BCN),0
+        call    sigkind         ; who it carries, decided now: it shows
         call    wxsig           ; the weather's say: meteors, a humming night
         ld      hl,m_stir
 ; quiet: signal news, kept out of the diary while away (only counted)
@@ -804,7 +876,9 @@ st0:    ld      (hl),a
 st1:    push    bc
         ld      a,(ix+S_LIFE)
         or      (ix+S_LIFE+1)
-        jr      z,st9
+        jp      z,st9
+        call    shapeof         ; its fingerprint
+        ld      (shp),a
         ld      l,(ix+S_FRQ)    ; HL = column = sig - dial + centre
         ld      h,(ix+S_FRQ+1)
         ld      de,(freq)
@@ -840,9 +914,29 @@ st4:    ld      a,h
         bit     7,a
         jr      z,st5
         neg
-st5:    ld      d,a
+st5:    push    hl              ; the fall-off at |offset|, by its shape
+        ld      e,a
+        ld      a,(shp)
+        add     a,a
+        add     a,a
+        add     a,e
+        ld      e,a
+        ld      d,0
+        ld      hl,falls
+        add     hl,de
+        ld      d,(hl)
+        pop     hl
+        ld      a,(shp)         ; a faint one wavers
+        cp      SH_FAINT
         ld      a,(ix+S_STR)
-        sub     d
+        jr      nz,st5b
+        push    af
+        call    rnd
+        and     1
+        ld      e,a
+        pop     af
+        sub     e
+st5b:   sub     d
         jr      c,st6
         jr      z,st6
         push    hl
@@ -860,7 +954,8 @@ st6:    inc     hl
 st9:    ld      de,S_SIZE
         add     ix,de
         pop     bc
-        djnz    st1
+        dec     b
+        jp      nz,st1
 ; the edge arrows on the dial row: '<' at column 2, '>' at column 64
         ld      b,MARK_Y
         ld      c,SPEC_X
@@ -1191,6 +1286,7 @@ helptx: db      ' SIGNAL SEEKER  -  how the night works',0
         db      '           heater she purrs and the static drops; at the antenna, her ears',0
         db      '           point at signals you have not found yet.',0
         db      ' WEATHER   In the title bar. Some nights are noisy, some still, some hum.',0
+        db      ' PEAKS     Each caller',27h,'s peak has its own shape. You will learn them.',0
         db      ' THE NIGHT 22:00 to dawn at 06:00, about 24 minutes. Q ends it early (saved).',0
         db      ' AWAY      Leave for five minutes and PIXEL keeps a diary for you.',0
         db      ' ',0
@@ -1739,6 +1835,7 @@ term:   db      0ffh
 rseed:  dw      0ace1h
 freq:   dw      14204           ; 1420.4 MHz, the hydrogen line
 ticks:  dw      0
+shp:    db      0
 rcv:    db      0               ; 1: a packet coming in
 rxn:    db      0
 perm:   ds      20              ; (PK_MAX)

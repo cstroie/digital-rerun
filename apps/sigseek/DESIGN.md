@@ -252,8 +252,14 @@ numbers: messages 0-31; caller *i* at 32 + 16*i* (the name), then chapter *j*'s
 three at 32 + 16*i* + 1 + 3*j*; fragment *k*'s two at 160 + 2*k*; postcard *c*'s five at 224 + 5*c*. A test keeps
 `SIGSEEK.DAT` current with `sigseek.txt`.
 
-- **Who sends a packet:** a caller half the time, an Archive fragment a quarter,
-  nobody a quarter; the last lantern when the lock is on it.
+- **Who sends a packet** is decided when its signal appears: a caller half the
+  time, an Archive fragment a quarter, nobody a quarter (and the last lantern is its
+  own signal).
+- **Fingerprints:** a signal's peak shows who it carries, by how it falls away from
+  its centre: Mira's narrow and quick, Barry's square, Dr Wen's and the Archive's
+  wide, Sol & Dee's in two prongs, Hum's faint and wavering, the last lantern tall
+  and steady, everyone else's ordinary. You learn who is calling before the packet
+  is in.
 - **Callers** arrive slowly: two at first, one more every four packets. Each delivery
   moves a caller's story on a chapter and shows the letter; after the fifth they
   keep writing in their later voice. Mira, a lost courier; Old Tobin at Lighthouse
@@ -364,9 +370,6 @@ New:
   decode: the letters come in and dissolve again, or keep changing, and the buffer
   never quite fills. Harmless, a little eerie. PIXEL stares at them, or hisses. Some
   might be the Lantern beacons' echoes; one, now and then, says a word.
-- **Signal fingerprints:** each caller's peak has its own shape on the band (Mira's
-  narrow and quick, Barry's wide and square, Hum's faint and wavering), so you learn
-  to know who is calling before the packet is in.
 - **Echoes:** a message delivered tonight comes back on a later night, fainter, from
   farther out, with a line added by whoever passed it on.
 - **Upkeep, gently:** now and then PWR sags or a relay rattles loose; a small fix

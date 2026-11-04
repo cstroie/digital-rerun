@@ -102,42 +102,26 @@ str:    push    de
 
 ; ---------------------------------------------------------------- choosing
 ; pick: what the new packet is. HL = its text.
-pick:   ld      ix,(lockix)     ; the last lantern: its own words
-        ld      a,(ix+S_BCN)
-        or      a
-        jr      z,pk0
-        ld      a,K_BEACON
+pick:   ld      ix,(lockix)     ; who the locked signal carries
+        ld      a,(ix+S_KIND)
+        cp      K_BEACON        ; the last lantern: its own words
+        jr      nz,pk0
         ld      (pkkind),a
         ld      hl,m_bshort
         ret
-pk0:    call    rnd
-        and     3
-        jr      z,pkfr
-        cp      3
-        jr      nz,pkcl
+pk0:    cp      K_FRAG
+        jp      z,pkfr
+        cp      K_CALL
+        jr      z,pkcl
 ; nobody in particular
         xor     a
         ld      (pkkind),a
-        call    rnd
-        and     NMSG-1
-        ld      l,a
+        ld      l,(ix+S_WHO)
         ld      h,0
         jp      str
-; a caller, among those met so far
-pkcl:   ld      a,K_CALL
-        ld      (pkkind),a
-        ld      a,(npkt)        ; 2 + packets / 4, at most all of them
-        srl     a
-        srl     a
-        add     a,2
-        cp      NCALL
-        jr      c,pc1
-        ld      a,NCALL
-pc1:    ld      b,a
-        call    rnd
-pc2:    sub     b               ; rnd mod B
-        jr      nc,pc2
-        add     a,b
+; a caller
+pkcl:   ld      (pkkind),a
+        ld      a,(ix+S_WHO)
         ld      (pkwho),a
         ld      e,a
         ld      d,0

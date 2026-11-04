@@ -176,9 +176,9 @@ bcn:    ld      a,FRAG19
 bc1:    ld      a,(ix+S_LIFE)
         or      (ix+S_LIFE+1)
         jr      z,bc2
-        ld      a,(ix+S_BCN)
-        or      a
-        ret     nz
+        ld      a,(ix+S_KIND)
+        cp      K_BEACON
+        ret     z
 bc2:    add     ix,de
         djnz    bc1
         ld      ix,sigs         ; a free slot
@@ -197,7 +197,7 @@ bc4:    ld      hl,BCN_F
         ld      (ix+S_LIFE+1),h
         ld      (ix+S_STR),6
         ld      (ix+S_DRF),0
-        ld      (ix+S_BCN),1
+        ld      (ix+S_KIND),K_BEACON
         ld      hl,m_bcn
         jp      logmsg
 

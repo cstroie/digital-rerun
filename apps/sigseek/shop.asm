@@ -75,7 +75,7 @@ skout:  xor     a
         jr      sklog
 
 ; drawsh: two columns of four, in the packet box
-drawsh: ld      b,7
+drawsh: ld      b,PK_Y
 ds0:    ld      c,2
         call    gotoxy
         ld      d,SPEC_W
@@ -85,13 +85,13 @@ ds1:    ld      a,' '
         jr      nz,ds1
         inc     b
         ld      a,b
-        cp      11
+        cp      PK_Y+5
         jr      nz,ds0
         xor     a
 ds2:    ld      (sitem),a
         ld      b,a             ; row 7 + i mod 4, column 4 or 35
         and     3
-        add     a,7
+        add     a,PK_Y
         ld      c,4
         bit     2,b
         ld      b,a
@@ -147,7 +147,7 @@ d32:    call    putc
 
 ; ---------------------------------------------------------------- the shelf
 ; row 17: what has been bought for the station, each in its place
-shelf:  ld      b,17
+shelf:  ld      b,23
         ld      c,3
         call    gotoxy
         ld      hl,m_shelf

@@ -36,18 +36,35 @@ np3:    ld      (hl),a
         djnz    np3
         ld      hl,(freq)
         ld      (pkfrq),hl
-; the noise: 1-2 bytes, one more when PIXEL is not purring
+; the noise, by the signal's strength (3-6): 0-1 bytes, one more for a
+; weak one (4 or less), one more when PIXEL is not purring, one less for
+; the strongest. A strong signal on a quiet night comes in clean.
         call    rnd
         and     1
-        inc     a
         ld      b,a
-        ld      a,(purr)
+        ld      ix,(lockix)
+        ld      a,(ix+S_STR)
+        cp      5
+        jr      nc,np4a
+        inc     b
+np4a:   cp      6
+        jr      nz,np4b
+        dec     b
+np4b:   ld      a,(purr)
         cp      3
         jr      nz,np4
         inc     b
 np4:    ld      a,b
-        ld      (pkleft),a
+        bit     7,a             ; (no fewer than none)
+        jr      z,np4c
+        xor     a
+        ld      b,a
+np4c:   ld      (pkleft),a
         ld      (pkbad),a
+        xor     a
+        ld      (rtmade),a      ; no routing grid for it yet
+        or      b
+        jp      z,first
 np5:    push    bc
 np6:    call    rnd             ; a byte not yet noisy
         and     31
@@ -73,8 +90,6 @@ np7:    call    rnd             ; one of bits 0-6
         ld      (hl),a
         pop     bc
         djnz    np5
-        ld      a,1
-        ld      (havepk),a
         jp      first
 
 ; first: select the first noisy byte
@@ -128,9 +143,9 @@ clean:  ld      a,(havepk)
         or      a
         ld      hl,m_nopk
         jr      z,ck9
-        ld      a,(pkleft)      ; clean already: only the routing is left
+        ld      a,(pkleft)      ; clean already: routing, or straight away
         or      a
-        jp      z,route1
+        jp      z,cdone
         ld      a,1
         ld      (mode),a
         call    drawpk
@@ -184,8 +199,11 @@ ckey:   cp      'C'
 ; all clean: a caller's packet still has to be routed to them
 cdone:  ld      a,(pkkind)
         cp      K_CALL
-        jp      z,route0
-        jp      deliv
+        jp      nz,deliv
+        ld      a,(rtmade)      ; the grid it has, or a new one
+        or      a
+        jp      nz,route1
+        jp      route0
 ckprev: call    prev
         jr      ckdraw
 cknext: call    next
@@ -219,6 +237,7 @@ selptr: ld      a,(pksel)
 ; tokens: 5 for the packet, 3 for each byte that was noisy
 deliv:  xor     a
         ld      (mode),a
+        ld      (buf),a         ; the buffer starts empty for the next
         ld      (havepk),a
         ld      (fullms),a
         ld      a,(pkbad)
@@ -281,10 +300,13 @@ strcpy: ld      a,(hl)
 ; showtk: tokens in the deck box (row 5, columns 75-78)
 showtk: xor     a
         ld      (lead),a
-        ld      b,5
+        ld      b,1
         ld      c,75
         call    gotoxy
-        ld      hl,(tokens)
+        call    revon
+        call    stk
+        jp      revoff
+stk:    ld      hl,(tokens)
         ld      de,1000
         call    dgs
         ld      de,100
@@ -319,7 +341,7 @@ dgs3:   jp      putc
 ; ---------------------------------------------------------------- the box
 ; drawpk: the packet box, rows 7-10. No packet: the idle line. A packet
 ; put aside: a note. Cleaning: hex, text, the selected byte's bits.
-drawpk: ld      b,7
+drawpk: ld      b,PK_Y
 dk0:    ld      c,2
         call    gotoxy
         ld      d,SPEC_W
@@ -329,21 +351,26 @@ dk1:    ld      a,' '
         jr      nz,dk1
         inc     b
         ld      a,b
-        cp      11
+        cp      PK_Y+5
         jr      nz,dk0
-        ld      b,8
+        ld      b,PK_Y+2
         ld      c,16
         call    gotoxy
         ld      a,(havepk)
         or      a
+        jr      nz,dkp
+        ld      a,(rcv)         ; coming in: the letters so far
+        or      a
+        jp      nz,drawrx0
         ld      hl,m_idle
-        jp      z,puts
+        jp      puts
+dkp:
         ld      a,(mode)
         or      a
         ld      hl,m_wait
         jp      z,puts
 ; row 7: where it came from, how much noise is left
-        ld      b,7
+        ld      b,PK_Y
         ld      c,3
         call    gotoxy
         ld      hl,m_from
@@ -364,7 +391,7 @@ dk2:    ld      a,e             ; column 3 + 3i
         add     a,e
         add     a,3
         ld      c,a
-        ld      b,8
+        ld      b,PK_Y+1
         dec     c
         call    gotoxy
         ld      a,(pksel)
@@ -380,7 +407,7 @@ dk3:    call    putc
         ld      a,(hl)
         call    hex2
         inc     c
-        ld      b,9
+        ld      b,PK_Y+2
         call    gotoxy
         ld      a,(hl)
         cp      ' '
@@ -402,7 +429,7 @@ dk6:    call    putc
         dec     d
         jr      nz,dk2
 ; row 10: the bits of the selected byte, ones now / ones wanted
-        ld      b,10
+        ld      b,PK_Y+3
         ld      c,3
         call    gotoxy
         call    selptr
@@ -468,12 +495,12 @@ hex1:   and     15
 hx1:    jp      putc
 
 ; ---------------------------------------------------------------- data
-m_idle: db      '(no signal captured)',0
+m_idle: db      '(no signal yet)',0
 m_wait: db      'A packet waits in the buffer. Press C.',0
 m_from: db      'From ',0
 m_noisy: db     ' MHz.  Noisy bytes left: ',0
 m_ones: db      '  ones ',0
-m_ckeys: db     '   1-8 flip  ,. pick  C later',0
+m_ckeys: db     '   (ones it has / should have)',0
 m_nopk: db      'Nothing in the buffer to clean. Tune in a signal first.',0
 m_clean: db     'Cleaning. Make the ones match: 1-8 flip a bit.',0
 m_byte: db      'That byte is clean. Next one.',0
@@ -489,6 +516,7 @@ pkleft: db      0
 pkbad:  db      0
 pkgain: db      0
 pkfrq:  dw      0
+rtmade: db      0
 tokens: dw      0
 lead:   db      0
 pkorig: ds      PK_MAX+1

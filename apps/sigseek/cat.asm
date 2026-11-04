@@ -26,7 +26,7 @@ MD_NEEDY equ    3
 MD_ZOOM equ     4
 MD_HUFF equ     5
 
-WALK_Y  equ     14
+WALK_Y  equ     22
 HOME_X  equ     70              ; where she steps out of the box
 
 ; ---------------------------------------------------------------- each tick
@@ -281,7 +281,12 @@ pose:   ld      a,3             ; purr is the noise mask: 3, or 1 purring
         ld      a,(cspot)
         or      a
         ld      hl,p_empty
-        jr      nz,drawp
+        jr      z,po_h
+        push    hl
+        call    showhs
+        pop     hl
+        jr      drawp
+po_h:
         ld      a,(upg)         ; the good heater: she always purrs
         and     U_HEAT
         jr      nz,po0
@@ -290,11 +295,21 @@ pose:   ld      a,3             ; purr is the noise mask: 3, or 1 purring
         jr      nz,po1
 po0:    ld      a,1
         ld      (purr),a
-po1:    ld      a,(cmood)
+po1:    ld      b,PK_Y+4        ; her mood, under her name
+        ld      c,68
+        call    gotoxy
+        ld      a,(cmood)
+        ld      hl,moods
+        call    msgof
+        call    puts
+        ld      a,(cmood)
         ld      hl,poses
         call    msgof
+        push    hl
+        call    showhs          ; the hiss in the deck: low when she purrs
+        pop     hl
 ; drawp: HL = three rows of 12, into the box (rows 7-9, column 68)
-drawp:  ld      b,7
+drawp:  ld      b,PK_Y
 dp1:    ld      c,68
         call    gotoxy
         ld      d,12
@@ -305,13 +320,13 @@ dp2:    ld      a,(hl)
         jr      nz,dp2
         inc     b
         ld      a,b
-        cp      10
+        cp      PK_Y+3
         jr      nz,dp1
         ret
 
 ; label: HL = 12 characters for row 10 of the box
 label:  push    hl
-        ld      b,10
+        ld      b,PK_Y+3
         ld      c,68
         call    gotoxy
         pop     hl
@@ -371,7 +386,7 @@ gift:   ld      a,(away)
 ; ---------------------------------------------------------------- the diary
 ; While away, each log line goes in the diary (the last three, with
 ; the time). On return, they are shown in the packet box.
-NDIA    equ     3
+NDIA    equ     4
 diary:  ld      a,(away)
         or      a
         ret     z
@@ -399,7 +414,7 @@ diary:  ld      a,(away)
         ld      (ndia),a
         ret
 
-showdia: ld     b,7
+showdia: ld     b,PK_Y
         ld      c,3
         call    gotoxy
         ld      hl,m_while
@@ -427,7 +442,7 @@ dyn:    ld      a,(ndia)
         ld      l,a
         jr      nc,dy0
         inc     h
-dy0:    ld      b,8
+dy0:    ld      b,PK_Y+1
 dy1:    push    bc
         push    de
         ld      c,3
@@ -472,13 +487,21 @@ dy4:    pop     hl
 
 ; ---------------------------------------------------------------- data
 ; spots: row, column (the heater is the box)
-spots:  db      0,0, 1,22, 16,30, 3,40, 13,46
+spots:  db      0,0, 2,30, 23,61, 4,40, 21,46
 ; what she covers on each spot
-restore: dw     0, r_dash, s_blank, s_blank, r_dash
+restore: dw     0, r_dash, r_keys, s_blank, r_dash
+r_keys: db      ':::::',0
 r_dash: db      '-----',0
 s_blank: db     '     ',0
 s_cat:  db      '=^.^=',0
 
+moods:  dw      md0, md1, md2, md3, md4, md5
+md0:    db      '  (sleepy)  ',0
+md1:    db      '  (curious) ',0
+md2:    db      '  (smug)    ',0
+md3:    db      '  (needy)   ',0
+md4:    db      '  (zoomies) ',0
+md5:    db      '  (huffy)   ',0
 poses:  dw      p_sleep, p_curi, p_smug, p_needy, p_zoom, p_huff
 p_sleep: db     '   /\_/\    '
         db      '  ( -.- ) zz'

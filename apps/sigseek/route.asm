@@ -18,7 +18,7 @@ A_E     equ     2
 A_S     equ     4
 A_W     equ     8
 GX      equ     18              ; the grid's first column on screen
-GY      equ     8               ; and row
+GY      equ     PK_Y+1          ; and row
 
 ; ---------------------------------------------------------------- a new grid
 newrt:  call    rnd             ; where it comes in, where it goes out
@@ -112,7 +112,9 @@ nr11:   inc     hl
         ld      a,(hl)
         call    rotate
         ld      (hl),a
-nr12:   xor     a
+nr12:   ld      a,1
+        ld      (rtmade),a
+        xor     a
         ld      (rtcur),a
         ld      (rtcur+1),a
         ret
@@ -290,7 +292,7 @@ rkout:  xor     a
 ; ---------------------------------------------------------------- drawing
 drawrt: call    clrbox
         call    trace           ; (for lit[])
-        ld      b,7
+        ld      b,PK_Y
         ld      c,3
         call    gotoxy
         ld      hl,m_rtto

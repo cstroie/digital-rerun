@@ -13,13 +13,19 @@ bright peak; < or > at an edge means one is off the band that way.
 
   , .   or left, right     tune by 0.1 MHz
   < >   or up, down        tune by 1 MHz
+  T                        AutoTune (cheerful; not very useful)
   C                        clean the packet in the buffer
   S                        the shop
   A                        the Archive
   P                        pet PIXEL (or call her)
   Q                        quit (the station is saved)
 
-Hold the dial on a peak and the buffer fills: a packet. Press C. Some
+The bottom line always shows the keys that work just then.
+
+Hold the dial on a peak: LOCK lights up, the buffer fills, and the
+packet comes in letter by letter. Let it slip and the letters scatter.
+A full buffer is a packet. A strong signal may come in clean; if not,
+press C. Some
 bytes are noisy: one bit of each is wrong. The bottom line shows the
 selected byte's bits and its ones against the ones it should have.
 Keys 1-8 flip a bit, , . pick another byte. Wrong flips cost nothing.

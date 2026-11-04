@@ -116,14 +116,14 @@ test('PLAY on the Zork I disk', async () => {
 test('Signal Seeker: PLAY starts a shift, Q saves it, the next run is shift 02', async () => {
     const m = await withDisk('sigseek', 1, true);
     m.cmd('B:');
-    assert.match(m.cmd('SIGSEEK /100'), /KETTLE-7 RELAY[\s\S]*SHIFT 01/);
+    assert.match(m.cmd('SIGSEEK /100'), /KETTLE-7 RELAY[\s\S]*SHIFT[\s\S]*\x1b\[1;58H\x1b\[0;7m01/);
     m.out = '';
     m.console.type('Q');
     m.settle();
     assert.match(m.out, /Kettle-7 signing off/);
     assert.match(m.cmd('DIR'), /SIGSEEK\s+SAV/);
     const again = m.cmd('PLAY');                                  // the shift number is written into the frame
-    assert.ok(/\x1b\[1;61H02/.test(again) && again.includes('Another shift'), 'shift 02, a returning operator');
+    assert.ok(/\x1b\[1;58H\x1b\[0;7m02/.test(again) && again.includes('Another shift'), 'shift 02, a returning operator');
 });
 
 test('Z80-μLM: CHAT answers a line, and PLAY starts GUESS', async () => {

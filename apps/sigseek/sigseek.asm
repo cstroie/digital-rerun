@@ -27,9 +27,15 @@ DLY_OUT equ     110             ; outer loops of 256 x DJNZ (13 T) = 3328 T
 
 AWAY    equ     3000            ; ticks without a key (5 min) = away
 
-SPEC_X  equ     2               ; spectrogram: columns 2..64, rows 2..4
+SPEC_X  equ     2               ; spectrogram: columns 2..64, rows 3..6
 SPEC_W  equ     63
-SPEC_Y  equ     2
+SPEC_Y  equ     3
+SPEC_H  equ     4
+MARK_Y  equ     7               ; the dial's row: < ^ > and the lock
+PK_Y    equ     10              ; the packet box, rows 10..14
+LOG_Y   equ     17              ; the log, rows 17..20
+NLOG    equ     4
+LOGW    equ     76              ; characters of a log line kept
 
         org     100h
 
@@ -88,6 +94,8 @@ loop:   call    key
         jp      z,clean
         cp      'S'
         jp      z,shop
+        cp      'T'
+        jp      z,autot
         cp      'A'
         jp      z,archive
         ld      de,-1
@@ -123,6 +131,7 @@ nokey:  call    help            ; the keys that work now
         call    spawn           ; now and then, a new signal
         call    age             ; signals drift and fade
         call    stamp           ; where they fall on the band
+        call    auto            ; AutoTune, if it is on
         call    spectr          ; one fresh row of the spectrogram
         call    cat             ; PIXEL does as she pleases
         call    lock            ; lock meter and buffer
@@ -161,6 +170,340 @@ back:   call    showdia
         ld      a,BEL
         jp      putc
 
+; ---------------------------------------------------------------- receiving
+; While the lock holds the buffer fills, and the packet comes in letter
+; by letter, in no order: its noise is decided at the start, by the
+; signal's strength. If the buffer drains to nothing, it is lost.
+rxbegin: ld     a,(havepk)
+        ld      b,a
+        ld      a,(rcv)
+        or      b
+        ret     nz
+        call    newpk           ; the message and its noise
+        ld      a,(pklen)       ; the order the letters come in
+        ld      b,a
+        ld      hl,perm
+        xor     a
+rb1:    ld      (hl),a
+        inc     hl
+        inc     a
+        djnz    rb1
+        ld      a,(pklen)       ; shuffled: i from len-1 down to 1
+        dec     a
+rb2:    or      a
+        jr      z,rb4
+        ld      c,a
+        inc     a
+        ld      b,a
+        call    rnd
+rb3:    sub     b               ; j = rnd mod (i + 1)
+        jr      nc,rb3
+        add     a,b
+        ld      e,a             ; swap perm[i], perm[j]
+        ld      d,0
+        ld      hl,perm
+        add     hl,de
+        push    hl
+        ld      e,c
+        ld      hl,perm
+        add     hl,de
+        pop     de
+        ld      a,(de)
+        ld      b,(hl)
+        ld      (hl),a
+        ld      a,b
+        ld      (de),a
+        ld      a,c
+        dec     a
+        jr      rb2
+rb4:    ld      a,1
+        ld      (rcv),a
+        ld      a,0ffh
+        ld      (rxn),a
+        ld      hl,m_rxin
+        call    logmsg
+        ld      a,(mode)
+        or      a
+        ret     nz
+        jp      drawpk
+
+rxlost: ld      a,(rcv)
+        or      a
+        ret     z
+        xor     a
+        ld      (rcv),a
+        ld      hl,m_rxlost
+        call    logmsg
+        ld      a,(mode)
+        or      a
+        ret     nz
+        jp      drawpk
+
+; rxshow: redraw the letters when another has come (only at the dial)
+rxshow: ld      a,(rcv)
+        or      a
+        ret     z
+        ld      a,(mode)
+        or      a
+        ret     nz
+        call    rxcount
+        ld      hl,rxn
+        cp      (hl)
+        ret     z
+drawrx0: call   rxcount
+        ld      (rxn),a
+; the letters that have come: perm[0 .. n-1]
+        ld      hl,shown
+        ld      b,PK_MAX
+dx0:    ld      (hl),0
+        inc     hl
+        djnz    dx0
+        ld      a,(rxn)
+        or      a
+        jr      z,dx2
+        ld      b,a
+        ld      hl,perm
+dx1:    ld      e,(hl)
+        ld      d,0
+        push    hl
+        ld      hl,shown
+        add     hl,de
+        ld      (hl),1
+        pop     hl
+        inc     hl
+        djnz    dx1
+dx2:    ld      b,PK_Y          ; RECEIVING (blinking) at 1420.4 MHz
+        ld      c,3
+        call    gotoxy
+        ld      a,A_BLINK+A_BOLD
+        call    setattr
+        ld      hl,m_rx
+        call    puts
+        xor     a
+        call    setattr
+        ld      hl,m_rxat
+        call    puts
+        ld      hl,(pkfrq)
+        call    dec5
+        ld      hl,m_mhz
+        call    puts
+        ld      a,(pklen)       ; then the hex, and the letters under it
+        ld      d,a
+        ld      e,0
+dx3:    ld      a,e
+        add     a,a
+        add     a,e
+        add     a,3
+        ld      c,a
+        ld      b,PK_Y+1
+        call    gotoxy
+        push    de
+        ld      d,0
+        ld      hl,shown
+        add     hl,de
+        ld      a,(hl)
+        or      a
+        jr      nz,dx4
+        ld      a,'.'           ; not yet
+        call    putc
+        call    putc
+        ld      b,PK_Y+2
+        call    gotoxy
+        ld      a,'_'
+        call    putc
+        jr      dx6
+dx4:    ld      hl,pkcur
+        add     hl,de
+        ld      a,(hl)
+        call    hex2
+        ld      b,PK_Y+2
+        call    gotoxy
+        ld      a,(hl)
+        cp      ' '
+        jr      c,dx5
+        cp      127
+        jr      c,dx5a
+dx5:    ld      a,'?'
+dx5a:   call    putc
+dx6:    pop     de
+        inc     e
+        dec     d
+        jr      nz,dx3
+        ret
+
+; rxcount: A = the letters in: buf * len / 100
+rxcount: ld     a,(buf)
+        ld      e,a
+        ld      d,0
+        ld      a,(pklen)
+        ld      b,a
+        ld      hl,0
+rc1:    add     hl,de
+        djnz    rc1
+        ld      de,100
+        ld      a,-1
+rc2:    inc     a
+        or      a
+        sbc     hl,de
+        jr      nc,rc2
+        ret
+
+; ---------------------------------------------------------------- AutoTune
+; T: on or off. Every 0.8 s it steps the dial toward the strongest
+; signal it can hear, but it hunts the wrong way a quarter of the time,
+; and two steps off it is satisfied: it only now and then goes on to
+; the peak. Not very useful, most nights. Cheerful, though.
+autot:  ld      a,(autoon)
+        xor     1
+        ld      (autoon),a
+        ld      hl,m_aon
+        jr      nz,at1
+        ld      hl,m_aoff
+at1:    call    logmsg
+        call    showau
+        jp      nokey
+
+auto:   ld      a,(autoon)
+        or      a
+        ret     z
+        ld      a,(ticks)
+        and     7
+        ret     nz
+        ld      ix,sigs         ; the strongest signal: DE = it - the dial
+        ld      b,NSIG
+        ld      c,0             ; C = its strength so far
+au1:    ld      a,(ix+S_LIFE)
+        or      (ix+S_LIFE+1)
+        jr      z,au2
+        ld      a,(ix+S_STR)
+        cp      c
+        jr      c,au2
+        jr      z,au2
+        ld      c,a
+        ld      l,(ix+S_FRQ)
+        ld      h,(ix+S_FRQ+1)
+        ld      de,(freq)
+        or      a
+        sbc     hl,de
+        ex      de,hl
+au2:    push    de
+        ld      de,S_SIZE
+        add     ix,de
+        pop     de
+        djnz    au1
+        ld      a,c
+        or      a
+        ret     z               ; nothing to hear
+        ld      a,d
+        or      e
+        ret     z               ; on it already
+        call    rnd
+        ld      b,a
+        and     3
+        jr      nz,au4
+        ld      a,b             ; hunting: a step either way
+        and     0f0h
+        ld      hl,m_ahunt
+        call    z,logmsg
+        ld      a,b
+        and     4
+        ld      de,1
+        jr      z,au6
+        ld      de,-1
+        jr      au6
+au4:    ld      h,d             ; |DE|
+        ld      l,e
+        bit     7,h
+        jr      z,au5
+        xor     a
+        sub     l
+        ld      l,a
+        sbc     a,a
+        sub     h
+        ld      h,a
+au5:    ld      (adist),hl
+        ld      a,h
+        or      a
+        jr      nz,au7
+        ld      a,l
+        cp      3
+        jr      nc,au7
+        ld      a,(anear)       ; close enough: it says so, once
+        or      a
+        jr      nz,au5a
+        inc     a
+        ld      (anear),a
+        ld      hl,m_anear
+        call    logmsg
+au5a:   ld      a,b             ; and only now and then goes on
+        and     1ch
+        ret     nz
+au7:    xor     a
+        ld      (anear),a
+        bit     7,d             ; a step toward it: 1, or 10 when far
+        ld      hl,1
+        jr      z,au8
+        ld      hl,-1
+au8:    push    hl              ; far (30 steps or more): ten at a time
+        ld      hl,(adist)
+        ld      a,h
+        or      a
+        jr      nz,au8a
+        ld      a,l
+        cp      30
+        pop     hl
+        jr      c,au10
+        jr      au9
+au8a:   pop     hl
+au9:    add     hl,hl           ; x10
+        ld      d,h
+        ld      e,l
+        add     hl,hl
+        add     hl,hl
+        add     hl,de
+au10:   ex      de,hl
+au6:    ld      hl,(freq)
+        add     hl,de
+        ld      (freq),hl
+        jp      showfq
+
+; the deck: AUTO, HISS, PKTS
+showau: ld      b,5
+        ld      c,76
+        call    gotoxy
+        ld      a,(autoon)
+        or      a
+        ld      hl,m_off
+        jp      z,puts
+        call    revon
+        ld      hl,m_on
+        call    puts
+        jp      revoff
+showhs: ld      b,6
+        ld      c,76
+        call    gotoxy
+        ld      a,(purr)
+        cp      1
+        ld      hl,m_low
+        jp      z,puts
+        ld      hl,m_mid
+        jp      puts
+showpk: ld      b,7
+        ld      c,76
+        call    gotoxy
+        xor     a
+        ld      (lead),a
+        ld      a,(npkt)
+        ld      l,a
+        ld      h,0
+        ld      de,100
+        call    dgs
+        ld      de,10
+        call    dgs
+        ld      a,l
+        add     a,'0'
+        jp      putc
+
 ; ---------------------------------------------------------------- the keys line
 ; help: row 15 lists the keys that work now: they change with the mode
 ; (the dial, cleaning, the shop, the Archive, routing) and with a packet
@@ -186,33 +529,22 @@ help:   ld      a,(havepk)
 hp1:    ld      hl,keylns
         call    msgof
 hp2:    push    hl
-        ld      b,15
+        ld      b,24
         ld      c,1
         call    gotoxy
+        call    revon
         pop     hl
-        ld      c,0             ; C = the characters written
-hp3:    ld      a,(hl)
-        or      a
-        jr      z,hp4
-        call    putc
-        inc     hl
-        inc     c
-        jr      hp3
-hp4:    ld      a,c             ; then blanks, to column 79 (not the
-        cp      79              ; last: the ADM-3A would wrap)
-        ret     nc
-        ld      a,' '
-        call    putc
-        inc     c
-        jr      hp4
+        ld      c,79            ; to column 79, not the last: the ADM-3A
+        call    padput          ; would wrap, and scroll the screen
+        jp      revoff
 
 keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route
-k_dial: db      ' [,][.] tune  [<][>] coarse  [S]hop  [A]rchive  [P]IXEL  [Q]uit',0
-k_dialc: db     ' [,][.] tune  [<][>] coarse  [C]lean  [S]hop  [A]rchive  [P]IXEL  [Q]uit',0
-k_clean: db     ' [1]-[8] flip a bit  [,][.] pick a byte  [C] later  [P]IXEL  [Q]uit',0
-k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]IXEL  [Q]uit',0
-k_arch: db      ' [,][.] turn the page  [A] close the Archive  [P]IXEL  [Q]uit',0
-k_route: db     ' [SPACE] turn a relay  arrows move  [C] later  [P]IXEL  [Q]uit',0
+k_dial: db      ' [,.] tune  [<>] coarse  [T] AutoTune  [S]hop  [A]rchive  [P]et  [Q]uit',0
+k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [P]et',0
+k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
+k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
+k_arch: db      ' [,.] turn the page  [A] close the Archive  [P]et PIXEL  [Q]uit',0
+k_route: db     ' [SPACE] turn a relay  [arrows] move  [C] later  [P]et PIXEL  [Q]uit',0
 lasthp: db      0ffh
 
 ; ---------------------------------------------------------------- timing
@@ -243,14 +575,16 @@ clock:  ld      hl,tick
         jr      c,showtm
         ld      (hl),0
 showtm: ld      b,1
-        ld      c,70
+        ld      c,64
         call    gotoxy
+        call    revon
         ld      a,(hours)
         call    dec2
         ld      a,':'
         call    putc
         ld      a,(mins)
-        jp      dec2
+        call    dec2
+        jp      revoff
 
 ; ---------------------------------------------------------------- spectrogram
 ; The band is SPEC_W steps of 0.1 MHz, the dial at its centre: tuning
@@ -258,7 +592,7 @@ showtm: ld      b,1
 ; plus the signals' peaks from boost[].
 spectr: ld      a,(srow)
         inc     a
-        cp      3
+        cp      SPEC_H
         jr      c,sp1
         xor     a
 sp1:    ld      (srow),a
@@ -293,13 +627,14 @@ sp6:    ld      a,(hl)
 ramp:   db      ' .:-=+*#%@'
 
 ; dial readout, the centre mark, and arrows for signals off the band
-showfq: ld      b,5
-        ld      c,4
+showfq: ld      b,2
+        ld      c,10
         call    gotoxy
         ld      hl,(freq)
         call    dec5
         ld      hl,m_mhz
         call    puts
+        ld      b,MARK_Y
         ld      c,SPEC_X+SPEC_W/2
         call    gotoxy
         ld      a,'^'
@@ -479,8 +814,8 @@ st9:    ld      de,S_SIZE
         add     ix,de
         pop     bc
         djnz    st1
-; the edge arrows on row 5: '<' at column 2, '>' at column 64
-        ld      b,5
+; the edge arrows on the dial row: '<' at column 2, '>' at column 64
+        ld      b,MARK_Y
         ld      c,SPEC_X
         call    gotoxy
         ld      a,(edges)
@@ -547,6 +882,9 @@ lk4:    ld      de,S_SIZE
 ; the buffer: fills by the strength when dead on, drains slowly when not
         ld      a,(lockon)
         or      a
+        call    nz,rxbegin      ; a packet starts coming in
+        ld      a,(lockon)
+        or      a
         ld      a,(buf)
         jr      z,lk5
         inc     a               ; one a tick: 10 s to fill
@@ -569,6 +907,9 @@ lk5:    or      a
         jr      nz,lk6
         dec     a
 lk6:    ld      (buf),a
+        or      a
+        call    z,rxlost        ; drained: what came in is lost
+        call    rxshow          ; the letters, as they come
         jp      meters
 
 captur: ld      a,(havepk)      ; one packet at a time
@@ -586,6 +927,9 @@ captur: ld      a,(havepk)      ; one packet at a time
         jp      meters
 cap1:   xor     a
         ld      (buf),a
+        ld      (rcv),a
+        inc     a
+        ld      (havepk),a
         ld      ix,(lockix)
         ld      (ix+S_LIFE),a
         ld      (ix+S_LIFE+1),a
@@ -597,18 +941,22 @@ cap1:   xor     a
 cap2:
         ld      a,BEL
         call    putc
+        call    showpk
         ld      hl,m_got
-        call    logmsg
-        call    newpk           ; the packet: a message, some noise
+        ld      a,(pkleft)
+        or      a
+        jr      nz,cap3
+        ld      hl,m_gotcl      ; a strong one: clean already
+cap3:   call    logmsg
+        call    first
         call    drawpk
         jp      meters
 
 ; the lock meter (row 5) and BUF (deck, row 4): bars of '*' and '#'
-meters: ld      b,5
-        ld      c,42
+meters: ld      b,MARK_Y
+        ld      c,40
         call    gotoxy
-        ld      hl,m_lock
-        call    puts
+        call    lklook          ; lock / LOCK / LOCK reversed / blinking
         ld      a,(lockv)
         ld      e,'*'
         ld      d,6
@@ -624,6 +972,35 @@ mt1:    inc     b
         ld      a,b
         ld      e,'#'
         ld      d,6
+        jr      bar
+
+; lklook: the word LOCK as the lock stands. Nothing: dim lock. Near
+; (one step off): LOCK in capitals, bold. Dead on: reversed, and
+; blinking when the buffer is nearly full. (VT52: the capitals alone.)
+lklook: ld      a,(lockon)
+        or      a
+        jr      nz,lk_on
+        ld      a,(lockv)
+        or      a
+        ld      a,A_DIM
+        ld      hl,m_lock
+        jr      z,lkl1
+        ld      a,A_BOLD
+        ld      hl,m_lock2
+lkl1:   push    hl
+        call    setattr
+        pop     hl
+        call    puts
+        xor     a
+        jp      setattr
+lk_on:  ld      a,(buf)
+        cp      75
+        ld      a,A_REV
+        jr      c,lkl2
+        ld      a,A_REV+A_BLINK
+lkl2:   ld      hl,m_lock3
+        jr      lkl1
+
 ; bar: A filled of D cells, the filled ones E, the rest '.'
 bar:    ld      b,a
 br1:    ld      a,d
@@ -645,8 +1022,16 @@ br2:    call    putc
 ; by CR LF would wrap on the VT100 and the ADM-3A.
 frame:  call    curoff
         call    cls
+        ld      b,1             ; the title bar, reversed
+        ld      c,1
+        call    gotoxy
+        call    revon
+        ld      hl,m_title
+        ld      c,79
+        call    padput
+        call    revoff
         ld      hl,scr
-        ld      b,1
+        ld      b,2
 fr1:    ld      a,(hl)
         or      a
         jr      z,fr2
@@ -660,11 +1045,16 @@ fr2:    call    showfq
         call    showtm
         call    showtk
         call    shelf
+        call    showau
+        call    showpk
+        call    pose
         ld      b,1             ; the shift number
-        ld      c,61
+        ld      c,58
         call    gotoxy
+        call    revon
         ld      a,(shift)
         call    dec2
+        call    revoff
         ld      a,(saved)       ; a returning operator
         cp      0ffh
         ld      hl,m_again
@@ -672,23 +1062,87 @@ fr2:    call    showfq
         ld      hl,m_hello
         jp      logmsg
 
-; log line (row 12): clear it and write HL
+; logmsg: a line for the log (HL). The log shows the last four: the
+; newest at the bottom, reversed, with a > before it; the one above
+; plain; the two oldest dim.
 logmsg: call    diary
         push    hl
-        ld      b,12
+        ld      hl,logl+LOGW+1  ; the lines up one
+        ld      de,logl
+        ld      bc,NLOG*LOGW+NLOG-LOGW-1
+        ldir
+        pop     hl              ; DE: the last line. The new one in it
+        ld      b,LOGW
+lg1:    ld      a,(hl)
+        or      a
+        jr      z,lg2
+        ld      (de),a
+        inc     hl
+        inc     de
+        djnz    lg1
+lg2:    xor     a
+        ld      (de),a
+; drawlog: the four lines
+drawlog: ld     hl,logl
+        ld      b,LOG_Y
+lg3:    push    bc
+        push    hl
         ld      c,2
         call    gotoxy
-        ld      b,SPEC_W
-lm1:    ld      a,' '
-        call    putc
-        djnz    lm1
-        ld      b,12
-        ld      c,2
-        call    gotoxy
-        call    revon
+        ld      a,b             ; how it looks, by its row
+        sub     LOG_Y
+        ld      c,a
+        ld      a,A_DIM
+        cp      a               ; (Z)
+        ld      a,c
+        cp      2
+        ld      a,A_DIM
+        jr      c,lg4
+        ld      a,c
+        cp      NLOG-1
+        ld      a,0
+        jr      nz,lg4
+        ld      a,A_REV
+lg4:    push    af
+        call    setattr
+        pop     af
+        ld      hl,m_lgold
+        or      a
+        jr      z,lg5
+        cp      A_REV
+        jr      nz,lg5
+        ld      hl,m_lgnew
+lg5:    call    puts
         pop     hl
-        call    puts
-        jp      revoff
+        push    hl
+        ld      c,LOGW
+        call    padput
+        xor     a
+        call    setattr
+        pop     hl
+        ld      de,LOGW+1
+        add     hl,de
+        pop     bc
+        inc     b
+        ld      a,b
+        cp      LOG_Y+NLOG
+        jr      nz,lg3
+        ret
+
+; padput: HL (0-terminated) then blanks, C characters in all
+padput: ld      a,(hl)
+        or      a
+        jr      z,pp2
+        call    putc
+        inc     hl
+        dec     c
+        jr      nz,padput
+        ret
+pp2:    ld      a,' '
+pp3:    call    putc
+        dec     c
+        jr      nz,pp3
+        ret
 
 ; ---------------------------------------------------------------- terminal
 ; gotoxy: B = row (1-based), C = column (1-based)
@@ -738,24 +1192,79 @@ cls:    ld      a,(term)
         ld      a,26            ; ^Z
         jp      putc
 
-; reverse video: VT100 ESC[7m; ADM ESC G4 (the extension DigitalRerun
-; knows); VT52 has none
-revon:  ld      a,(term)
-        ld      hl,r_vt100
-        cp      T_VT100
-        jp      z,puts
-        ld      hl,r_adm
+; setattr: A = the look from here on, of A_BOLD A_DIM A_BLINK A_REV, 0
+; plain. VT100: ESC [ 0 ; 1 ; 2 ; 5 ; 7 m. ADM: ESC G n (2 blink, 4
+; reverse) and ESC ) ( (half intensity on, off); no bold. VT52: none.
+A_BOLD  equ     1
+A_DIM   equ     2
+A_BLINK equ     4
+A_REV   equ     8
+setattr: ld     c,a
+        ld      a,(term)
+        cp      T_VT52
+        ret     z
         cp      T_ADM
-        jp      z,puts
-        ret
-revoff: ld      a,(term)
-        ld      hl,o_vt100
-        cp      T_VT100
-        jp      z,puts
-        ld      hl,o_adm
-        cp      T_ADM
-        jp      z,puts
-        ret
+        jr      z,sa_adm
+        ld      a,ESC
+        call    putc
+        ld      a,'['
+        call    putc
+        ld      a,'0'
+        call    putc
+        ld      b,'1'
+        ld      a,c
+        and     A_BOLD
+        call    nz,sa_n
+        ld      b,'2'
+        ld      a,c
+        and     A_DIM
+        call    nz,sa_n
+        ld      b,'5'
+        ld      a,c
+        and     A_BLINK
+        call    nz,sa_n
+        ld      b,'7'
+        ld      a,c
+        and     A_REV
+        call    nz,sa_n
+        ld      a,'m'
+        jp      putc
+sa_n:   ld      a,';'
+        call    putc
+        ld      a,b
+        jp      putc
+sa_adm: ld      a,ESC
+        call    putc
+        ld      a,'G'
+        call    putc
+        ld      b,'0'
+        ld      a,c
+        and     A_BLINK
+        jr      z,sa1
+        inc     b
+        inc     b
+sa1:    ld      a,c
+        and     A_REV
+        jr      z,sa2
+        ld      a,b
+        add     a,4
+        ld      b,a
+sa2:    ld      a,b
+        call    putc
+        ld      a,ESC
+        call    putc
+        ld      a,c
+        and     A_DIM
+        ld      a,'('
+        jr      z,sa3
+        ld      a,')'
+sa3:    jp      putc
+
+; reverse video on and off
+revon:  ld      a,A_REV
+        jp      setattr
+revoff: xor     a
+        jp      setattr
 
 ; the cursor, hidden and shown: VT100 ESC[?25l/h (a VT220 code most VT100s
 ; answer), ADM ESC C 4 / ESC B 4 (the later ADM extension); VT52 has none,
@@ -779,10 +1288,6 @@ s_adm:  db      ESC,'B4',0
 
 c_vt100: db     ESC,'[H',ESC,'[2J',0
 c_vt52: db      ESC,'H',ESC,'J',0
-r_vt100: db     ESC,'[7m',0
-o_vt100: db     ESC,'[0m',0
-r_adm:  db      ESC,'G4',0
-o_adm:  db      ESC,'G0',0
 
 ; ---------------------------------------------------------------- console
 putc:   push    af
@@ -985,34 +1490,66 @@ m_back: db      'Welcome back. PIXEL pretends she did not miss you.',0
 m_again: db     'Another shift. PIXEL is already here, of course.',0
 m_bye:  db      'Kettle-7 signing off. Goodnight.',CR,LF,0
 m_mhz:  db      ' MHz',0
+m_title: db     ' KETTLE-7 RELAY  :  LANTERN NEBULA                 SHIFT              TOK',0
+m_lgold: db     '  ',0
+m_lgnew: db     '> ',0
 m_stir: db      'Something stirs on the band.',0
 m_fade: db      'A signal faded into the hiss. It will be back some night.',0
 m_got:  db      'Packet captured! Press C to clean it.',0
+m_gotcl: db     'Packet captured, and clean already! Press C to send it on.',0
+m_rxin: db      'Locked on. A packet is coming in...',0
+m_rxlost: db    'The signal slipped. The letters scatter back into the hiss.',0
+m_rx:   db      'RECEIVING',0
+m_rxat: db      '  at ',0
+m_aon:  db      'AutoTune on. It hums with enormous confidence.',0
+m_aoff: db      'AutoTune off. It sulks, quietly.',0
+m_ahunt: db     'AutoTune is quite sure it is this way. It is not.',0
+m_anear: db     'AutoTune: close enough! (It is not quite.)',0
+m_on:   db      ' ON',0
+m_off:  db      'off',0
+m_low:  db      'low',0
+m_mid:  db      'mid',0
 m_full: db      'The buffer is full. Clean the packet first (C).',0
 m_lock: db      'lock ',0
+m_lock2: db     'LOCK ',0
+m_lock3: db     'LOCK ',0
 
-; the frame: 80x24, plain ASCII (DigitalRerun ignores the DEC graphics set)
-scr:    db      '+- KETTLE-7 RELAY ----------------------------------- SHIFT 01 -+ +- 22:00 ----+',0
-        db      '|                                                               | |   DECK     |',0
+scr:    db      '+- BAND             --------------------------------------------+ +- DECK -----+',0
         db      '|                                                               | | PWR ######.|',0
         db      '|                                                               | | BUF ...... |',0
-        db      '|                                                               | | TOK      0 |',0
+        db      '|                                                               | | AUTO   off |',0
+        db      '|                                                               | | HISS   low |',0
+        db      '|                                                               | | PKTS     0 |',0
+        db      '+---------------------------------------------------------------+ +------------+',0
         db      '+- PACKET ------------------------------------------------------+ +- PIXEL ----+',0
         db      '|                                                               | |   /\_/\    |',0
-        db      '|              (no signal captured)                             | |  ( -.- ) zz|',0
-        db      '|                                                               | |   > ^ <    |',0
+        db      '|                                                               | |  ( -.- ) zz|',0
+        db      '|              (no signal yet)                                  | |   > ^ <    |',0
         db      '|                                                               | |  heater    |',0
-        db      '+- LOG ---------------------------------------------------------+ +------------+',0
-        db      '|                                                               |',0
-        db      '+---------------------------------------------------------------+',0
+        db      '|                                                               | |            |',0
+        db      '+---------------------------------------------------------------+ +------------+',0
+        db      '+- LOG ------------------------------------------------------------------------+',0
+        db      '|                                                                              |',0
+        db      '|                                                                              |',0
+        db      '|                                                                              |',0
+        db      '|                                                                              |',0
+        db      '+------------------------------------------------------------------------------+',0
         db      ' ',0
-        db      ' ',0,0
+        db      '                                                 keyboard [::::::::::]',0,0
 
 ; ---------------------------------------------------------------- state
 term:   db      0ffh
 rseed:  dw      0ace1h
 freq:   dw      14204           ; 1420.4 MHz, the hydrogen line
 ticks:  dw      0
+rcv:    db      0               ; 1: a packet coming in
+rxn:    db      0
+perm:   ds      20              ; (PK_MAX)
+shown:  ds      20
+autoon: db      0
+anear:  db      0
+adist:  dw      0
+logl:   ds      NLOG*(LOGW+1)
 purr:   db      1
 fullms: db      0
 missed: db      0

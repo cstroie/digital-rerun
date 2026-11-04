@@ -213,7 +213,7 @@ story:  ld      a,(pkkind)
         call    archas
         or      (hl)
         ld      (hl),a
-        ld      b,7
+        ld      b,PK_Y
         ld      c,3
         call    gotoxy
         ld      hl,m_arch1
@@ -226,7 +226,7 @@ story:  ld      a,(pkkind)
         ld      a,(pkfrag)
         call    fragtx
         call    skipz           ; past the packet text: the line
-        ld      b,9
+        ld      b,PK_Y+2
         jp      putrow
 sycall: ld      a,(pkwho)       ; the story moves on
         ld      e,a
@@ -237,7 +237,7 @@ sycall: ld      a,(pkwho)       ; the story moves on
         cp      NCH
         jr      nc,sy1
         inc     (hl)
-sy1:    ld      b,7
+sy1:    ld      b,PK_Y
         ld      c,3
         call    gotoxy
         ld      hl,m_from2
@@ -278,10 +278,10 @@ sy1:    ld      b,7
         add     hl,de
         call    str
         call    skipz
-        ld      b,8
+        ld      b,PK_Y+1
         call    putrow
         call    skipz
-        ld      b,9
+        ld      b,PK_Y+2
 ; putrow: HL = a string, on row B from column 3; HL left on its end
 putrow: ld      c,3
         call    gotoxy
@@ -350,7 +350,7 @@ an1:    ld      a,(arsel)
         ret
 
 drawar: call    clrbox
-        ld      b,7
+        ld      b,PK_Y
         ld      c,3
         call    gotoxy
         ld      hl,m_artit
@@ -368,7 +368,7 @@ dr2:    djnz    dr1
         call    decn
         ld      hl,m_arof
         call    puts
-        ld      b,8             ; the sky: * kept, . not yet, @ this one
+        ld      b,PK_Y+1             ; the sky: * kept, . not yet, @ this one
         ld      c,3
         call    gotoxy
         ld      c,0
@@ -389,9 +389,9 @@ dr4:    call    putc
         ld      a,(arcnt)
         or      a
         ld      hl,m_arnone
-        ld      b,9
+        ld      b,PK_Y+2
         jp      z,putrow
-        ld      b,9
+        ld      b,PK_Y+2
         ld      c,3
         call    gotoxy
         ld      a,(arsel)
@@ -405,11 +405,11 @@ dr4:    call    putc
         call    skipz
         call    puts
         ld      hl,m_arkeys
-        ld      b,10
+        ld      b,PK_Y+3
         jp      putrow
 
 ; clrbox: the packet box, rows 7-10, blank
-clrbox: ld      b,7
+clrbox: ld      b,PK_Y
 cb0:    ld      c,2
         call    gotoxy
         ld      d,SPEC_W
@@ -419,7 +419,7 @@ cb1:    ld      a,' '
         jr      nz,cb1
         inc     b
         ld      a,b
-        cp      11
+        cp      PK_Y+5
         jr      nz,cb0
         ret
 

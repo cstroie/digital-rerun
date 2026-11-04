@@ -885,8 +885,13 @@
         focusScreen();
     }
 
+    // The clipboard can be read only on HTTPS or localhost, and only with
+    // the browser's leave; without it, a box to paste into instead.
     $('pasteBtn').addEventListener('click', async () => {
-        try { typeText(await navigator.clipboard.readText()); } catch (e) { focusScreen(); }
+        let text = null;
+        try { if (navigator.clipboard && navigator.clipboard.readText) text = await navigator.clipboard.readText(); } catch (e) { text = null; }
+        if (text === null) text = prompt('The browser does not let the page read the clipboard here. Paste the text below (Ctrl+V), then OK:', '');
+        if (text) typeText(text); else focusScreen();
     });
 
     /* ---------- the screen: 80 columns across, and pictures of it ---------- */

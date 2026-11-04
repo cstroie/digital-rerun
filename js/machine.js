@@ -23,6 +23,7 @@
         constructor() {
             this.memory = new Uint8Array(65536);
             this.console = new Console();
+            this.console.now = () => this.cycles;
             this.printer = new PrinterPort();
             this.reader = new TapeReader();
             this.punch = new TapePunch();

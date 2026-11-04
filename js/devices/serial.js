@@ -13,6 +13,9 @@
     'use strict';
 
     const PASTE_WAIT = 16;
+    const PASTE_BURST = 8;         // characters printed between two polls: a program redrawing, not the BDOS checking for ^S
+    const PASTE_STUCK = 2000000;   // T-states (half a second at 4 MHz) a paste may wait for quiet that never comes
+    const PASTE_ASKS = 4;          // polls in a row, each after a burst: the program asking again and again
 
     class Console {
         constructor() {
@@ -24,6 +27,11 @@
             /** Pasted text, waiting to be typed one key at a time. */
             this.pending = [];
             this.waits = 0;
+            this.burst = 0;
+            this.asks = 0;
+            /** The machine's T-state count, for a paste stuck waiting (set by the machine). */
+            this.now = () => 0;
+            this.since = 0;
         }
 
         /**
@@ -33,8 +41,17 @@
          * BDOS looks for ^S each time it prints a character and keeps a key
          * it finds there; a program that reads the keyboard another way then
          * loses it. Waiting for quiet means no key is there to be taken.
+         * A program that prints between all its polls (a game redrawing its
+         * screen) is never quiet. The BDOS polls once for each character it
+         * prints; such a program prints many between its polls. When a paste
+         * has waited PASTE_STUCK T-states, and the program has polled
+         * PASTE_ASKS times in a row each after PASTE_BURST characters or
+         * more, it is asking again and again: it gets the next key. A
+         * program that only prints a while (an answer, a redrawn status
+         * line) goes quiet, or polls between single characters, before that.
          */
         paste(keys) {
+            if (!this.pending.length) this.since = this.now();
             for (const ch of keys) this.pending.push(ch.charCodeAt(0) & 0xFF);
             this.idlePolls = 0;
         }
@@ -50,7 +67,15 @@
         status() {
             if (this.queue.length) return 0xFF;
             if (this.pending.length) {                 // a paste is under way: not idle
-                if (++this.waits >= PASTE_WAIT) { this.waits = 0; this.queue.push(this.pending.shift()); }
+                this.asks = this.burst >= PASTE_BURST ? this.asks + 1 : 0;
+                this.burst = 0;
+                const asking = this.asks >= PASTE_ASKS && this.now() - this.since >= PASTE_STUCK;
+                if (++this.waits >= PASTE_WAIT || asking) {
+                    this.waits = 0;
+                    this.asks = 0;
+                    this.since = this.now();
+                    this.queue.push(this.pending.shift());
+                }
                 return 0x00;
             }
             this.idlePolls++;
@@ -65,6 +90,7 @@
         write(byte) {
             this.idlePolls = 0;
             this.waits = 0;
+            this.burst++;
             if (this.output) this.output(byte & 0x7F);
         }
     }

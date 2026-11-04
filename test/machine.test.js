@@ -209,3 +209,26 @@ test('debugger: a breakpoint stops the machine, step runs one instruction, resum
     for (let i = 0; i < 200 && !m.waiting; i++) m.run(200000);
     assert.match(m.out, /PIP {6}COM/);                         // DIR finished
 });
+
+test('a paste reaches a program that is never quiet (it redraws between polls), and only one asking again and again', () => {
+    const { Console } = require('../js/devices/serial.js');
+    const c = new Console();
+    let t = 0;
+    c.now = () => t;
+    c.paste('ab');
+    const got = [];
+    const tick = chars => {                       // print a burst, then poll once, as a game's tick does
+        for (let i = 0; i < chars; i++) c.write(0x2E);
+        if (c.status()) got.push(c.read());
+        t += 400000;                              // a tenth of a second at 4 MHz
+    };
+    for (let i = 0; i < 3; i++) tick(100);
+    assert.deepEqual(got, [], 'not after a few redraws: that could be a program busy printing');
+    for (let i = 0; i < 30; i++) tick(100);
+    assert.deepEqual(got, [0x61, 0x62]);
+    const d = new Console();                      // the BDOS: a poll after every character, never 'asking'
+    let u = 0;
+    d.now = () => u;
+    d.paste('x');
+    for (let i = 0; i < 1000; i++) { d.write(0x2E); assert.equal(d.status(), 0); u += 4000; }
+});

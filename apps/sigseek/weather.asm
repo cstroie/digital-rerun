@@ -47,7 +47,21 @@ wxtick: ld      hl,(wxtime)
 ; 3/16, a storm 1/16, the hum 1/16
 wxnew:  ld      hl,WX_TIME
         ld      (wxtime),hl
+        ld      a,(wx)          ; the first of a special night: its own
+        cp      0ffh
+        jr      nz,wxn1
+        call    spweather
+        ld      b,a
+        cp      0ffh
+        jr      nz,wx1
+wxn1:   ld      a,(spec)        ; the Perseids: meteors, half the time
+        cp      SP_PERSE
+        jr      nz,wxn2
         call    rnd
+        and     1
+        ld      b,WX_METEOR
+        jr      z,wx1
+wxn2:   call    rnd
         and     15
         ld      b,WX_CLEAR
         cp      5

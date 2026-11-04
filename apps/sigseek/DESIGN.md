@@ -301,6 +301,19 @@ again. Named in the title bar, told in the log.
 | STATIC STORM | 1/16 | static floods the band, the peaks hide in it; two more noisy bytes; PIXEL slinks under the console |
 | THE NEBULA HUMS | 1/16 | the band glows; new signals one stronger |
 
+## Special nights
+
+With the clock device the game knows the date, and some nights are special: the
+title screen and the log say so.
+
+| Date | |
+|---|---|
+| 1 January | a new year: the first weather is the hum |
+| 14 February | Sol & Dee send their love |
+| 11-13 August | the Perseids: the first weather is a meteor shower, and half the rolls after |
+| 31 October | the ghosts are out: one signal in four is a ghost |
+| 24-26 December | a festive night: still, with snow on the antenna and tinsel on PIXEL |
+
 ## The last lantern
 
 Fragment 19 says: *Our last lantern is still burning. Look for it at 1420.* Once it
@@ -368,8 +381,6 @@ New:
 - **Printing on the FX-80:** the Archive, a postcard or the night's log, on
   DigitalRerun's printer, kept as PNG or PDF.
 - **A help screen (`?`):** the rules and the keys, in the game.
-- **Real dates from the clock device:** it gives the date too: special
-  nights (a new year, the Perseids in August, the night you started).
 - **Answering callers:** now and then a choice of two replies, which turns their next
   letter a little.
 - **Stamps:** a small page of milestones (the first clean packet, all eight callers

@@ -247,8 +247,13 @@ sh9:    ld      a,b
 ; sigkind: IX = a new signal: who it carries. A caller half the time
 ; (among those met: two at first, one more every four packets), the
 ; Archive a quarter, nobody a quarter.
-sigkind: call   rnd             ; one in eight: a ghost
-        and     7
+sigkind: ld     a,(spec)        ; one in eight: a ghost (one in four on
+        cp      SP_GHOST        ; the last night of October)
+        ld      b,7
+        jr      nz,sk_0
+        ld      b,3
+sk_0:   call    rnd
+        and     b
         ld      c,K_GHOST
         jr      z,sk_9
         call    rnd
@@ -1283,9 +1288,13 @@ fr2:    call    redraw0
         ld      a,(saved)       ; a returning operator
         cp      0ffh
         ld      hl,m_again
-        jp      nz,logmsg
+        jr      z,fr3
+        call    logmsg
+        jp      spline
+fr3:
         ld      hl,m_hello
-        jp      logmsg
+        call    logmsg
+        jp      spline          ; and a special night's word
 
 ; redraw: the whole screen again, as it stands (after the help, say)
 redraw: call    curoff

@@ -26,6 +26,15 @@ clkinit: out    (CLKPORT),a
 ci1:    ld      (hasclk),a
         or      a
         ret     z
+        out     (CLKPORT),a     ; the date: the record's bytes 8 and 9
+        ld      b,8
+ci2:    in      a,(CLKPORT)
+        djnz    ci2
+        in      a,(CLKPORT)
+        ld      (month),a
+        in      a,(CLKPORT)
+        ld      (day),a
+        call    special
         call    readms
         ld      de,TICKMS
         add     hl,de
@@ -69,6 +78,105 @@ tw2:    call    readms
         ld      (nextms),hl
         ret
 
+; ---------------------------------------------------------------- the date
+; special: which night it is, by the date (with the clock only):
+;   1 1 January           a new year: the nebula hums
+;   2 14 February         Sol & Dee send their love
+;   3 11-13 August        the Perseids: meteors, and more of them
+;   4 31 October          the ghosts are out: one signal in four
+;   5 24-26 December      a still, festive night, snow on the antenna
+SP_NEWYR equ    1
+SP_VALEN equ    2
+SP_PERSE equ    3
+SP_GHOST equ    4
+SP_FEST equ     5
+special: ld     a,(month)
+        ld      b,a
+        ld      a,(day)
+        ld      c,a
+        ld      e,0
+        ld      a,b
+        cp      1
+        jr      nz,dq2
+        ld      a,c
+        cp      1
+        jr      nz,dq9
+        ld      e,SP_NEWYR
+        jr      dq9
+dq2:    cp      2
+        jr      nz,dq3
+        ld      a,c
+        cp      14
+        jr      nz,dq9
+        ld      e,SP_VALEN
+        jr      dq9
+dq3:    cp      8
+        jr      nz,dq4
+        ld      a,c
+        cp      11
+        jr      c,dq9
+        cp      14
+        jr      nc,dq9
+        ld      e,SP_PERSE
+        jr      dq9
+dq4:    cp      10
+        jr      nz,dq5
+        ld      a,c
+        cp      31
+        jr      nz,dq9
+        ld      e,SP_GHOST
+        jr      dq9
+dq5:    cp      12
+        jr      nz,dq9
+        ld      a,c
+        cp      24
+        jr      c,dq9
+        cp      27
+        jr      nc,dq9
+        ld      e,SP_FEST
+dq9:    ld      a,e
+        ld      (spec),a
+        ret
+
+; spweather: the first weather of a special night, or 0ffh: none
+spweather: ld   a,(spec)
+        ld      b,WX_HUM
+        cp      SP_NEWYR
+        jr      z,sw1
+        ld      b,WX_METEOR
+        cp      SP_PERSE
+        jr      z,sw1
+        ld      b,WX_STILL
+        cp      SP_FEST
+        jr      z,sw1
+        ld      b,0ffh
+sw1:    ld      a,b
+        ret
+
+; spline: the night's word in the log, if it is a special one
+spline: ld      a,(spec)
+        or      a
+        ret     z
+        dec     a
+        ld      hl,splines
+        call    msgof
+        jp      logmsg
+splines: dw     sl1, sl2, sl3, sl4, sl5
+sl1:    db      'A new year over the Lantern Nebula. The whole band hums along.',0
+sl2:    db      'The fourteenth of February. Sol & Dee send their love, twice.',0
+sl3:    db      'The Perseids are falling tonight. Meteors, all night long.',0
+sl4:    db      'The last night of October. The ghosts are out on the band.',0
+sl5:    db      'A festive night. Snow on the antenna, tinsel on PIXEL.',0
+sptitle: dw     st_1, st_2, st_3, st_4, st_5
+st_1:   db      '~ a happy new year ~',0
+st_2:   db      '~ with love, from Sol & Dee ~',0
+st_3:   db      '~ the Perseids are falling ~',0
+st_4:   db      '~ the ghosts are out ~',0
+st_5:   db      '~ a festive night ~',0
+month:  db      0
+day:    db      0
+spec:   db      0
+
 ; ---------------------------------------------------------------- the title
 ; title: the station, PIXEL, and the shift; stars twinkle until a key.
 ; The wait stirs the seed.
@@ -101,7 +209,17 @@ ti_2:   ld      b,6             ; the name, bold
         call    puts
         ld      a,(shift)
         call    decn
-        ld      b,22            ; and the key, blinking
+        ld      a,(spec)        ; a special night, under it
+        or      a
+        jr      z,ti_2a
+        dec     a
+        ld      hl,sptitle
+        call    msgof
+        ld      b,18
+        ld      c,30
+        call    gotoxy
+        call    puts
+ti_2a:  ld      b,22            ; and the key, blinking
         ld      c,30
         call    gotoxy
         ld      a,A_BLINK

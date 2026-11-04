@@ -396,11 +396,22 @@ dk6:    call    putc
         call    selptr
         ld      a,(hl)
         ld      c,a
-        ld      b,8
-dk7:    rl      c
-        ld      a,'0'
+        ld      hl,pkorig       ; H = the wrong bits, if hints are bought
+        add     hl,de
+        xor     (hl)
+        ld      h,a
+        ld      a,(upg)
+        and     U_HINT
+        jr      nz,dk6a
+        ld      h,a
+dk6a:   ld      b,8
+dk7:    ld      a,'0'
+        rl      c
         adc     a,0
-        call    putc
+        rl      h
+        jr      nc,dk7a
+        ld      a,'!'
+dk7a:   call    putc
         djnz    dk7
         ld      hl,m_ones
         call    puts

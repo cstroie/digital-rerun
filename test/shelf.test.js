@@ -34,7 +34,7 @@ test('every shelf entry is listed with what the page needs, and its files exist'
         if (e.image) assert.ok(fs.existsSync(path.join(ROOT, e.image)), e.image);
         else for (const f of e.files) assert.ok(fs.existsSync(path.join(ROOT, f.path)), f.path);
     }
-    assert.deepEqual(shelf.map(e => e.id).sort(), ['905', 'advent', 'aisle', 'bbcbasic', 'bdsc', 'catseye', 'cpm22', 'cpm3', 'curses', 'fantasy', 'forth83', 'hitech', 'moonglow', 'photopia', 'shade', 'spiderweb', 'subsab', 'suvehnux', 'z80ulm', 'zork1', 'zork2', 'zork3']);
+    assert.deepEqual(shelf.map(e => e.id).sort(), ['905', 'advent', 'aisle', 'bbcbasic', 'bdsc', 'catseye', 'cpm22', 'cpm3', 'curses', 'fantasy', 'forth83', 'hitech', 'moonglow', 'photopia', 'shade', 'sigseek', 'spiderweb', 'subsab', 'suvehnux', 'z80ulm', 'zork1', 'zork2', 'zork3']);
 });
 
 test('each shelf disk builds as the page builds it, every file on it', async () => {
@@ -111,6 +111,19 @@ test('PLAY on the Zork I disk', async () => {
     const cmd = text => { m.out = ''; m.console.paste(text + '\r'); settle(); return m.out; };
     cmd('D:');
     assert.match(cmd('PLAY'), /ZORK I/i);
+});
+
+test('Signal Seeker: PLAY starts a shift, Q saves it, the next run is shift 02', async () => {
+    const m = await withDisk('sigseek', 1, true);
+    m.cmd('B:');
+    assert.match(m.cmd('SIGSEEK /100'), /KETTLE-7 RELAY[\s\S]*SHIFT 01/);
+    m.out = '';
+    m.console.type('Q');
+    m.settle();
+    assert.match(m.out, /Kettle-7 signing off/);
+    assert.match(m.cmd('DIR'), /SIGSEEK\s+SAV/);
+    const again = m.cmd('PLAY');                                  // the shift number is written into the frame
+    assert.ok(/\x1b\[1;61H02/.test(again) && again.includes('Another shift'), 'shift 02, a returning operator');
 });
 
 test('Z80-μLM: CHAT answers a line, and PLAY starts GUESS', async () => {

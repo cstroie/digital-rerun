@@ -35,6 +35,9 @@ SPEC_Y  equ     2
 
 start:  ld      (oldsp),sp
         ld      sp,stack
+        call    load            ; SIGSEEK.SAV, if there is one
+        ld      a,(term)
+        ld      (saved),a
         call    parse
         ld      a,(term)
         cp      0ffh
@@ -65,11 +68,17 @@ loop:   call    key
         jp      z,pet
         ld      b,a
         ld      a,(mode)
+        cp      2
+        ld      a,b
+        jp      z,skey
+        ld      a,(mode)
         or      a
         ld      a,b
         jp      nz,ckey
         cp      'C'
         jp      z,clean
+        cp      'S'
+        jp      z,shop
         ld      de,-1
         cp      ','
         jr      z,tune
@@ -123,7 +132,8 @@ nokey:  ld      hl,(ticks)
 wait:   call    delay
         jp      loop
 
-quit:   call    cls
+quit:   call    save
+        call    cls
         ld      hl,m_bye
         call    puts
         ld      sp,(oldsp)
@@ -436,7 +446,7 @@ lk1:    ld      a,(ix+S_LIFE)
         ld      a,h
         or      l
         jr      nz,lk2
-        ld      a,1             ; dead on
+lkon:   ld      a,1             ; dead on
         ld      (lockon),a
         ld      (lockix),ix
         ld      a,(ix+S_STR)
@@ -450,6 +460,9 @@ lk2:    inc     hl              ; -1 -> 0, +1 -> 2
         jr      nc,lk4
         cp      1
         jr      z,lk4
+        ld      a,(upg)         ; the fine tuner: one step off is on
+        and     U_TUNER
+        jr      nz,lkon
         ld      a,(ix+S_STR)
         srl     a
 lk3:    ld      c,a
@@ -467,6 +480,13 @@ lk4:    ld      de,S_SIZE
         ld      a,(buf)
         jr      z,lk5
         inc     a               ; one a tick: 10 s to fill
+        ld      b,a
+        ld      a,(upg)         ; the big buffer: two a tick
+        and     U_BUF
+        ld      a,b
+        jr      z,lkb
+        inc     a
+lkb:
         cp      100
         jr      nc,captur
         jr      lk6
@@ -563,6 +583,17 @@ fr1:    ld      a,(hl)
         jr      fr1
 fr2:    call    showfq
         call    showtm
+        call    showtk
+        call    shelf
+        ld      b,1             ; the shift number
+        ld      c,61
+        call    gotoxy
+        ld      a,(shift)
+        call    dec2
+        ld      a,(saved)       ; a returning operator
+        cp      0ffh
+        ld      hl,m_again
+        jp      nz,logmsg
         ld      hl,m_hello
         jp      logmsg
 
@@ -811,9 +842,7 @@ sd1:    ld      (rseed),hl
 
 ; ---------------------------------------------------------------- terminal choice
 ; command tail: /100 /52 /ADM
-parse:  ld      a,0ffh
-        ld      (term),a
-        ld      hl,TAIL
+parse:  ld      hl,TAIL
         ld      b,(hl)
         inc     hl
 pa1:    ld      a,b
@@ -858,6 +887,7 @@ m_ask:  db      CR,LF,'SIGNAL SEEKER',CR,LF,CR,LF
 m_hello: db     'Shift begins. Kettle warm. PIXEL asleep on the heater.',0
 m_away: db      'The operator has stepped away. The station hums on.',0
 m_back: db      'Welcome back. PIXEL pretends she did not miss you.',0
+m_again: db     'Another shift. PIXEL is already here, of course.',0
 m_bye:  db      'Kettle-7 signing off. Goodnight.',CR,LF,0
 m_mhz:  db      ' MHz',0
 m_stir: db      'Something stirs on the band.',0
@@ -881,7 +911,7 @@ scr:    db      '+- KETTLE-7 RELAY ----------------------------------- SHIFT 01 
         db      '|                                                               |',0
         db      '+---------------------------------------------------------------+',0
         db      ' ',0
-        db      ' [,][.] fine tune   [<][>] coarse   (or the arrows)   [P]IXEL   [Q]uit',0,0
+        db      ' [,][.] tune  [<][>] coarse  [C]lean [S]hop [P]IXEL [Q]uit',0,0
 
 ; ---------------------------------------------------------------- state
 term:   db      0ffh
@@ -911,5 +941,6 @@ stack:
 
         include cat.asm
         include clean.asm
+        include shop.asm
 
         end     start

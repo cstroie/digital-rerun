@@ -3,4 +3,5 @@
 set -e
 cd "$(dirname "$0")"
 ${PASMO:-pasmo} sigseek.asm SIGSEEK.COM
+cp SIGSEEK.COM ../../disks/shelf/sigseek/
 ls -l SIGSEEK.COM

@@ -282,10 +282,13 @@ pose:   ld      a,3             ; purr is the noise mask: 3, or 1 purring
         or      a
         ld      hl,p_empty
         jr      nz,drawp
+        ld      a,(upg)         ; the good heater: she always purrs
+        and     U_HEAT
+        jr      nz,po0
         ld      a,(cmood)
         or      a
         jr      nz,po1
-        ld      a,1
+po0:    ld      a,1
         ld      (purr),a
 po1:    ld      a,(cmood)
         ld      hl,poses

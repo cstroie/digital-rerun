@@ -41,6 +41,8 @@ start:  ld      (oldsp),sp
         call    z,askterm
         call    frame
         call    seed
+        call    rnd             ; the first signal arrives soon
+        call    spn0
 
 ; ---------------------------------------------------------------- main loop
 loop:   call    key
@@ -59,6 +61,8 @@ loop:   call    key
         call    upcase
         cp      'Q'
         jp      z,quit
+        cp      'P'
+        jp      z,pet
         ld      de,-1
         cp      ','
         jr      z,tune
@@ -92,6 +96,7 @@ nokey:  ld      hl,(ticks)
         call    age             ; signals drift and fade
         call    stamp           ; where they fall on the band
         call    spectr          ; one fresh row of the spectrogram
+        call    cat             ; PIXEL does as she pleases
         call    lock            ; lock meter and buffer
         call    clock
         ld      hl,(idle)
@@ -101,10 +106,13 @@ nokey:  ld      hl,(ticks)
         or      a
         sbc     hl,de
         jr      nz,wait
-        ld      a,1
-        ld      (away),a
         ld      hl,m_away
         call    logmsg
+        ld      a,1
+        ld      (away),a
+        xor     a
+        ld      (ndia),a
+        ld      (missed),a
 wait:   call    delay
         jp      loop
 
@@ -114,7 +122,8 @@ quit:   call    cls
         ld      sp,(oldsp)
         ret
 
-back:   ld      hl,m_back
+back:   call    showdia
+        ld      hl,m_back
         call    logmsg
         ld      a,BEL
         jp      putc
@@ -174,6 +183,8 @@ sp1:    ld      (srow),a
         ld      c,SPEC_W
 sp2:    call    rnd
         and     3               ; base noise 0..3
+        ld      hl,purr
+        and     (hl)            ; 1 while PIXEL purrs on the heater
         ex      de,hl
         add     a,(hl)
         inc     hl
@@ -217,11 +228,11 @@ S_DRF   equ     5
 S_SIZE  equ     6
 NSIG    equ     3
 
-; about one new signal every 13 s, while there are fewer than three
+; about one new signal every 26 s, while there are fewer than three
 spawn:  call    rnd
-        and     127
+        or      a
         ret     nz
-        ld      ix,sigs
+spn0:   ld      ix,sigs
         ld      b,NSIG
         ld      de,S_SIZE
 spn1:   ld      a,(ix+S_LIFE)
@@ -263,7 +274,15 @@ spn2:   call    rnd             ; within 6.4 MHz of the dial
 spn3:   dec     a
 spn4:   ld      (ix+S_DRF),a
         ld      hl,m_stir
-        jp      logmsg
+; quiet: signal news, kept out of the diary while away (only counted)
+quiet:  ld      a,(away)
+        or      a
+        jp      z,logmsg
+        ld      a,(missed)
+        inc     a
+        ret     z
+        ld      (missed),a
+        ret
 
 ; every tick: life runs down; every 32 ticks: drift
 age:    ld      ix,sigs
@@ -281,7 +300,7 @@ ag1:    push    bc
         or      l
         jr      nz,ag2
         ld      hl,m_fade
-        call    logmsg
+        call    quiet
         jr      ag3
 ag2:    ld      a,(ticks)
         and     31
@@ -440,8 +459,7 @@ lk4:    ld      de,S_SIZE
         or      a
         ld      a,(buf)
         jr      z,lk5
-        ld      ix,(lockix)
-        add     a,(ix+S_STR)
+        inc     a               ; one a tick: 10 s to fill
         cp      100
         jr      nc,captur
         jr      lk6
@@ -536,7 +554,8 @@ fr2:    call    showfq
         jp      logmsg
 
 ; log line (row 12): clear it and write HL
-logmsg: push    hl
+logmsg: call    diary
+        push    hl
         ld      b,12
         ld      c,2
         call    gotoxy
@@ -850,13 +869,15 @@ scr:    db      '+- KETTLE-7 RELAY ----------------------------------- SHIFT 01 
         db      '|                                                               |',0
         db      '+---------------------------------------------------------------+',0
         db      ' ',0
-        db      ' [,][.] fine tune   [<][>] coarse   (or the arrows)   [Q]uit',0,0
+        db      ' [,][.] fine tune   [<][>] coarse   (or the arrows)   [P]IXEL   [Q]uit',0,0
 
 ; ---------------------------------------------------------------- state
 term:   db      0ffh
 rseed:  dw      0ace1h
 freq:   dw      14204           ; 1420.4 MHz, the hydrogen line
 ticks:  dw      0
+purr:   db      1
+missed: db      0
 sigs:   ds      NSIG*S_SIZE
 boost:  ds      SPEC_W
 edges:  db      0
@@ -874,5 +895,7 @@ away:   db      0
 oldsp:  dw      0
         ds      128
 stack:
+
+        include cat.asm
 
         end     start

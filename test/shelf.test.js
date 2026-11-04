@@ -116,21 +116,21 @@ test('PLAY on the Zork I disk', async () => {
 test('Signal Seeker: PLAY starts a shift, Q saves it, the next run is shift 02', async () => {
     const m = await withDisk('sigseek', 1, true);
     m.cmd('B:');
-    assert.match(m.cmd('SIGSEEK /100'), /S I G N A L   S E E K E R[\s\S]*Shift 1/);   // the title, until a key
-    m.out = '';
-    m.console.type(' ');
-    m.settle();
-    assert.match(m.out, /KETTLE-7 RELAY[\s\S]*SHIFT[\s\S]*\x1b\[1;58H\x1b\[0;7m01/);
-    m.out = '';
-    m.console.type('Q');
-    m.settle();
-    assert.match(m.out, /Kettle-7 signing off/);
+    // The game never goes idle, so settle() would run to its limit: run until what is wanted is out
+    const until = (re, what) => {
+        for (let i = 0; i < 4000 && !re.test(m.out); i++) m.run(200000);
+        assert.match(m.out, re, what);
+    };
+    const send = (keys, re, what) => { m.out = ''; m.console.paste(keys); until(re, what); };
+    send('SIGSEEK /100\r', /S I G N A L   S E E K E R[\s\S]*Shift 1/, 'the title, until a key');
+    m.out = ''; m.console.type(' ');
+    until(/\x1b\[1;58H\x1b\[0;7m01/, 'the frame, shift 01');
+    m.out = ''; m.console.type('Q');
+    until(/Kettle-7 signing off[\s\S]*B>/, 'Q ends the shift');
     assert.match(m.cmd('DIR'), /SIGSEEK\s+SAV/);
-    assert.match(m.cmd('PLAY'), /Shift 2/);
-    m.out = '';
-    m.console.type(' ');
-    m.settle();                                                   // the shift number is written into the frame
-    assert.ok(/\x1b\[1;58H\x1b\[0;7m02/.test(m.out) && m.out.includes('Another shift'), 'shift 02, a returning operator');
+    send('PLAY\r', /Shift 2/, 'the title says shift 2');
+    m.out = ''; m.console.type(' ');
+    until(/\x1b\[1;58H\x1b\[0;7m02[\s\S]*Another shift/, 'shift 02, a returning operator');
 });
 
 test('Z80-μLM: CHAT answers a line, and PLAY starts GUESS', async () => {

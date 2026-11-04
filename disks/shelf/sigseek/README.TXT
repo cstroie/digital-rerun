@@ -48,7 +48,8 @@ She has opinions about the callers, too, and some of her gifts turn out
 to be just what the station needed.
 Leave the station for five minutes and she keeps a diary.
 
-The weather changes through the night, and the title bar names it: a
+A shift runs from 22:00 to dawn at 06:00, about 24 minutes; at dawn the
+night is tallied, and any key ends the shift. The weather changes through the night, and the title bar names it: a
 clear night, solar wind (more static), a meteor shower (quick little
 pings), a still night (clean packets), and now and then the nebula
 hums. Some say the last lantern can be heard at 1420.0 MHz, once you

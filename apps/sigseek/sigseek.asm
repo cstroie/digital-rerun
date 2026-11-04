@@ -49,6 +49,10 @@ start:  ld      (oldsp),sp
         cp      0ffh
         call    z,askterm
         call    loaddat         ; SIGSEEK.DAT, or a note and back to CP/M
+        call    clkinit         ; DigitalRerun's clock, for the ticks
+        call    title           ; the title screen, until a key
+        ld      hl,(tokens)     ; (for the night's tally)
+        ld      (tok0),hl
         call    wxnew           ; tonight's weather
         call    frame
         call    seed
@@ -75,6 +79,10 @@ loop:   call    key
         cp      'P'
         jp      z,pet
         ld      b,a
+        ld      a,(mode)
+        cp      7
+        ld      a,b
+        jp      z,dkey
         ld      a,(mode)
         cp      6
         ld      a,b
@@ -136,6 +144,12 @@ tune:   ld      hl,(freq)
         call    showfq
 
 nokey:  call    help            ; the keys that work now
+        ld      a,(mode)        ; dawn: the sun comes up, the rest waits
+        cp      7
+        jr      nz,nk1
+        call    dawntk
+        jr      wait
+nk1:    call    dawnq           ; 06:00?
         ld      hl,(ticks)
         inc     hl
         ld      (ticks),hl
@@ -166,7 +180,7 @@ nokey:  call    help            ; the keys that work now
 wait:   ld      b,24            ; park the cursor in the corner, still
         ld      c,80
         call    gotoxy
-        call    delay
+        call    tickwait
         jp      loop
 
 quit:   call    save
@@ -551,12 +565,13 @@ hp2:    push    hl
         call    padput          ; would wrap, and scroll the screen
         jp      revoff
 
-keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall
+keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall, k_dawn
 k_dial: db      ' [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [W]all  [P]et  [Q]uit',0
 k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
 k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
 k_arch: db      ' [,.] turn the page  [A] close the Archive  [P]et PIXEL  [Q]uit',0
+k_dawn: db      ' [any key] end the shift, once the sun is up (the station is saved)',0
 k_wall: db      ' [,.] the next card  [W] close the wall  [P]et PIXEL  [Q]uit',0
 k_scene: db     ' [any key] go on, once it has all been said',0
 k_route: db     ' [SPACE] turn a relay  [arrows] move  [C] later  [P]et PIXEL  [Q]uit',0
@@ -570,11 +585,12 @@ dly2:   djnz    dly2
         jr      nz,dly1
         ret
 
-; shift clock: 10 ticks = 1 s; one station minute every 6 s
+; shift clock: 10 ticks = 1 s; one station minute every 3 s, so the
+; night from 22:00 to dawn at 06:00 is 24 minutes
 clock:  ld      hl,tick
         inc     (hl)
         ld      a,(hl)
-        cp      60
+        cp      30
         ret     c
         ld      (hl),0
         ld      hl,mins
@@ -962,6 +978,8 @@ cap1:   xor     a
         ld      ix,(lockix)
         ld      (ix+S_LIFE),a
         ld      (ix+S_LIFE+1),a
+        ld      hl,n_pk         ; tonight's
+        call    tl_inc
         ld      hl,npkt         ; (stops at 255)
         ld      a,(hl)
         inc     a
@@ -1609,6 +1627,7 @@ stack:
         include route.asm
         include weather.asm
         include cards.asm
+        include title.asm
 
 ; SIGSEEK.DAT is read here, after everything else
 datbuf:

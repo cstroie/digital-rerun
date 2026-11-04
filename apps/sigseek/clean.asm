@@ -236,7 +236,8 @@ selptr: ld      a,(pksel)
 
 ; ---------------------------------------------------------------- delivery
 ; tokens: 5 for the packet, 3 for each byte that was noisy
-deliv:  xor     a
+deliv:  call    tl_dl           ; tonight's tally
+        xor     a
         ld      (mode),a
         ld      (buf),a         ; the buffer starts empty for the next
         ld      (havepk),a

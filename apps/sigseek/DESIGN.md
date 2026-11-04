@@ -21,6 +21,7 @@ does as she pleases. The station keeps running when you step away.
 | `story.asm` | `SIGSEEK.DAT`: loading, the callers, the Archive |
 | `weather.asm` | Weather, the last lantern at 1420.0 MHz, the Archive's end |
 | `cards.asm` | Postcards from the callers, the postcard wall |
+| `title.asm` | The title screen, timing by the clock device, the night's tally, dawn |
 | `sigseek.txt` | The content: messages, callers' letters, Archive fragments |
 | `mkdat.js` | Packs `sigseek.txt` into `SIGSEEK.DAT`, checking every length against the screen |
 | `build.sh` | pasmo, then mkdat, then copies both onto the shelf disk |
@@ -103,8 +104,11 @@ Rules:
 
 ## The main loop
 
-About ten ticks a second at 4 MHz: a calibrated busy-wait, no clock device needed.
-Each tick:
+Ten ticks a second. With DigitalRerun's clock device (port 20: `OUT` latches a
+record, 15 `IN`s read it, bytes 11-14 are milliseconds of machine time) a tick is
+100 ms of it, at any speed setting; more than a second behind, it starts afresh
+rather than racing to catch up. Without the device (a real Z80, another emulator),
+a busy-wait calibrated for 4 MHz. Each tick:
 
 ```
 key?  (BDOS 6, no wait)  -> by mode: dial, cleaning, shop, Archive, routing, the end
@@ -120,7 +124,18 @@ park the cursor, wait
 ```
 
 Modes: 0 the dial, 1 cleaning, 2 the shop, 3 the Archive, 4 routing, 5 the
-Archive's end, 6 the postcard wall. `P` (pet) and `Q` (quit, saving) work in every mode.
+Archive's end, 6 the postcard wall, 7 dawn.
+
+## A shift
+
+A **title screen** first: the station, PIXEL, the name, the shift number, stars
+that twinkle, and "press any key" blinking; the wait stirs the random seed.
+
+The shift begins at **22:00**; a station minute is 3 s, so **dawn at 06:00** comes
+24 minutes on. At the dial, the band stops: the sun comes up over it in three
+frames, and the packet box tallies the night (packets in, delivered, letters,
+fragments, tokens earned, PIXEL's gifts). Once the sun is up, any key ends the
+shift, saved, back to CP/M; the next run is the next shift. `Q` ends it early. `P` (pet) and `Q` (quit, saving) work in every mode.
 
 ## Playing
 
@@ -321,6 +336,27 @@ copies match, an overlong line is refused) and a shelf test (`PLAY` starts a shi
 
 ## Ideas not built
 
-- PIXEL's reactions to the shelf (asleep under the lamp, sniffing the plant).
-- More shop things: a star chart that marks old signals, a second buffer.
-- A tie-in with Z80-uLM (put off).
+From the design notes:
+
+- **PIXEL and the shelf:** asleep under the desk lamp, sniffing the plant, by the
+  kettle when it is on: the decorations as places she goes.
+- **More shop things:** a star chart that marks where old signals were heard; a
+  second buffer, so one packet can wait while another comes in.
+- **A Z80-uLM tie-in** (put off): Hum talking through the tiny language model on its
+  own disk, say.
+
+New:
+
+- **Printing on the FX-80:** the Archive, a postcard or the night's log, on
+  DigitalRerun's printer, kept as PNG or PDF.
+- **A help screen (`?`):** the rules and the keys, in the game.
+- **Real dates from the clock device:** it gives the date too: special
+  nights (a new year, the Perseids in August, the night you started).
+- **Answering callers:** now and then a choice of two replies, which turns their next
+  letter a little.
+- **Stamps:** a small page of milestones (the first clean packet, all eight callers
+  met, the lantern found).
+- **A faster shelf test:** the game never goes idle, so the test's wait runs to its
+  limit (about 35 s).
+- **Another program in `apps/`:** a cozy companion (a tide-table toy, a calm card
+  game) or a tool (a VT100 screen designer).

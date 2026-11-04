@@ -372,6 +372,7 @@ pt3:    call    rnd             ; a needy cat, petted: one time in eight,
         jr      nz,pt2
         push    bc
         call    usegift
+        call    nz,tl_gift
         pop     bc
 pt2:    ld      a,b
         ld      (cmood),a
@@ -388,6 +389,7 @@ gift:   ld      a,(away)
         call    rnd
         and     7
         ret     nz
+        call    tl_gift         ; tonight's tally
         call    rnd             ; a quarter of them turn out useful
         and     3
         jr      nz,gf1

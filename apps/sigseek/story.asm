@@ -219,6 +219,7 @@ story:  ld      a,(pkkind)
         jr      z,sycall
         cp      K_FRAG
         ret     nz
+        call    tl_frag         ; tonight's tally
         ld      a,(pkfrag)      ; a fragment for the Archive
         call    archas
         or      (hl)
@@ -239,7 +240,8 @@ story:  ld      a,(pkkind)
         ld      b,PK_Y+2
         call    putrow
         jp      ending          ; the 32nd? the Archive's end
-sycall: ld      a,(pkwho)       ; the story moves on
+sycall: call    tl_let          ; tonight's tally
+        ld      a,(pkwho)       ; the story moves on
         ld      e,a
         ld      d,0
         ld      hl,chap

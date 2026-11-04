@@ -115,6 +115,8 @@ loop:   call    key
         jp      z,autot
         cp      'W'
         jp      z,wall
+        cp      '?'
+        jp      z,help0
         cp      'A'
         jp      z,archive
         ld      de,-1
@@ -566,7 +568,7 @@ hp2:    push    hl
         jp      revoff
 
 keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall, k_dawn
-k_dial: db      ' [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [W]all  [P]et  [Q]uit',0
+k_dial: db      ' [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [W]all  [P]et  [?]help',0
 k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
 k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
@@ -1088,7 +1090,49 @@ fr1:    ld      a,(hl)
         inc     hl
         inc     b
         jr      fr1
-fr2:    call    showfq
+fr2:    call    redraw0
+        ld      a,(saved)       ; a returning operator
+        cp      0ffh
+        ld      hl,m_again
+        jp      nz,logmsg
+        ld      hl,m_hello
+        jp      logmsg
+
+; redraw: the whole screen again, as it stands (after the help, say)
+redraw: call    curoff
+        call    cls
+        ld      b,1
+        ld      c,1
+        call    gotoxy
+        call    revon
+        ld      hl,m_title
+        ld      c,79
+        call    padput
+        call    revoff
+        ld      hl,scr
+        ld      b,2
+rd1:    ld      a,(hl)
+        or      a
+        jr      z,rd2
+        ld      c,1
+        call    gotoxy
+        call    puts
+        inc     hl
+        inc     b
+        jr      rd1
+rd2:    call    redraw0
+        call    drawlog
+        call    drawpk
+        ld      a,0ffh          ; the keys line, afresh
+        ld      (lasthp),a
+        ld      a,(cspot)       ; PIXEL, if she is out on a spot
+        or      a
+        ret     z
+        cp      0ffh
+        ret     z
+        jp      drawsp
+; redraw0: what sits in the frame
+redraw0: call   showfq
         call    showtm
         call    showtk
         call    shelf
@@ -1103,13 +1147,55 @@ fr2:    call    showfq
         call    revon
         ld      a,(shift)
         call    dec2
+        jp      revoff
+
+; help0: ? at the dial: how the night works, a page; time stands still
+; while it is read. Any key, and the station is back as it was.
+help0:  call    cls
+        ld      hl,helptx
+        ld      b,2
+hl1:    ld      a,(hl)
+        or      a
+        jr      z,hl2
+        ld      c,1
+        call    gotoxy
+        call    puts
+        inc     hl
+        inc     b
+        jr      hl1
+hl2:    ld      b,24
+        ld      c,1
+        call    gotoxy
+        call    revon
+        ld      hl,m_hkey
+        ld      c,79
+        call    padput
         call    revoff
-        ld      a,(saved)       ; a returning operator
-        cp      0ffh
-        ld      hl,m_again
-        jp      nz,logmsg
-        ld      hl,m_hello
-        jp      logmsg
+        call    getkey
+        call    redraw
+        jp      nokey
+m_hkey: db      ' [any key] back to the station',0
+helptx: db      ' SIGNAL SEEKER  -  how the night works',0
+        db      ' ',0
+        db      ' THE BAND  Signals are peaks. Tune with , . (0.1 MHz) or < > (1 MHz), or the',0
+        db      '           arrows. A < or > at an edge: a signal off the band, that way.',0
+        db      ' LOCK      On a peak LOCK lights up, the buffer fills, and the packet comes',0
+        db      '           in letter by letter. Let it slip and it scatters. T: AutoTune.',0
+        db      ' CLEAN     C. A noisy byte has one wrong bit: make its ones match (the ones',0
+        db      '           it has / should have). 1-8 flip a bit, , . pick. Mistakes are free.',0
+        db      ' ROUTE     A caller',27h,'s packet: turn the relays (SPACE) until ANT reaches them.',0
+        db      ' DELIVER   Tokens. Letters move the callers',27h,' stories on; fragments go to the',0
+        db      '           Archive (A); a finished story sends a postcard (W: the wall).',0
+        db      ' SHOP      S. Things that help, and things for the shelf. Nothing gets harder.',0
+        db      ' PIXEL     P pets her, or calls her. She has her own plans. Asleep on the',0
+        db      '           heater she purrs and the static drops; at the antenna, her ears',0
+        db      '           point at signals you have not found yet.',0
+        db      ' WEATHER   In the title bar. Some nights are noisy, some still, some hum.',0
+        db      ' THE NIGHT 22:00 to dawn at 06:00, about 24 minutes. Q ends it early (saved).',0
+        db      ' AWAY      Leave for five minutes and PIXEL keeps a diary for you.',0
+        db      ' ',0
+        db      ' Some say the last lantern can still be heard at 1420.0 MHz.',0
+        db      0
 
 ; logmsg: a line for the log (HL). The log shows the last four: the
 ; newest at the bottom, reversed, with a > before it; the one above

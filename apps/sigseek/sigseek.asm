@@ -59,26 +59,40 @@ loop:   call    key
         call    upcase
         cp      'Q'
         jp      z,quit
+        ld      de,-1
         cp      ','
-        jr      z,dialdn
+        jr      z,tune
         cp      19              ; ^S (WordStar left)
-        jr      z,dialdn
+        jr      z,tune
+        ld      de,1
         cp      '.'
-        jr      z,dialup
+        jr      z,tune
         cp      4               ; ^D (WordStar right)
-        jr      z,dialup
+        jr      z,tune
+        ld      de,-10
+        cp      '<'
+        jr      z,tune
+        cp      24              ; ^X (WordStar down)
+        jr      z,tune
+        ld      de,10
+        cp      '>'
+        jr      z,tune
+        cp      5               ; ^E (WordStar up)
+        jr      z,tune
         jr      nokey
-dialdn: ld      hl,(freq)
-        dec     hl
-        ld      (freq),hl
-        call    showfq
-        jr      nokey
-dialup: ld      hl,(freq)
-        inc     hl
+tune:   ld      hl,(freq)
+        add     hl,de
         ld      (freq),hl
         call    showfq
 
-nokey:  call    spectr          ; one fresh row of the spectrogram
+nokey:  ld      hl,(ticks)
+        inc     hl
+        ld      (ticks),hl
+        call    spawn           ; now and then, a new signal
+        call    age             ; signals drift and fade
+        call    stamp           ; where they fall on the band
+        call    spectr          ; one fresh row of the spectrogram
+        call    lock            ; lock meter and buffer
         call    clock
         ld      hl,(idle)
         inc     hl
@@ -143,8 +157,9 @@ showtm: ld      b,1
         jp      dec2
 
 ; ---------------------------------------------------------------- spectrogram
-; Scrolls three rows down a slot: row 2 gets fresh noise, with a peak
-; around the signal's column that is brighter the closer the dial is.
+; The band is SPEC_W steps of 0.1 MHz, the dial at its centre: tuning
+; pans it. Each tick rewrites one of the three rows in turn: noise 0..3
+; plus the signals' peaks from boost[].
 spectr: ld      a,(srow)
         inc     a
         cp      3
@@ -155,25 +170,14 @@ sp1:    ld      (srow),a
         ld      b,a
         ld      c,SPEC_X
         call    gotoxy
-        ld      a,(sigcol)
-        ld      e,a             ; E = signal column
-        ld      d,SPEC_W
-        ld      c,0             ; C = column
+        ld      de,boost
+        ld      c,SPEC_W
 sp2:    call    rnd
         and     3               ; base noise 0..3
-        ld      b,a
-        ld      a,c
-        sub     e               ; distance from the signal
-        jr      nc,sp3
-        neg
-sp3:    cp      4
-        jr      nc,sp4
-        ld      h,a
-        ld      a,5
-        sub     h               ; 5..2 near the signal
-        add     a,b
-        ld      b,a
-sp4:    ld      a,b
+        ex      de,hl
+        add     a,(hl)
+        inc     hl
+        ex      de,hl
         cp      10
         jr      c,sp5
         ld      a,9
@@ -184,21 +188,331 @@ sp5:    ld      hl,ramp
         inc     h
 sp6:    ld      a,(hl)
         call    putc
-        inc     c
-        dec     d
+        dec     c
         jr      nz,sp2
         ret
 
 ramp:   db      ' .:-=+*#%@'
 
-; dial readout and pointer
+; dial readout, the centre mark, and arrows for signals off the band
 showfq: ld      b,5
         ld      c,4
         call    gotoxy
         ld      hl,(freq)
         call    dec5
         ld      hl,m_mhz
-        jp      puts
+        call    puts
+        ld      c,SPEC_X+SPEC_W/2
+        call    gotoxy
+        ld      a,'^'
+        jp      putc
+
+; ---------------------------------------------------------------- signals
+; A signal: freq (word, tenths of MHz), life (word, ticks; 0 = none),
+; strength (3..6), drift (-1, 0, +1 tenth every 32 ticks).
+S_FRQ   equ     0
+S_LIFE  equ     2
+S_STR   equ     4
+S_DRF   equ     5
+S_SIZE  equ     6
+NSIG    equ     3
+
+; about one new signal every 13 s, while there are fewer than three
+spawn:  call    rnd
+        and     127
+        ret     nz
+        ld      ix,sigs
+        ld      b,NSIG
+        ld      de,S_SIZE
+spn1:   ld      a,(ix+S_LIFE)
+        or      (ix+S_LIFE+1)
+        jr      z,spn2
+        add     ix,de
+        djnz    spn1
+        ret
+spn2:   call    rnd             ; within 6.4 MHz of the dial
+        and     127
+        sub     64
+        ld      l,a
+        add     a,a
+        sbc     a,a
+        ld      h,a
+        ld      de,(freq)
+        add     hl,de
+        ld      (ix+S_FRQ),l
+        ld      (ix+S_FRQ+1),h
+        call    rnd             ; 30..81 s
+        ld      l,a
+        ld      h,0
+        add     hl,hl
+        ld      de,300
+        add     hl,de
+        ld      (ix+S_LIFE),l
+        ld      (ix+S_LIFE+1),h
+        call    rnd
+        and     3
+        add     a,3
+        ld      (ix+S_STR),a
+        call    rnd
+        and     3
+        jr      z,spn3          ; 0: -1
+        dec     a
+        jr      z,spn4          ; 1: +1
+        xor     a               ; 2, 3: still
+        jr      spn4
+spn3:   dec     a
+spn4:   ld      (ix+S_DRF),a
+        ld      hl,m_stir
+        jp      logmsg
+
+; every tick: life runs down; every 32 ticks: drift
+age:    ld      ix,sigs
+        ld      b,NSIG
+ag1:    push    bc
+        ld      l,(ix+S_LIFE)
+        ld      h,(ix+S_LIFE+1)
+        ld      a,h
+        or      l
+        jr      z,ag3
+        dec     hl
+        ld      (ix+S_LIFE),l
+        ld      (ix+S_LIFE+1),h
+        ld      a,h
+        or      l
+        jr      nz,ag2
+        ld      hl,m_fade
+        call    logmsg
+        jr      ag3
+ag2:    ld      a,(ticks)
+        and     31
+        jr      nz,ag3
+        ld      a,(ix+S_DRF)
+        ld      e,a
+        add     a,a
+        sbc     a,a
+        ld      d,a
+        ld      l,(ix+S_FRQ)
+        ld      h,(ix+S_FRQ+1)
+        add     hl,de
+        ld      (ix+S_FRQ),l
+        ld      (ix+S_FRQ+1),h
+ag3:    ld      de,S_SIZE
+        add     ix,de
+        pop     bc
+        djnz    ag1
+        ret
+
+; boost[] = each signal's peak on the band: strength at its column,
+; one less for each column away. Also notes signals off either edge.
+stamp:  ld      hl,boost
+        ld      b,SPEC_W
+        xor     a
+st0:    ld      (hl),a
+        inc     hl
+        djnz    st0
+        ld      (edges),a
+        ld      ix,sigs
+        ld      b,NSIG
+st1:    push    bc
+        ld      a,(ix+S_LIFE)
+        or      (ix+S_LIFE+1)
+        jr      z,st9
+        ld      l,(ix+S_FRQ)    ; HL = column = sig - dial + centre
+        ld      h,(ix+S_FRQ+1)
+        ld      de,(freq)
+        or      a
+        sbc     hl,de
+        ld      de,SPEC_W/2
+        add     hl,de
+        bit     7,h
+        jr      z,st2
+        ld      a,(edges)       ; left of the band
+        or      1
+        ld      (edges),a
+        jr      st3
+st2:    ld      a,h
+        or      a
+        jr      nz,st2a
+        ld      a,l
+        cp      SPEC_W
+        jr      c,st3
+st2a:   ld      a,(edges)       ; right of the band
+        or      2
+        ld      (edges),a
+st3:    ld      de,-3           ; columns -3..+3 around it
+        add     hl,de
+        ld      c,-3
+st4:    ld      a,h
+        or      a
+        jr      nz,st6
+        ld      a,l
+        cp      SPEC_W
+        jr      nc,st6
+        ld      a,c             ; |offset|
+        bit     7,a
+        jr      z,st5
+        neg
+st5:    ld      d,a
+        ld      a,(ix+S_STR)
+        sub     d
+        jr      c,st6
+        jr      z,st6
+        push    hl
+        ld      de,boost
+        add     hl,de
+        cp      (hl)
+        jr      c,st5a
+        ld      (hl),a
+st5a:   pop     hl
+st6:    inc     hl
+        inc     c
+        ld      a,c
+        cp      4
+        jr      nz,st4
+st9:    ld      de,S_SIZE
+        add     ix,de
+        pop     bc
+        djnz    st1
+; the edge arrows on row 5: '<' at column 2, '>' at column 64
+        ld      b,5
+        ld      c,SPEC_X
+        call    gotoxy
+        ld      a,(edges)
+        and     1
+        ld      a,' '
+        jr      z,st10
+        ld      a,'<'
+st10:   call    putc
+        ld      c,SPEC_X+SPEC_W-1
+        call    gotoxy
+        ld      a,(edges)
+        and     2
+        ld      a,' '
+        jr      z,st11
+        ld      a,'>'
+st11:   jp      putc
+
+; lock: the best signal under the dial. Dead on: full strength, the
+; buffer fills; one step off: half. A full buffer is a captured packet.
+lock:   xor     a
+        ld      (lockv),a
+        ld      (lockon),a
+        ld      ix,sigs
+        ld      b,NSIG
+lk1:    ld      a,(ix+S_LIFE)
+        or      (ix+S_LIFE+1)
+        jr      z,lk4
+        ld      l,(ix+S_FRQ)
+        ld      h,(ix+S_FRQ+1)
+        ld      de,(freq)
+        or      a
+        sbc     hl,de
+        ld      a,h
+        or      l
+        jr      nz,lk2
+        ld      a,1             ; dead on
+        ld      (lockon),a
+        ld      (lockix),ix
+        ld      a,(ix+S_STR)
+        jr      lk3
+lk2:    inc     hl              ; -1 -> 0, +1 -> 2
+        ld      a,h
+        or      a
+        jr      nz,lk4
+        ld      a,l
+        cp      3
+        jr      nc,lk4
+        cp      1
+        jr      z,lk4
+        ld      a,(ix+S_STR)
+        srl     a
+lk3:    ld      c,a
+        ld      a,(lockv)
+        cp      c
+        jr      nc,lk4
+        ld      a,c
+        ld      (lockv),a
+lk4:    ld      de,S_SIZE
+        add     ix,de
+        djnz    lk1
+; the buffer: fills by the strength when dead on, drains slowly when not
+        ld      a,(lockon)
+        or      a
+        ld      a,(buf)
+        jr      z,lk5
+        ld      ix,(lockix)
+        add     a,(ix+S_STR)
+        cp      100
+        jr      nc,captur
+        jr      lk6
+lk5:    or      a
+        jr      z,lk6
+        ld      b,a
+        ld      a,(ticks)
+        and     3
+        ld      a,b
+        jr      nz,lk6
+        dec     a
+lk6:    ld      (buf),a
+        jp      meters
+
+captur: xor     a
+        ld      (buf),a
+        ld      ix,(lockix)
+        ld      (ix+S_LIFE),a
+        ld      (ix+S_LIFE+1),a
+        ld      hl,npkt
+        inc     (hl)
+        ld      a,BEL
+        call    putc
+        ld      hl,m_got
+        call    logmsg
+        ld      b,8
+        ld      c,4
+        call    gotoxy
+        ld      hl,m_pkt
+        call    puts
+        ld      a,(npkt)
+        call    dec2
+        ld      hl,m_pkt2
+        call    puts
+        jp      meters
+
+; the lock meter (row 5) and BUF (deck, row 4): bars of '*' and '#'
+meters: ld      b,5
+        ld      c,42
+        call    gotoxy
+        ld      hl,m_lock
+        call    puts
+        ld      a,(lockv)
+        ld      e,'*'
+        ld      d,6
+        call    bar
+        ld      b,4
+        ld      c,73
+        call    gotoxy
+        ld      a,(buf)         ; 0..99 -> 0..6
+        ld      b,-1
+mt1:    inc     b
+        sub     16
+        jr      nc,mt1
+        ld      a,b
+        ld      e,'#'
+        ld      d,6
+; bar: A filled of D cells, the filled ones E, the rest '.'
+bar:    ld      b,a
+br1:    ld      a,d
+        or      a
+        ret     z
+        ld      a,b
+        or      a
+        ld      a,'.'
+        jr      z,br2
+        ld      a,e
+        dec     b
+br2:    call    putc
+        dec     d
+        jr      br1
 
 ; ---------------------------------------------------------------- the frame
 ; scr holds one 0-terminated string per row, from row 1; a second 0
@@ -513,7 +827,13 @@ m_hello: db     'Shift begins. Kettle warm. PIXEL asleep on the heater.',0
 m_away: db      'The operator has stepped away. The station hums on.',0
 m_back: db      'Welcome back. PIXEL pretends she did not miss you.',0
 m_bye:  db      'Kettle-7 signing off. Goodnight.',CR,LF,0
-m_mhz:  db      ' MHz   [<,  .>]',0
+m_mhz:  db      ' MHz',0
+m_stir: db      'Something stirs on the band.',0
+m_fade: db      'A signal faded into the hiss. It will be back some night.',0
+m_got:  db      'Packet captured! Tucked safely into the buffer.',0
+m_pkt:  db      'Packet #',0
+m_pkt2: db      ' in the buffer. (Cleaning: coming soon.)',0
+m_lock: db      'lock ',0
 
 ; the frame: 80x24, plain ASCII (DigitalRerun ignores the DEC graphics set)
 scr:    db      '+- KETTLE-7 RELAY ----------------------------------- SHIFT 01 -+ +- 22:00 ----+',0
@@ -530,13 +850,21 @@ scr:    db      '+- KETTLE-7 RELAY ----------------------------------- SHIFT 01 
         db      '|                                                               |',0
         db      '+---------------------------------------------------------------+',0
         db      ' ',0
-        db      ' [<][>] tune   [Q]uit',0,0
+        db      ' [,][.] fine tune   [<][>] coarse   (or the arrows)   [Q]uit',0,0
 
 ; ---------------------------------------------------------------- state
 term:   db      0ffh
 rseed:  dw      0ace1h
 freq:   dw      14204           ; 1420.4 MHz, the hydrogen line
-sigcol: db      30
+ticks:  dw      0
+sigs:   ds      NSIG*S_SIZE
+boost:  ds      SPEC_W
+edges:  db      0
+lockv:  db      0
+lockon: db      0
+lockix: dw      sigs
+buf:    db      0
+npkt:   db      0
 srow:   db      0
 tick:   db      0
 mins:   db      0

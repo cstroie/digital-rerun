@@ -32,6 +32,7 @@ BCN_F   equ     14200           ; 1420.0 MHz
 F_BEACON equ    1               ; flags: the beacon found once
 F_KEEPER equ    2               ; the Archive read to the end
 K_BEACON equ    3               ; a packet's kind, after K_MSG K_CALL K_FRAG
+K_GHOST equ     4               ; one that never decodes
 FRAG19  equ     18              ; fragment 19, counted from 0
 
 ; ---------------------------------------------------------------- weather

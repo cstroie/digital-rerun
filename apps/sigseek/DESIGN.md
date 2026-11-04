@@ -277,6 +277,16 @@ three at 32 + 16*i* + 1 + 3*j*; fragment *k*'s two at 160 + 2*k*; postcard *c*'s
   fragment packet brings one not yet kept while there is one. When whole, the title
   says COMPLETE, and (read to PIXEL) after the end.
 
+## Ghosts
+
+One signal in eight is a ghost: a peak that wavers all over, and locks like any
+other, but never decodes. Its letters keep changing as they land, and the buffer
+never fills: at 85 it falls back to 50 ("Whatever it is, it will not stay in the
+buffer. A ghost."). PIXEL knows at once: her fur stands up, or she hisses at
+nothing. One time in eight, for a moment, the letters hold still and read a word:
+*hello*, *still here*, *listen*, *lantern*, *home*, *goodnight*, *remember*,
+*thank you*. Harmless; a little eerie.
+
 ## Weather
 
 At the start of each shift and every 90 s or so, a roll: often the same weather
@@ -366,10 +376,6 @@ New:
   met, the lantern found).
 - **A faster shelf test:** the game never goes idle, so the test's wait runs to its
   limit (about 35 s).
-- **Ghost signals:** peaks that look like any other and lock like one, but never
-  decode: the letters come in and dissolve again, or keep changing, and the buffer
-  never quite fills. Harmless, a little eerie. PIXEL stares at them, or hisses. Some
-  might be the Lantern beacons' echoes; one, now and then, says a word.
 - **Echoes:** a message delivered tonight comes back on a later night, fainter, from
   farther out, with a line added by whoever passed it on.
 - **Upkeep, gently:** now and then PWR sags or a relay rattles loose; a small fix

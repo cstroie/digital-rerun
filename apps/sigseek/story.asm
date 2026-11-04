@@ -109,7 +109,15 @@ pick:   ld      ix,(lockix)     ; who the locked signal carries
         ld      (pkkind),a
         ld      hl,m_bshort
         ret
-pk0:    cp      K_FRAG
+pk0:    cp      K_GHOST         ; a ghost: it looks like any message
+        jr      nz,pk0a
+        ld      (pkkind),a
+        call    rnd
+        and     NMSG-1
+        ld      l,a
+        ld      h,0
+        jp      str
+pk0a:   cp      K_FRAG
         jp      z,pkfr
         cp      K_CALL
         jr      z,pkcl

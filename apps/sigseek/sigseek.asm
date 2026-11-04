@@ -209,6 +209,7 @@ SH_SQUARE equ   3
 SH_TWIN equ     4
 SH_LAMP equ     5
 SH_FAINT equ    6
+SH_GHOST equ    7
 falls:  db      0,1,2,3         ; normal
         db      0,3,9,9         ; narrow and quick (Mira)
         db      0,0,1,2         ; wide (Dr Wen's ferns, the Archive)
@@ -216,10 +217,14 @@ falls:  db      0,1,2,3         ; normal
         db      2,0,2,9         ; two prongs (Sol & Dee)
         db      0,1,1,2         ; a lamp, tall and steady (the last lantern)
         db      1,2,3,4         ; faint, and wavering (Hum)
+        db      0,2,2,3         ; a ghost: wavering, all over
 cshape: db      SH_NARROW, SH_NORM, SH_NORM, SH_SQUARE, SH_WIDE, SH_TWIN, SH_NORM, SH_FAINT
 
 ; shapeof: IX = a signal -> A = its shape
 shapeof: ld     a,(ix+S_KIND)
+        cp      K_GHOST
+        ld      b,SH_GHOST
+        jr      z,sh9
         cp      K_BEACON
         ld      b,SH_LAMP
         jr      z,sh9
@@ -242,7 +247,11 @@ sh9:    ld      a,b
 ; sigkind: IX = a new signal: who it carries. A caller half the time
 ; (among those met: two at first, one more every four packets), the
 ; Archive a quarter, nobody a quarter.
-sigkind: call   rnd
+sigkind: call   rnd             ; one in eight: a ghost
+        and     7
+        ld      c,K_GHOST
+        jr      z,sk_9
+        call    rnd
         and     3
         ld      c,K_FRAG
         jr      z,sk_9
@@ -270,6 +279,74 @@ sk_3:   sub     b
 sk_9:   ld      (ix+S_KIND),c
         ret
 
+; ---------------------------------------------------------------- ghosts
+; A ghost locks like any signal, but its letters keep changing and the
+; buffer never fills: at 85 it falls back to 50, and dissolves again.
+; Now and then, for a moment, the letters read a word.
+ghostq: ld      b,a
+        ld      a,(pkkind)
+        cp      K_GHOST
+        ld      a,b
+        ret     nz
+        ld      a,(rcv)
+        or      a
+        ld      a,b
+        ret     z
+        cp      85
+        ret     c
+        ld      a,(gfaded)      ; say so, once a lock
+        or      a
+        jr      nz,gq1
+        inc     a
+        ld      (gfaded),a
+        ld      hl,m_gfade
+        call    logmsg
+        call    rnd             ; and one time in eight, a word
+        and     7
+        jr      nz,gq1
+        ld      de,logbuf
+        ld      hl,m_gword
+        call    strcpy
+        call    rnd
+        and     7
+        ld      hl,gwords
+        call    msgof
+        call    strcpy
+        ld      a,'"'
+        ld      (de),a
+        inc     de
+        xor     a
+        ld      (de),a
+        ld      hl,logbuf
+        call    logmsg
+gq1:    ld      a,50
+        ret
+
+m_stare:db      4
+        dw      m_stare_0, m_stare_1, m_stare_2, m_stare_3
+m_stare_0: db      'PIXEL stares at the band. Her fur stands up, all of it.',0
+m_stare_1: db      'PIXEL goes very still, ears flat, watching the dial.',0
+m_stare_2: db      'PIXEL hisses, softly, at nothing you can see.',0
+m_stare_3: db      'PIXEL',27h,'s tail puffs to twice its size. She will not say why.',0
+m_gfade:db      4
+        dw      m_gfade_0, m_gfade_1, m_gfade_2, m_gfade_3
+m_gfade_0: db      'The letters dissolve as they land. It will not come through.',0
+m_gfade_1: db      'Whatever it is, it will not stay in the buffer. A ghost.',0
+m_gfade_2: db      'The letters keep changing, then thin away. A ghost signal.',0
+m_gfade_3: db      'Almost... and gone. Ghosts do not decode, they say.',0
+m_gword: db     'For a moment the letters hold still, and read: "',0
+gwords: dw      gw0, gw1, gw2, gw3, gw4, gw5, gw6, gw7
+gw0:    db      'hello',0
+gw1:    db      'still here',0
+gw2:    db      'listen',0
+gw3:    db      'lantern',0
+gw4:    db      'home',0
+gw5:    db      'goodnight',0
+gw6:    db      'remember',0
+gw7:    db      'thank you',0
+gch:    db      0
+gfaded: db      0
+
 ; ---------------------------------------------------------------- receiving
 ; While the lock holds the buffer fills, and the packet comes in letter
 ; by letter, in no order: its noise is decided at the start, by the
@@ -280,6 +357,12 @@ rxbegin: ld     a,(havepk)
         or      b
         ret     nz
         call    newpk           ; the message and its noise
+        xor     a
+        ld      (gfaded),a
+        ld      a,(pkkind)      ; a ghost: PIXEL knows
+        cp      K_GHOST
+        ld      hl,m_stare
+        call    z,logmsg
         ld      a,(pklen)       ; the order the letters come in
         ld      b,a
         ld      hl,perm
@@ -346,6 +429,9 @@ rxshow: ld      a,(rcv)
         ld      a,(mode)
         or      a
         ret     nz
+        ld      a,(pkkind)      ; a ghost's letters keep changing:
+        cp      K_GHOST         ; draw it every tick
+        jr      z,drawrx0
         call    rxcount
         ld      hl,rxn
         cp      (hl)
@@ -414,7 +500,15 @@ dx3:    ld      a,e
         jr      dx6
 dx4:    ld      hl,pkcur
         add     hl,de
-        ld      a,(hl)
+        ld      a,(pkkind)      ; a ghost: any letter at all, each time
+        cp      K_GHOST
+        jr      nz,dx4a
+        call    rnd
+        and     63
+        add     a,33
+        ld      (gch),a
+        ld      hl,gch
+dx4a:   ld      a,(hl)
         call    hex2
         ld      b,PK_Y+2
         call    gotoxy
@@ -927,9 +1021,9 @@ st5:    push    hl              ; the fall-off at |offset|, by its shape
         ld      d,(hl)
         pop     hl
         ld      a,(shp)         ; a faint one wavers
-        cp      SH_FAINT
+        cp      SH_FAINT        ; (ghosts too)
         ld      a,(ix+S_STR)
-        jr      nz,st5b
+        jr      c,st5b
         push    af
         call    rnd
         and     1
@@ -1036,7 +1130,7 @@ lk4:    ld      de,S_SIZE
         ld      a,b
         jr      z,lkb
         inc     a
-lkb:
+lkb:    call    ghostq          ; a ghost: it never quite fills
         cp      100
         jr      nc,captur
         jr      lk6

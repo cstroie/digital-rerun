@@ -200,6 +200,13 @@ An independent colleague, not a pet to manage: warm, earnest, a little absurd.
 
 - **`P`:** at home, a petting answered by her mood (it mends a huffy or needy cat).
   Out on a spot, she comes when called only if needy.
+- **Opinions:** after each caller's letter she says what she thinks of them, dim
+  in the packet box's last row and in the log: one line for the early chapters,
+  another for the later two. Barry (BARGE-9) makes her huffy at first (too many
+  CAPITALS), until she decides he is all right, for a barge; Pip's and Hum's
+  letters make her curious, and in the end she makes room on the heater for Hum.
+  She is wary of Dr Wen's humming ferns, sits up straight for Captain Ruth, and
+  would like to sit on Tobin's lamp, just once.
 - **Away** (5 minutes without a key): her doings go in a diary, shown in the packet
   box when you come back (the last four, with the time, and a count of the signals
   that drifted by). While you are away she brings gifts: a chewed screw, a grateful
@@ -309,7 +316,7 @@ copies match, an overlong line is refused) and a shelf test (`PLAY` starts a shi
 
 ## Ideas not built
 
-- PIXEL's opinions of callers (Barry, especially); a gift that turns out useful;
+- PIXEL: a gift that turns out useful;
   reactions to the shelf (asleep under the lamp, sniffing the plant).
 - More shop things: a star chart that marks old signals, a second buffer.
 - A tie-in with Z80-uLM (put off).

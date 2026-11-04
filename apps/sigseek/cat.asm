@@ -490,6 +490,68 @@ dy4:    pop     hl
         jr      nz,dy1
         ret
 
+; ---------------------------------------------------------------- opinions
+; opinion: after a caller's letter, what PIXEL thinks of them: one line for
+; the early chapters and one for the later (4 and 5), in the packet box's
+; last row and the log. Some move her mood: Barry's early letters make her
+; huffy (too many CAPITALS), Pip's and Hum's curious. She comes round.
+opinion: ld     a,(pkwho)       ; 2i, + 1 if later: the line and its mood
+        add     a,a
+        ld      b,a
+        ld      a,(pkch)
+        cp      3
+        ld      a,b
+        jr      c,op1
+        inc     a
+op1:    push    af
+        ld      hl,opins
+        call    msgof
+        push    hl
+        ld      b,PK_Y+4        ; in the box, dim, under the letter
+        ld      c,3
+        call    gotoxy
+        ld      a,A_DIM
+        call    setattr
+        pop     hl
+        push    hl
+        call    puts
+        xor     a
+        call    setattr
+        pop     hl
+        call    logmsg
+        pop     af              ; her mood, if this moves it
+        ld      e,a
+        ld      d,0
+        ld      hl,opmood
+        add     hl,de
+        ld      a,(hl)
+        cp      0ffh
+        ret     z
+        ld      (cmood),a
+        ld      a,(cspot)       ; (her pose shows it, if she is home)
+        or      a
+        jp      z,pose
+        jp      showmd
+
+opins:  dw      o0a, o0b, o1a, o1b, o2a, o2b, o3a, o3b, o4a, o4b, o5a, o5b, o6a, o6b, o7a, o7b
+o0a:    db      'PIXEL sniffs Mira',27h,'s letter. Couriers smell of far places.',0
+o0b:    db      'PIXEL forgives Mira the shortcut. Medals smell nice.',0
+o1a:    db      'PIXEL purrs at the lighthouse news. She respects a lamp.',0
+o1b:    db      'PIXEL would like to sit on Tobin',27h,'s lamp. Just once.',0
+o2a:    db      'PIXEL listens to Pip with her whole face. A fan, she thinks.',0
+o2b:    db      'PIXEL has decided Pip may be an operator. One day.',0
+o3a:    db      'PIXEL flattens her ears at BARGE-9. Too many CAPITALS.',0
+o3b:    db      'PIXEL has decided Barry is all right. For a barge.',0
+o4a:    db      'PIXEL eyes the ferns. Plants that hum cannot be trusted.',0
+o4b:    db      'PIXEL hums back at the ferns, very low. A truce.',0
+o5a:    db      'PIXEL yawns at the wedding news, then kneads the ukulele.',0
+o5b:    db      'PIXEL would like the slow shuttle. Lots of windows.',0
+o6a:    db      'PIXEL sits up straight for Captain Ruth. Old cats know.',0
+o6b:    db      'PIXEL looks at you as if to say: her granny, obviously.',0
+o7a:    db      'PIXEL',27h,'s ears point at Hum. She always knew Hum was there.',0
+o7b:    db      'PIXEL makes room on the heater. For Hum, she says.',0
+opmood: db      0ffh, 0ffh, 0ffh, 0ffh, 1, 1, 5, 2, 1, 0ffh, 0ffh, 0ffh, 0ffh, 0ffh, 1, 3   ; MD_*, or 0ffh: no change
+
 ; ---------------------------------------------------------------- data
 ; spots: row, column (the heater is the box)
 spots:  db      0,0, 2,30, 23,61, 4,40, 21,46

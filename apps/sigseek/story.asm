@@ -297,6 +297,8 @@ sy1:    ld      b,PK_Y
         call    putrow
         call    skipz
         ld      b,PK_Y+2
+        call    putrow
+        jp      opinion         ; and what PIXEL makes of them
 ; putrow: HL = a string, on row B from column 3; HL left on its end
 putrow: ld      c,3
         call    gotoxy

@@ -80,6 +80,10 @@ loop:   call    key
         jp      z,pet
         ld      b,a
         ld      a,(mode)
+        cp      10
+        ld      a,b
+        jp      z,fkey
+        ld      a,(mode)
         cp      9
         ld      a,b
         jp      z,qkey
@@ -121,6 +125,8 @@ loop:   call    key
         jp      z,wall
         cp      '?'
         jp      z,help0
+        cp      'F'
+        jp      z,fixpw
         cp      'A'
         jp      z,archive
         ld      de,-1
@@ -164,6 +170,7 @@ nk1:    call    dawnq           ; 06:00?
         call    stamp           ; where they fall on the band
         call    auto            ; AutoTune, if it is on
         call    wxtick          ; the weather, now and then
+        call    uptick          ; the station's small troubles
         call    scene           ; the Archive's end, if it is playing
         call    spectr          ; one fresh row of the spectrogram
         call    cat             ; PIXEL does as she pleases
@@ -722,6 +729,11 @@ showpk: ld      b,7
 ; in the buffer or not. Drawn only when that changes.
 help:   ld      a,(havepk)
         ld      b,a
+        ld      a,(pwrlow)      ; (low power changes the dial's line)
+        rrca
+        rrca
+        or      b
+        ld      b,a
         ld      a,(mode)
         add     a,a
         or      b
@@ -732,11 +744,15 @@ help:   ld      a,(havepk)
         ld      a,(mode)
         or      a
         jr      nz,hp1
-        ld      a,b             ; at the dial: with a packet, or without
-        ld      hl,k_dial
-        or      a
-        jr      z,hp2
+        ld      a,b             ; at the dial: with a packet, or without,
+        and     1               ; or the power to fix
         ld      hl,k_dialc
+        jr      nz,hp2
+        ld      a,(pwrlow)
+        or      a
+        ld      hl,k_dialf
+        jr      nz,hp2
+        ld      hl,k_dial
         jr      hp2
 hp1:    ld      hl,keylns
         call    msgof
@@ -750,12 +766,14 @@ hp2:    push    hl
         call    padput          ; would wrap, and scroll the screen
         jp      revoff
 
-keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall, k_dawn, 0, k_reply
+keylns: dw      k_dial, k_clean, k_shop, k_arch, k_route, k_scene, k_wall, k_dawn, 0, k_reply, k_fix
 k_dial: db      ' [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [W]all  [P]et  [?]help',0
+k_dialf: db     ' [F]IX THE POWER  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
 k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
 k_arch: db      ' [,.] turn the page  [A] close the Archive  [P]et PIXEL  [Q]uit',0
+k_fix:  db      ' [1]-[8] flip a bit  [F] later  [P]et PIXEL  [Q]uit',0
 k_reply: db     ' REPLY?  [1] a warm reply  [2] a word from PIXEL  [3] no reply',0
 k_dawn: db      ' [any key] end the shift, once the sun is up (the station is saved)',0
 k_wall: db      ' [,.] the next card  [W] close the wall  [P]et PIXEL  [Q]uit',0
@@ -1142,6 +1160,15 @@ lk4:    ld      de,S_SIZE
         or      a
         ld      a,(buf)
         jr      z,lk5
+        ld      b,a             ; low power: only every other tick
+        ld      a,(pwrlow)
+        or      a
+        jr      z,lkp
+        ld      a,(ticks)
+        and     1
+        ld      a,b
+        jr      nz,lkb
+lkp:    ld      a,b
         inc     a               ; one a tick: 10 s to fill
         ld      b,a
         ld      a,(upg)         ; the big buffer: two a tick
@@ -1344,7 +1371,8 @@ rd2:    call    redraw0
         ret     z
         jp      drawsp
 ; redraw0: what sits in the frame
-redraw0: call   showfq
+redraw0: call   showpw
+        call    showfq
         call    showtm
         call    showtk
         call    shelf
@@ -1992,6 +2020,7 @@ stack:
         include title.asm
         include echo.asm
         include reply.asm
+        include upkeep.asm
 
 ; SIGSEEK.DAT is read here, after everything else
 datbuf:

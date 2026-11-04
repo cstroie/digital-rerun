@@ -124,7 +124,7 @@ park the cursor, wait
 ```
 
 Modes: 0 the dial, 1 cleaning, 2 the shop, 3 the Archive, 4 routing, 5 the
-Archive's end, 6 the postcard wall, 7 dawn, 9 a reply.
+Archive's end, 6 the postcard wall, 7 dawn, 9 a reply, 10 the power register.
 
 ## A shift
 
@@ -177,6 +177,14 @@ ten at a time when far. A quarter of the time it hunts the wrong way ("AutoTune 
 quite sure it is this way. It is not."). Two steps from the peak it is satisfied
 ("close enough!") and only now and then goes on. Not very useful, most nights. On
 purpose.
+
+### Upkeep
+
+Every four to eight minutes the power may sag: PWR drops in the deck (reversed), the
+log says so, and the buffer fills at half speed. `F` at the dial opens the power
+register: its byte now and the value the manual says, one or two bits apart; `1`-`8`
+flip them, as in cleaning. Set right, PWR is full again and pays 3 tokens. `F` or
+`ESC` leaves it for later; a sagging station still works, only slower.
 
 ### The shop
 
@@ -401,7 +409,5 @@ New:
   met, the lantern found).
 - **A faster shelf test:** the game never goes idle, so the test's wait runs to its
   limit (about 35 s).
-- **Upkeep, gently:** now and then PWR sags or a relay rattles loose; a small fix
-  (a routing grid of two rows, a byte to set) and it is right again. Never urgent.
 - **Another program in `apps/`:** a cozy companion (a tide-table toy, a calm card
   game) or a tool (a VT100 screen designer).

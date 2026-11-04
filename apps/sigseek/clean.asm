@@ -410,13 +410,23 @@ dk2:    ld      a,e             ; column 3 + 3i
 dk3:    call    putc
         push    de
         ld      d,0
+        ld      hl,pknoisy      ; noisy? then its hex is bold and its
+        add     hl,de           ; letter reversed (on a VT52, a * after it)
+        ld      a,(hl)
+        ld      (dknz),a
         ld      hl,pkcur
         add     hl,de
+        ld      a,A_BOLD
+        call    dkattr
         ld      a,(hl)
         call    hex2
+        xor     a
+        call    dkattr
         inc     c
         ld      b,PK_Y+2
         call    gotoxy
+        ld      a,A_REV
+        call    dkattr
         ld      a,(hl)
         cp      ' '
         jr      c,dk4
@@ -424,12 +434,16 @@ dk3:    call    putc
         jr      c,dk5
 dk4:    ld      a,'?'
 dk5:    call    putc
-        ld      hl,pknoisy
-        add     hl,de
-        ld      a,(hl)
+        xor     a
+        call    dkattr
+        ld      a,(dknz)        ; the VT52 has no looks: the * stays
         or      a
         ld      a,' '
         jr      z,dk6
+        ld      a,(term)
+        cp      T_VT52
+        ld      a,' '
+        jr      nz,dk6
         ld      a,'*'
 dk6:    call    putc
         pop     de
@@ -475,6 +489,24 @@ dk7a:   call    putc
         call    decn
         ld      hl,m_ckeys
         jp      puts
+
+; dkattr: the look A, for a noisy byte only (and back to plain after
+; it: A = 0 always applies, which is harmless); keeps BC DE HL
+dkattr: push    bc
+        push    de
+        push    hl
+        or      a
+        jr      z,dka1
+        ld      b,a
+        ld      a,(dknz)
+        or      a
+        jr      z,dka2
+        ld      a,b
+dka1:   call    setattr
+dka2:   pop     hl
+        pop     de
+        pop     bc
+        ret
 
 ; ones: A = the count of 1 bits in A
 ones:   push    bc
@@ -527,6 +559,7 @@ pkfrq:  dw      0
 rtmade: db      0
 tokens: dw      0
 lead:   db      0
+dknz:   db      0
 pkorig: ds      PK_MAX+1
 pkcur:  ds      PK_MAX+1
 pknoisy: ds     PK_MAX

@@ -156,8 +156,9 @@ shift, saved, back to CP/M; the next run is the next shift. `Q` ends it early. `
    one of bits 0-6 flipped. The noise: 0-1 bytes, one more for a weak signal (4 or
    less), one less for the strongest (6), one more when PIXEL is not purring, one
    more in solar wind, one less on a still night. **A strong signal on a good night
-   comes in clean.** The box shows hex, the text with `*` after noisy bytes and `>`
-   at the selected one, and the selected byte's bits with its ones against the ones
+   comes in clean.** The box shows hex over the text: a noisy byte's hex in bold
+   and its letter reversed (on a VT52, which has no looks, a `*` after it), and `>`
+   at the selected one; and the selected byte's bits with its ones against the ones
    it should have. `1`-`8` flip a bit (wrong flips cost nothing), `,` `.` pick,
    `C` or `ESC` put it aside.
 5. **Route** (a caller's packet only). Six by three relays, straights and corners,
@@ -358,5 +359,18 @@ New:
   met, the lantern found).
 - **A faster shelf test:** the game never goes idle, so the test's wait runs to its
   limit (about 35 s).
+- **Ghost signals:** peaks that look like any other and lock like one, but never
+  decode: the letters come in and dissolve again, or keep changing, and the buffer
+  never quite fills. Harmless, a little eerie. PIXEL stares at them, or hisses. Some
+  might be the Lantern beacons' echoes; one, now and then, says a word.
+- **Signal fingerprints:** each caller's peak has its own shape on the band (Mira's
+  narrow and quick, Barry's wide and square, Hum's faint and wavering), so you learn
+  to know who is calling before the packet is in.
+- **Echoes:** a message delivered tonight comes back on a later night, fainter, from
+  farther out, with a line added by whoever passed it on.
+- **Static storms:** a rare weather that floods the band; signals hide in it, PIXEL
+  hides under the console, and the hiss is the night's whole music.
+- **Upkeep, gently:** now and then PWR sags or a relay rattles loose; a small fix
+  (a routing grid of two rows, a byte to set) and it is right again. Never urgent.
 - **Another program in `apps/`:** a cozy companion (a tide-table toy, a calm card
   game) or a tool (a VT100 screen designer).

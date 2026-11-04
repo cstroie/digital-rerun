@@ -145,3 +145,20 @@ test('ADM-3A: erase to end of line keeps reverse video, erase to end of screen d
     assert.equal(t.attrs[0][79], ATTR.REVERSE);
     assert.equal(t.attrs[1][0], 0);
 });
+
+test('cursor hiding: VT100 ?25, ADM B4/C4 and TeleVideo . n, VT52 Atari f/e and H19 x5/y5', () => {
+    const seen = (mode, codes) => {
+        const t = new Terminal(80, 24, mode);
+        return codes.map(c => { t.writeString(c); return t.cursorVisible; });
+    };
+    assert.deepEqual(seen('vt100', ['\x1b[?25l', 'A', '\x1b[?25h']), [false, false, true]);
+    assert.deepEqual(seen('adm3a', ['\x1bC4', '\x1bB4', '\x1b.0', '\x1b.2', '\x1b.9']), [false, true, false, true, true]);
+    assert.deepEqual(seen('vt52', ['\x1bf', '\x1be', '\x1bx5', '\x1by5', '\x1bx1']), [false, true, false, true, true]);
+    const t = new Terminal(80, 24, 'vt52');                     // a mode byte that isn't 5 is taken, not printed
+    t.writeString('\x1bx1ok');
+    assert.equal(t.text().split('\n')[0].trim(), 'ok');
+    const r = new Terminal(80, 24, 'vt52');                     // and reset shows it again
+    r.writeString('\x1bf');
+    r.reset();
+    assert.equal(r.cursorVisible, true);
+});

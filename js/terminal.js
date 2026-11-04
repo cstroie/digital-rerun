@@ -26,6 +26,8 @@
  *           screen, of line), Y row+32 col+32 (cursor address), Z (identify:
  *           answers ESC / Z), < (enter ANSI mode: the terminal becomes a
  *           VT100); F G (graphics set) and = > (keypad) are ignored
+ *   and the cursor codes of VT52-like terminals (the VT52 itself has
+ *   none): f e (off, on: Atari ST), x 5 / y 5 (off, on: Heath H19)
  *
  * ADM-3A mode:
  *   C0      BEL, BS (left), LF (down, scrolls), VT (up), FF (right),
@@ -37,7 +39,8 @@
  *   (clear), E (insert line), R (delete line), Q (insert character),
  *   W (delete character), ) ( (half intensity on, off), G n (attribute
  *   n: 2 blink, 4 reverse, 8 underline, 0 off), B n / C n (attribute on /
- *   off: 0 reverse, 1 half intensity, 2 blink, 3 underline, 4 cursor)
+ *   off: 0 reverse, 1 half intensity, 2 blink, 3 underline, 4 cursor),
+ *   . n (TeleVideo cursor: 0 invisible, 1-4 a visible shape)
  */
 (function (root) {
     'use strict';
@@ -104,6 +107,10 @@
             switch (this.state) {
                 case 'vt52-esc': return this.vt52Escape(b);
                 case 'vt52-row': this.admRow = b - 32; this.state = 'vt52-col'; return;
+                case 'vt52-x': case 'vt52-y':                       // H19 set / reset mode: 5 is cursor off
+                    if (b === 0x35) this.cursorVisible = this.state === 'vt52-y';
+                    this.state = 'ground';
+                    return;
                 case 'vt52-col':
                     this.state = 'ground';
                     this.y = Math.max(0, Math.min(this.rows - 1, this.admRow));
@@ -148,6 +155,10 @@
                 case 'Y': this.state = 'vt52-row'; break;
                 case 'Z': this.send('\x1b/Z'); break;
                 case '<': this.mode = 'vt100'; break;
+                case 'f': this.cursorVisible = false; break;      // Atari ST: cursor off
+                case 'e': this.cursorVisible = true; break;       // and on
+                case 'x': this.state = 'vt52-x'; break;           // Heath H19: set mode (x 5: cursor off)
+                case 'y': this.state = 'vt52-y'; break;           // reset mode (y 5: cursor on)
                 // F G (graphics), = > (keypad) and anything else: ignored
             }
             this.dirty.add(this.y);
@@ -166,6 +177,10 @@
                     this.dirty.add(this.y);
                     return;
                 case 'adm-g': this.state = 'ground'; this.attr = this.admAttrG(b - 0x30); return;
+                case 'adm-dot':                                     // TeleVideo: 0 invisible, 1-4 a shape
+                    this.state = 'ground';
+                    if (b >= 0x30 && b <= 0x34) this.cursorVisible = b !== 0x30;
+                    return;
                 case 'adm-on': case 'adm-off': {
                     const on = this.state === 'adm-on';
                     this.state = 'ground';
@@ -227,6 +242,7 @@
                 case 'G': this.state = 'adm-g'; break;
                 case 'B': this.state = 'adm-on'; break;
                 case 'C': this.state = 'adm-off'; break;
+                case '.': this.state = 'adm-dot'; break;
                 // anything else: ignored, as a terminal without the feature would
             }
         }

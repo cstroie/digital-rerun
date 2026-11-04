@@ -1,0 +1,116 @@
+# sigseek.txt: what the station hears. mkdat.js packs it into SIGSEEK.DAT.
+#
+#   @msg                 16 short messages from nobody in particular (<= 20)
+#   @caller Name, what   8 callers, 5 chapters each:
+#                          packet text (<= 20) | letter line 1 | line 2 (<= 60)
+#   @frag                32 Archive fragments: packet text (<= 20) | the line (<= 60)
+#
+# 7-bit ASCII. Lines starting with # are comments.
+
+@msg
+Hello Kettle-7!
+All is well here
+Send more tea
+Seen a lost sock?
+Happy orbit day!
+Beacon 9 says hi
+We see your light
+Cargo: 40 t of jam
+Is the cat ok?
+Ping. Just ping.
+The stars look kind
+Engines purring
+Thanks for the fix
+A moth on the lens
+Goodnight, relay
+Testing, testing
+
+@caller Mira, a courier
+Lost. Help?         | Kettle-7? I took a shortcut through the nebula. It was    | not short. If you can hear me, tell me which way is out.
+Left at the comet   | You said left at the big comet. I went left at a small    | one. Is there a difference? Asking for myself.
+I see your beacon!  | I can see your light! It is small and blinking and I have | never loved a light more. Two days out. Keep it on?
+Docked. Owe you tea | Made it to Port Hollow. They gave me a medal and a sandwich.| The sandwich was better. I owe you a tea, operator.
+Back on the route   | Mira again, on the long route now. I go the long way     | these days. It goes past you. That is on purpose.
+
+@caller Old Tobin, lighthouse
+Lamp still burns    | Tobin here, Lighthouse Seven, rock 2210. The lamp still   | burns. Nobody has sailed by in a while. That is fine.
+A ship! A real one  | A ship passed today! It flashed back at me. I flashed     | again. We did this for an hour. Best day this year.
+Made jam            | I tried making jam from the algae. It is green. It is     | not jam. I am calling it jam. Who will argue? The rocks?
+Granddaughter came  | My granddaughter came up on the supply run. She polished  | the lens and told me I talk to the radio too much. Hello.
+Lamp still burns    | Lamp still burns, Kettle-7. Same as always. Just wanted   | to say it to someone who knows what that means.
+
+@caller Pip, age nine
+Is this a radio?    | HELLO this is Pip I built a radio from a toaster and a    | spoon. Is anyone there. Are you an alien. Be honest.
+You are not alien?  | Mum says you are not an alien you are a relay operator.  | That is almost as good. Do you have a cat? You MUST.
+A CAT. Name?        | YOU HAVE A CAT. What is her name. PIXEL? That is the best | name. I am telling everyone at school. Everyone.
+School project: you | I did my school project on you and the station. I got a   | gold star. PIXEL got a drawing. She is very orange in it.
+Toaster radio v2    | Toaster radio version 2 now has a second spoon. Hi        | operator. Hi PIXEL. I will be an operator one day.
+
+@caller BARGE-9, a cargo AI
+STATUS: NOMINAL     | GREETINGS RELAY. CARGO BARGE-9. STATUS: NOMINAL. CARGO:  | 400 CRATES OF SOCKS. QUERY: WHY ARE THERE SO MANY SOCKS.
+QUERY: SOCKS?       | FOLLOW-UP. 399 CRATES OF SOCKS. ONE CRATE UNACCOUNTED.  | THIS IS NOT A PROBLEM. THIS IS A MYSTERY. I LIKE THEM.
+I HAVE A NAME NOW   | THE CREW CALLS ME BARRY NOW. I HAVE LOGGED THIS AS A      | PROMOTION. I HAVE ALSO LOGGED THAT I AM HAPPY. NEW FIELD.
+FOUND THE CRATE     | CRATE FOUND. IT WAS UNDER THE OTHER CRATES. SOCKS ARE    | ALL PRESENT. I MISS THE MYSTERY A LITTLE. IS THAT NORMAL.
+BARRY HERE          | BARRY HERE. ROUTE NOMINAL. CREW NOMINAL. I AM SENDING     | THIS BECAUSE YOU ARE NICE TO SEND THINGS TO. END.
+
+@caller Dr Wen, botanist
+The ferns hum       | Dr Wen, greenhouse ring, Tycho Station. My ferns have     | started humming. In B flat. I am not making this up.
+They hum at night   | They only hum at night shift. When your relay is busy.    | I think they hear your traffic. I think they like it.
+Duet                | Played them my cello. The ferns joined in. A third above. | My assistant fainted. I have never been happier.
+Seeds for you       | I am sending seeds on the next supply drop. Plant them    | near a radio. Water once a week. Talk to them. Badly.
+The ferns say hello | The ferns are humming your call sign now. I swear it.     | Kettle-7 in B flat. Goodnight from the greenhouse.
+
+@caller Sol & Dee, newlyweds
+Just married!       | We got married on the ring at Ceres! Sol cried, Dee cried,| the officiant cried. We are sending this to everybody.
+Honeymoon: slow     | On the honeymoon shuttle. It is the slowest shuttle in    | the system. We picked it on purpose. Lots of stars.
+Lost the luggage    | The shuttle lost our luggage. We have one toothbrush and  | a ukulele. Honestly? Best trip. Dee wrote a song.
+Song for the relay  | Dee's song is called "Little Light at Kettle-7". It has   | four chords and one of them is wrong. It is perfect.
+Anniversary         | One year! We are coming past your station on the same     | slow shuttle. Flash your lights. We will flash ours.
+
+@caller Captain Ruth, retired
+Old routes          | Captain Ruth, retired, forty years on the Lantern routes. | I listen to the relays now. Nice to hear a steady hand.
+That old nebula     | The Lantern Nebula used to sing, you know. Before your    | time. Faint, like a choir in another room. Listen for it.
+Found my old log    | Found my old ship's log. Page one: "Kettle-7 relay, very  | helpful, cat on the console." Was that cat yours?
+Long-lived cat?     | Forty years and the same cat? No. But maybe her granny.   | Stations keep their cats. Cats keep their stations.
+Steady hand         | Still listening, operator. You keep a steady hand on     | that dial. The old routes are in good company.
+
+@caller Nobody, from Nowhere
+...                 | Hello? I do not have a name and I do not know where I am.| I only know your frequency. It feels like a porch light.
+Still here          | Still here. Still no name. I have decided this is fine.  | Do you think a signal can be a someone? Asking for me.
+Name idea           | I was thinking of a name. Maybe "Hum"? Or "Little Static".| PIXEL seems to like me. Her ears point my way, you said.
+Hum, now            | I am Hum now. I like it. Hum, from the relay at Kettle-7.| That is an address. I have never had an address before.
+Hum says hi         | Hum here. Nothing to report. I just like being on your   | band. Thank you for always tuning in. Goodnight.
+
+@frag
+~ lantern 01 ~      | We lit the lanterns so the dark would know where we were.
+~ lantern 02 ~      | Every star is a kettle someone left on.
+~ lantern 03 ~      | The nebula is not empty. It is just very quiet company.
+~ lantern 04 ~      | We sang to the ships, and some of the ships sang back.
+~ lantern 05 ~      | Our cities were small. Our windows were warm.
+~ lantern 06 ~      | Leave a light on for the ones still travelling.
+~ lantern 07 ~      | We counted the hours by the turning of the beacons.
+~ lantern 08 ~      | A message is a hand held out across a cold room.
+~ lantern 09 ~      | No one was lost who was still being listened for.
+~ lantern 10 ~      | The children named the comets. The comets did not mind.
+~ lantern 11 ~      | We built the relays first, before the houses.
+~ lantern 12 ~      | Silence is only a song you have not tuned to yet.
+~ lantern 13 ~      | Our cats sat on our machines and the machines were warmer.
+~ lantern 14 ~      | We were not many. We were enough.
+~ lantern 15 ~      | The dark is wide, but it is not deep. You can cross it.
+~ lantern 16 ~      | At night we passed our names from beacon to beacon.
+~ lantern 17 ~      | Every signal ends. Every signal arrives somewhere.
+~ lantern 18 ~      | We forgot many things. We kept the tea.
+~ lantern 19 ~      | Our last lantern is still burning. Look for it at 1420.
+~ lantern 20 ~      | We are not gone. We are only far, and talking softly.
+~ lantern 21 ~      | The keeper of the light is never quite alone.
+~ lantern 22 ~      | The old songs are folded into the static. Unfold them.
+~ lantern 23 ~      | We wrote our poems in hydrogen, the oldest ink.
+~ lantern 24 ~      | Whoever hears this: good evening. We hope it is warm.
+~ lantern 25 ~      | We asked the stars a question. They answered slowly.
+~ lantern 26 ~      | Some nights the whole band hums, and that is us, waving.
+~ lantern 27 ~      | Patience is a kind of light.
+~ lantern 28 ~      | We kept a station at the edge, and the edge kept us.
+~ lantern 29 ~      | Home is wherever someone answers.
+~ lantern 30 ~      | Small things, done kindly, in the dark: that was our way.
+~ lantern 31 ~      | When you have all our lines, read them to the cat.
+~ lantern 32 ~      | Thank you for listening. That was all we ever wanted.

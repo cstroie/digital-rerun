@@ -15,6 +15,7 @@ bright peak; < or > at an edge means one is off the band that way.
   < >   or up, down        tune by 1 MHz
   C                        clean the packet in the buffer
   S                        the shop
+  A                        the Archive
   P                        pet PIXEL (or call her)
   Q                        quit (the station is saved)
 
@@ -24,8 +25,16 @@ selected byte's bits and its ones against the ones it should have.
 Keys 1-8 flip a bit, , . pick another byte. Wrong flips cost nothing.
 A clean packet is delivered, for tokens.
 
+Some packets come from people: a lost courier, an old lighthouse keeper,
+a child with a toaster radio, a cargo AI with too many socks, and others
+you will meet as the nights go by. Their letters show when you deliver,
+and each one moves their story on. Signals from nobody carry fragments
+of the old Lantern beacons: they go in the Archive (A), to read again.
+
 PIXEL does as she likes. Asleep on the heater, she purrs and the static
 drops. At the antenna, her ears point at signals. On the keyboard...
 Leave the station for five minutes and she keeps a diary.
 
 The station is kept in SIGSEEK.SAV. Delete it to start afresh.
+SIGSEEK.DAT holds the letters and fragments; it must sit beside
+SIGSEEK.COM.

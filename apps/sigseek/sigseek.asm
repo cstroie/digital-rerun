@@ -42,6 +42,7 @@ start:  ld      (oldsp),sp
         ld      a,(term)
         cp      0ffh
         call    z,askterm
+        call    loaddat         ; SIGSEEK.DAT, or a note and back to CP/M
         call    frame
         call    seed
         call    rnd             ; the first signal arrives soon
@@ -50,7 +51,7 @@ start:  ld      (oldsp),sp
 ; ---------------------------------------------------------------- main loop
 loop:   call    key
         or      a
-        jr      z,nokey
+        jp      z,nokey
         ld      hl,0
         ld      (idle),hl
         ld      hl,away
@@ -68,6 +69,10 @@ loop:   call    key
         jp      z,pet
         ld      b,a
         ld      a,(mode)
+        cp      3
+        ld      a,b
+        jp      z,akey
+        ld      a,(mode)
         cp      2
         ld      a,b
         jp      z,skey
@@ -79,6 +84,8 @@ loop:   call    key
         jp      z,clean
         cp      'S'
         jp      z,shop
+        cp      'A'
+        jp      z,archive
         ld      de,-1
         cp      ','
         jr      z,tune
@@ -519,8 +526,12 @@ cap1:   xor     a
         ld      ix,(lockix)
         ld      (ix+S_LIFE),a
         ld      (ix+S_LIFE+1),a
-        ld      hl,npkt
-        inc     (hl)
+        ld      hl,npkt         ; (stops at 255)
+        ld      a,(hl)
+        inc     a
+        jr      z,cap2
+        ld      (hl),a
+cap2:
         ld      a,BEL
         call    putc
         ld      hl,m_got
@@ -911,7 +922,7 @@ scr:    db      '+- KETTLE-7 RELAY ----------------------------------- SHIFT 01 
         db      '|                                                               |',0
         db      '+---------------------------------------------------------------+',0
         db      ' ',0
-        db      ' [,][.] tune  [<][>] coarse  [C]lean [S]hop [P]IXEL [Q]uit',0,0
+        db      ' [,][.] tune  [<][>] coarse  [C]lean [S]hop [A]rchive [P]IXEL [Q]uit',0,0
 
 ; ---------------------------------------------------------------- state
 term:   db      0ffh
@@ -942,5 +953,9 @@ stack:
         include cat.asm
         include clean.asm
         include shop.asm
+        include story.asm
+
+; SIGSEEK.DAT is read here, after everything else
+datbuf:
 
         end     start

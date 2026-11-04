@@ -893,7 +893,7 @@
   "id": "sigseek",
   "name": "Signal Seeker",
   "format": "sssd8",
-  "description": "Signal Seeker: a cozy night shift at Relay Station Kettle-7. Tune the live spectrogram, catch drifting signals, flip the noisy bits clean, deliver the messages, and spend your tokens on the station. PIXEL the cat helps, in her way. Type PLAY, or SIGSEEK (SIGSEEK /52 or /ADM for a VT52 or an ADM-3A).",
+  "description": "Signal Seeker: a cozy night shift at Relay Station Kettle-7. Tune the live spectrogram, catch drifting signals, flip the noisy bits clean, deliver the letters of eight recurring callers, collect the fragments of a lost civilization, and spend your tokens on the station. PIXEL the cat helps, in her way. Type PLAY, or SIGSEEK (SIGSEEK /52 or /ADM for a VT52 or an ADM-3A).",
   "credit": "Costin Stroie; MIT licence. Source in apps/sigseek.",
   "licence": "MIT",
   "category": "Games",
@@ -909,10 +909,14 @@
    {
     "name": "SIGSEEK.COM",
     "path": "disks/shelf/sigseek/SIGSEEK.COM"
+   },
+   {
+    "name": "SIGSEEK.DAT",
+    "path": "disks/shelf/sigseek/SIGSEEK.DAT"
    }
   ],
-  "size": 10461,
-  "free": 234496
+  "size": 19725,
+  "free": 225280
  },
  {
   "id": "spiderweb",

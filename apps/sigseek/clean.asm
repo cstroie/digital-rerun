@@ -11,10 +11,7 @@
 PK_MAX  equ     20
 
 ; ---------------------------------------------------------------- a new packet
-newpk:  call    rnd             ; a message
-        and     NMSG-1
-        ld      hl,msgs
-        call    msgof
+newpk:  call    pick            ; a message: from whom, which
         ld      de,pkorig
         ld      bc,0
 np1:    ld      a,(hl)
@@ -255,6 +252,7 @@ dl1:    inc     b
         ld      hl,logbuf
         call    logmsg
         call    drawpk
+        call    story           ; the letter, or the fragment
         jp      nokey
 
 ; strcpy: HL (0-terminated) to DE, DE left on the end
@@ -456,25 +454,6 @@ hex1:   and     15
 hx1:    jp      putc
 
 ; ---------------------------------------------------------------- data
-NMSG    equ     16
-msgs:   dw      q0,q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15
-q0:     db      'Hello Kettle-7!',0
-q1:     db      'All is well here',0
-q2:     db      'Send more tea',0
-q3:     db      'Seen a lost sock?',0
-q4:     db      'Happy orbit day!',0
-q5:     db      'Beacon 9 says hi',0
-q6:     db      'We see your light',0
-q7:     db      'Cargo: 40 t of jam',0
-q8:     db      'Is the cat ok?',0
-q9:     db      'Tell Mira: yes',0
-q10:    db      'The stars look kind',0
-q11:    db      'Ping. Just ping.',0
-q12:    db      'Engines purring',0
-q13:    db      'Thanks for the fix',0
-q14:    db      'A moth on the lens',0
-q15:    db      'Goodnight, relay',0
-
 m_idle: db      '(no signal captured)',0
 m_wait: db      'A packet waits in the buffer. Press C.',0
 m_from: db      'From ',0

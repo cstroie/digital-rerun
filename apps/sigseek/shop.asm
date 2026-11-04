@@ -157,7 +157,7 @@ sh2:    ld      a,(sitem)
 ; ---------------------------------------------------------------- the save file
 ; SIGSEEK.SAV, one record: 'SG', version, terminal, seed, tokens,
 ; upgrades, packets, shift, PIXEL's mood.
-SV_VER  equ     1
+SV_VER  equ     2               ; 1 was before the callers and the Archive
 
 ; load: at start. A new shift begins: shift + 1.
 load:   call    fcbclr
@@ -185,8 +185,15 @@ load:   call    fcbclr
         sbc     hl,de
         jr      nz,ld9
         ld      a,(savbuf+2)
+        cp      1
+        jr      z,ld8           ; version 1: no story yet
         cp      SV_VER
         jr      nz,ld9
+        ld      hl,savbuf+12    ; the callers' chapters, the Archive
+        ld      de,chap
+        ld      bc,NCALL+NFRAG/8
+        ldir
+ld8:
         ld      a,(savbuf+3)
         ld      (term),a
         ld      hl,(savbuf+4)
@@ -231,6 +238,10 @@ sv0:    ld      (hl),1ah
         ld      (savbuf+10),a
         ld      a,(cmood)
         ld      (savbuf+11),a
+        ld      hl,chap         ; the callers' chapters, the Archive
+        ld      de,savbuf+12
+        ld      bc,NCALL+NFRAG/8
+        ldir
         ld      de,savbuf
         ld      c,26
         call    BDOS

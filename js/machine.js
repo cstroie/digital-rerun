@@ -16,6 +16,7 @@
     const { FDC, Disk } = node ? require('./devices/fdc.js') : root.DigitalRerun;
     const { Console, PrinterPort, TapeReader, TapePunch } = node ? require('./devices/serial.js') : root.DigitalRerun;
     const { Clock } = node ? require('./devices/clock.js') : root.DigitalRerun;
+    const { Modem } = node ? require('./devices/modem.js') : root.DigitalRerun;
 
     const IDLE_GAP = 20000;
 
@@ -30,6 +31,7 @@
             this.fdc = new FDC(this.memory);
             this.cycles = 0;
             this.clock = new Clock(this);
+            this.modem = new Modem(this);
             /** Addresses the debugger stops at; empty: the run loop never looks. */
             this.breakpoints = new Set();
             /** Called with the address when a breakpoint stops the machine. */
@@ -49,10 +51,16 @@
         }
 
         input(port) {
-            if (port !== 0) this.console.idlePolls = 0;      // any other I/O is work, not waiting
+            if (port !== 0 && port !== 6) this.console.idlePolls = 0;      // any other I/O is work, not waiting
             switch (port) {
                 case 0: return this.console.status();
                 case 1: return this.console.read();
+                case 6: {                                       // the modem's status: polling it with nothing there is waiting
+                    const status = this.modem.status();
+                    if (status & 1) this.console.idlePolls = 0; else this.console.idlePolls++;
+                    return status;
+                }
+                case 7: return this.modem.read();
                 case 2: return this.printer.status();
                 case 4: return this.reader.read();
                 case 10: case 14: case 18: return this.fdc.in(port);
@@ -67,6 +75,8 @@
                 case 1: this.console.write(value); break;
                 case 3: this.printer.write(value); break;
                 case 5: this.punch.write(value); break;
+                case 6: this.modem.control(value); break;
+                case 7: this.modem.write(value); break;
                 case 20: this.clock.latch(); break;
                 case 10: case 11: case 12: case 13: case 15: case 16: case 17:
                     this.fdc.out(port, value);
@@ -103,6 +113,7 @@
                 state: this.state,
                 fdc: { drive: f.drive, track: f.track, sector: f.sector, dma: f.dma, status: f.status },
                 printerOnline: this.printer.online,
+                modem: this.modem.getState(),
                 drives: f.drives.map((d, i) => d && { drive: i, name: d.name, origin: d.origin, format: d.format, readOnly: d.readOnly, data: d.data.slice() }).filter(Boolean)
             };
         }
@@ -115,6 +126,7 @@
             this.state = s.state;
             Object.assign(this.fdc, s.fdc);
             this.printer.online = s.printerOnline;
+            this.modem.setState(s.modem);
             this.fdc.drives.fill(null);
             for (const d of s.drives) this.fdc.mount(d.drive, new Disk(d.format, d.data.slice(), { name: d.name, readOnly: d.readOnly, origin: d.origin || '' }));
             this.console.queue.length = 0;
@@ -182,6 +194,7 @@
             }
             const polls = con.idlePolls;
             this.waiting = polls > 64;
+            if (this.waiting) this.modem.idle(budget - used);   // a waiting loop would have spent the rest
             this.idle = this.waiting || (polls >= 4 && used / polls < IDLE_GAP);
             if (this.halted) this.state = 'halted';
             return used;

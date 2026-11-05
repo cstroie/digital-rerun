@@ -19,6 +19,7 @@ const SHELL = [
     'js/devices/fdc.js',
     'js/devices/serial.js',
     'js/devices/clock.js',
+    'js/devices/modem.js',
     'js/machine.js',
     'js/cpmfs.js',
     'js/altair.js',

@@ -80,7 +80,7 @@ test('backspace edits the command line', () => {
     const m = rig();
     type(m, 'ATE0\r');
     assert.equal(type(m, 'ATX\x08Z\r'), '\r\nOK\r\n');
-    assert.equal(type(m, 'ATQQ\x08\x08E0\r'), '\r\nOK\r\n');
+    assert.equal(type(m, 'ATQQ\x08\x08E0\r'), 'ATQQ\b\bE0\r\r\nOK\r\n');      // ATZ switched the echo back on
 });
 
 test('registers: set, read, refuse an unknown one', () => {

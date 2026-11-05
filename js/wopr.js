@@ -11,23 +11,24 @@
  *                    blows; nobody wins.
  *   the other names on the list are not loaded on this line.
  *
+ * More games join the list through host.games: [{ name, play(h, done) }], where h is
+ * { out, ask, random, player, scores, sysop, store, now } and done() returns to WOPR.
+ *
  * It needs a `host` from the BBS session:
  *   out(text)            send text to the caller
  *   ask('line'|'key', fn, max)   wait for a line (at most max characters) or a
  *                        key (upper case) and hand it to fn
  *   leave()              back to the BBS menu
  *   random()             0 <= r < 1
+ *   games, scores, sysop, store, now   optional: see above
  */
 (function (root) {
     'use strict';
 
     const CLEAR = '\x1b[2J\x1b[H', BOLD = '\x1b[1m', REV = '\x1b[7m', OFF = '\x1b[0m';
 
-    const GAMES = [
-        { name: "FALKEN'S MAZE" }, { name: 'CHECKERS' }, { name: 'CHESS' }, { name: 'POKER' },
-        { name: 'FIGHTER COMBAT' }, { name: 'DESERT WARFARE' },
-        { name: 'TIC-TAC-TOE', play: 'ttt' }, { name: 'GLOBAL THERMONUCLEAR WAR', play: 'gtw' }
-    ];
+    /** On the list, but not loaded on this line. */
+    const UNLOADED = ['CHESS', 'CHECKERS', 'POKER', 'FIGHTER COMBAT', 'DESERT WARFARE'];
 
     /* ---------- tic-tac-toe ---------- */
 
@@ -80,6 +81,7 @@
     function wopr(host) {
         const { out, ask } = host;
         const rnd = () => host.random();
+        let player = '';
         const pickOne = list => list[Math.floor(rnd() * list.length) % list.length];
 
         /* ---- the session ---- */
@@ -88,6 +90,7 @@
             out(`${CLEAR}${REV} W.O.P.R. ${OFF}  WAR OPERATION PLAN RESPONSE\n\nLOGON: `);
             ask('line', name => {
                 name = name.replace(/[^\x20-\x7e]/g, '').trim().toUpperCase();
+                player = name || 'GUEST';
                 out(`\nGREETINGS${name ? ', ' + name : ''}.\n`);
                 menu(true);
             }, 12);
@@ -98,9 +101,20 @@
             ask('line', command, 30);
         }
 
+        const gameHost = {
+            out, ask, random: rnd, scores: host.scores, sysop: host.sysop, store: host.store, now: host.now,
+            get player() { return player; }
+        };
+        const games = [
+            { name: 'TIC-TAC-TOE', run: ticTacToe },
+            ...(host.games || []).map(g => ({ name: g.name, run: () => g.play(gameHost, () => menu(false)) })),
+            { name: 'GLOBAL THERMONUCLEAR WAR', run: thermonuclear },
+            ...UNLOADED.map(name => ({ name }))
+        ];
+
         function list() {
             out('\n');
-            GAMES.forEach((g, i) => out(`${String(i + 1).padStart(3)}  ${g.name}${g.play ? '' : '   (not loaded on this line)'}\n`));
+            games.forEach((g, i) => out(`${String(i + 1).padStart(3)}  ${g.name}${g.run ? '' : '   (not loaded on this line)'}\n`));
         }
 
         function command(text) {
@@ -111,11 +125,11 @@
                 return host.leave();
             }
             if (/^(LIST( GAMES)?|GAMES|HELP( GAMES)?|\?)$/.test(t)) { list(); out('\nTYPE A NAME OR A NUMBER. LOGOFF LEAVES.\n'); return menu(false); }
-            let game = /^\d+$/.test(t) ? GAMES[Number(t) - 1] : t.length >= 3 ? GAMES.find(g => g.name.startsWith(t)) : null;
-            if (!game && t.length >= 3) game = GAMES.find(g => g.name.includes(t));
+            let game = /^\d+$/.test(t) ? games[Number(t) - 1] : t.length >= 3 ? games.find(g => g.name.startsWith(t)) : null;
+            if (!game && t.length >= 3) game = games.find(g => g.name.includes(t));
             if (!game) { out('\nUNKNOWN COMMAND. TYPE LIST GAMES.\n'); return menu(false); }
-            if (!game.play) { out(`\n${game.name}: NOT LOADED ON THIS LINE.\n`); return menu(false); }
-            return game.play === 'ttt' ? ticTacToe() : thermonuclear();
+            if (!game.run) { out(`\n${game.name}: NOT LOADED ON THIS LINE.\n`); return menu(false); }
+            return game.run();
         }
 
         /* ---- tic-tac-toe ---- */
@@ -218,7 +232,7 @@
         start();
     }
 
-    const api = { wopr, GAMES, TARGETS, result, bestMoves, value, board };
+    const api = { wopr, UNLOADED, TARGETS, result, bestMoves, value, board };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

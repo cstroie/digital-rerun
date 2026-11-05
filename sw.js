@@ -28,6 +28,8 @@ const SHELL = [
     'js/sysop.js',
     'js/fortune.js',
     'js/wopr.js',
+    'js/scores.js',
+    'js/games.js',
     'js/bbs.js',
     'js/machine.js',
     'js/cpmfs.js',

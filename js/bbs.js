@@ -24,6 +24,7 @@
  *   fetchJson(url) -> Promise<object>
  *   files        { list() -> Promise<[{ name, size }]>, get(name) -> Promise<Uint8Array|null>,
  *                  put(name, bytes) -> Promise }
+ *   games, scores   more games for WOPR (js/games.js) and the high-score tables (js/scores.js)
  *   wopr, fortunes   the game (js/wopr.js) and the cookie jar (js/fortune.js); default: the page's
  *   random()     0 <= r < 1 (default Math.random)
  *   sysop        { reply(history, text) -> Promise<string> }; without one the sysop is away
@@ -497,7 +498,8 @@
                 out: t => this.out(t),
                 ask: (mode, fn, max) => this.ask(mode, fn, max),
                 leave: () => { this.out('\n'); this.menu(); },
-                random: this.s.random || Math.random
+                random: this.s.random || Math.random,
+                games: this.s.games, scores: this.s.scores, sysop: this.s.sysop, store: this.s.store, now: this.s.now
             });
         }
 

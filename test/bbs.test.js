@@ -560,3 +560,22 @@ test('O: without the cookie jar it says so', () => {
     c.type('o');
     assert.match(c.out, /cookie jar is empty/);
 });
+
+test('G: the games of js/games.js join WOPR\'s list, and a game plays through the BBS with scores kept', () => {
+    const { GAMES } = require('../js/games.js');
+    const { Scores } = require('../js/scores.js');
+    const memory = new Map();
+    const scores = new Scores({ get: k => memory.get(k) || null, set: (k, v) => memory.set(k, v) });
+    const c = caller({ games: GAMES, scores });
+    c.type('g');
+    c.type('ann\r');
+    c.take();
+    c.type('list\r');
+    for (const name of ['BLACK JACK', 'HANGMAN', 'CODEBREAKER', 'NIM', 'BATTLESHIP', 'HUNT THE WUMPUS', 'LUNAR LANDER', "FALKEN'S MAZE"]) assert.ok(c.out.includes(name), name);
+    c.take();
+    c.type('codebreaker\r');
+    assert.match(c.out, /CODEBREAKER\. I HOLD A CODE/);
+    c.type('q\r');
+    assert.match(c.out, /THE CODE WAS/);
+    assert.match(c.out, /SHALL WE PLAY ANOTHER GAME/);
+});

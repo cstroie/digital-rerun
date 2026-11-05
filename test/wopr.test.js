@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { wopr, GAMES, result, bestMoves, value } = require('../js/wopr.js');
+const { wopr, UNLOADED, result, bestMoves, value } = require('../js/wopr.js');
 
 /** A host that records what is said and lets the test answer the prompts. */
 function rig(random = () => 0.3) {
@@ -47,6 +47,7 @@ test('LIST GAMES lists them; a game not loaded says so; unknown commands are ref
     assert.match(w.text, /TIC-TAC-TOE/);
     assert.match(w.text, /GLOBAL THERMONUCLEAR WAR/);
     assert.match(w.text, /CHESS {3}\(not loaded on this line\)/);
+    assert.match(w.text, /^ {2}1 {2}TIC-TAC-TOE/m);
     w.take();
     w.say('chess');
     assert.match(w.text, /CHESS: NOT LOADED ON THIS LINE/);
@@ -62,7 +63,7 @@ test('LIST GAMES lists them; a game not loaded says so; unknown commands are ref
 });
 
 test('games are found by number or by the start of the name', () => {
-    for (const cmd of ['7', 'tic', 'TIC-TAC-TOE']) {
+    for (const cmd of ['1', 'tic', 'TIC-TAC-TOE']) {
         const w = rig();
         w.say('x');
         w.take();
@@ -135,14 +136,14 @@ test('a game: you play, WOPR answers, the board is shown, the game ends and asks
 
 test('Q gives a game up', () => {
     const w = rig();
-    w.say('x'); w.take(); w.say('7'); w.say('1'); w.take();
+    w.say('x'); w.take(); w.say('1'); w.say('1'); w.take();
     w.say('q');
     assert.match(w.text, /GAME ABANDONED/);
 });
 
 test('zero players: WOPR plays itself ten times, all drawn, then the lesson', () => {
     const w = rig(Math.random);
-    w.say('x'); w.take(); w.say('7'); w.take();
+    w.say('x'); w.take(); w.say('1'); w.take();
     w.say('0');
     assert.match(w.text, /WOPR PLAYS ITSELF/);
     assert.equal((w.text.match(/^GAME +\d+/gm) || []).length, 10);
@@ -153,7 +154,7 @@ test('zero players: WOPR plays itself ten times, all drawn, then the lesson', ()
 
 test('global thermonuclear war: choose a side and targets, watch the exchange, nobody wins', () => {
     const w = rig();
-    w.say('x'); w.take(); w.say('8');
+    w.say('x'); w.take(); w.say('global');
     assert.match(w.text, /A SIMULATION/);
     w.say('2');
     assert.match(w.text, /EAST/);
@@ -176,12 +177,33 @@ test('global thermonuclear war: choose a side and targets, watch the exchange, n
 
 test('a bad target list is filled in; nothing in the output is outside ASCII and escapes', () => {
     const w = rig(Math.random);
-    w.say('x'); w.take(); w.say('8'); w.say('1'); w.take(); w.say('zz');
+    w.say('x'); w.take(); w.say('global'); w.say('1'); w.take(); w.say('zz');
     assert.match(w.text, /TARGETS: \w/);
     assert.equal(/[^\x20-\x7e\r\n\x1b\[0-9;mHJ]/.test(w.text), false);
 });
 
-test('every playable game is on the list; the rest say they are not loaded', () => {
-    assert.deepEqual(GAMES.filter(g => g.play).map(g => g.name), ['TIC-TAC-TOE', 'GLOBAL THERMONUCLEAR WAR']);
-    assert.ok(GAMES.length >= 8);
+test('the games that join through the host are listed, numbered after tic-tac-toe, and played with a host of their own', () => {
+    const calls = [];
+    const w = rig();
+    w.take();
+    // a second rig with games
+    const h = { text: '', asks: [], left: false };
+    const host = {
+        out: t => { h.text += t; }, ask: (mode, fn) => h.asks.push({ mode, fn }), leave() {}, random: () => 0,
+        scores: { add() {} }, games: [{ name: 'HANGMAN', play: (g, done) => { calls.push([typeof g.out, g.player, typeof g.scores.add]); g.out('PLAYING\n'); done(); } }]
+    };
+    wopr(host);
+    h.asks.pop().fn('Ann');
+    h.text = '';
+    h.asks.pop().fn('list');
+    assert.match(h.text, /^ {2}1 {2}TIC-TAC-TOE\n {2}2 {2}HANGMAN\n {2}3 {2}GLOBAL THERMONUCLEAR WAR\n/m);
+    h.text = '';
+    h.asks.pop().fn('han');
+    assert.match(h.text, /PLAYING/);
+    assert.match(h.text, /SHALL WE PLAY ANOTHER GAME/);
+    assert.deepEqual(calls, [['function', 'ANN', 'function']]);
+});
+
+test('the games not loaded stay on the list', () => {
+    assert.deepEqual(UNLOADED, ['CHESS', 'CHECKERS', 'POKER', 'FIGHTER COMBAT', 'DESERT WARFARE']);
 });

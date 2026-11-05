@@ -14,8 +14,10 @@ function machine() {
 }
 const status = m => m.input(6);
 
-test('no line: carrier is down, and the status is never 0FFh (that means no modem)', () => {
+test('no line plugged in: the status is 0FFh (no modem); with one it never is', () => {
     const m = new Machine();
+    assert.equal(status(m), 0xFF);
+    m.modem.attach({ send() {} });
     assert.equal(status(m), 0x02);
     assert.notEqual(status(m), 0xFF);
 });

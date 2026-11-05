@@ -155,6 +155,20 @@
         }
 
         /**
+         * A program waiting (polling) while the modem has something coming: the
+         * T-states until it arrive are spent as the polling would have, and the
+         * program looks again. Returns them, or 0 when nothing is due within
+         * `room` (the run then stops and credits the rest).
+         */
+        skipIdle(room) {
+            const gap = this.modem.untilEvent();
+            if (gap === null || gap > room) return 0;
+            this.modem.idle(gap);
+            this.console.idlePolls = 0;
+            return gap || 1;
+        }
+
+        /**
          * Run for about `budget` T-states. Returns the T-states used. Stops
          * early when the program sits in a tight loop waiting for a key (so
          * an idle machine costs nothing) or on HALT. Afterwards:
@@ -182,14 +196,14 @@
                     const t = cpu.run_instruction();
                     used += t;
                     this.cycles += t;
-                    if (con.idlePolls > 64) break;
+                    if (con.idlePolls > 64) { const skipped = this.skipIdle(budget - used); if (!skipped) break; used += skipped; }
                 }
             } else {
                 while (used < budget) {
                     const t = cpu.run_instruction();
                     used += t;
                     this.cycles += t;       // current at every port read: the clock counts on it
-                    if (con.idlePolls > 64) break;
+                    if (con.idlePolls > 64) { const skipped = this.skipIdle(budget - used); if (!skipped) break; used += skipped; }
                 }
             }
             const polls = con.idlePolls;

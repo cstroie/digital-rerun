@@ -21,6 +21,8 @@ prts	equ	2		;printer status: 0FFh when ready
 prtd	equ	3		;printer data
 rdrd	equ	4		;paper tape reader: next byte, 1Ah at the end
 pund	equ	5		;paper tape punch
+mst	equ	6		;modem status: bit 0 byte waiting, bit 1 may send, 0FFh no modem
+mdat	equ	7		;modem data
 fdcd	equ	10		;drive; IN: 0FFh when it holds a disk
 fdct	equ	11		;track
 fdcs	equ	12		;sector, low byte
@@ -47,7 +49,9 @@ multisec equ	44
 mb$input	equ	01h	;device may do input
 mb$output	equ	02h	;device may do output
 mb$in$out	equ	03h
+mb$serial	equ	08h
 baud$none	equ	0
+baud$1200	equ	8
 
 	extrn	@civec, @covec, @aivec, @aovec, @lovec, @mxtpa
 	extrn	@date, @hour, @min, @sec
@@ -165,6 +169,7 @@ ctbla:	db	'CRT   ',mb$in$out,baud$none
 	db	'LPT   ',mb$output,baud$none
 	db	'PTR   ',mb$input,baud$none
 	db	'PTP   ',mb$output,baud$none
+	db	'MODEM ',mb$in$out+mb$serial,baud$1200
 	db	0
 
 conout:	lhld @covec
@@ -275,6 +280,8 @@ not$in:
 	jz ci0
 	cpi 2
 	jz ci2
+	cpi 4
+	jz ci4
 	mvi a,1ah
 	ret
 ci0:	in cons
@@ -285,15 +292,35 @@ ci0:	in cons
 	ret
 ci2:	in rdrd	;1Ah when the tape has run out
 	ret
+ci4:	in mst	;the modem: wait for a byte
+	cpi 0ffh
+	jz ci4n	;no modem: end of file
+	ani 1
+	jz ci4
+	in mdat
+	ret
+ci4n:	mvi a,1ah
+	ret
 
 ;	device B: input ready?
 ?cist:	mov a,b
 	ora a
 	jz cist0
+	cpi 4
+	jz cist4
 	cpi 2
 	mvi a,0ffh
 	rz
 	xra a
+	ret
+cist4:	in mst	;a byte waiting?
+	cpi 0ffh
+	jz cist4n
+	ani 1
+	rz
+	mvi a,0ffh
+	ret
+cist4n:	xra a
 	ret
 cist0:	in cons
 	ret
@@ -304,10 +331,20 @@ cist0:	in cons
 	jz co0
 	cpi 1
 	jz co1
+	cpi 4
+	jz co4
 	cpi 3
 	rnz
 	mov a,c
 	out pund
+	ret
+co4:	in mst	;the modem: wait until it may send
+	cpi 0ffh
+	rz	;no modem: the byte goes nowhere
+	ani 2
+	jz co4
+	mov a,c
+	out mdat
 	ret
 co0:	mov a,c
 	out cond
@@ -323,7 +360,18 @@ co1:	in prts	;wait while off line
 ?cost:	mov a,b
 	cpi 1
 	jz cost1
+	cpi 4
+	jz cost4
 	mvi a,0ffh
+	ret
+cost4:	in mst	;may it send?
+	cpi 0ffh
+	jz cost4n
+	ani 2
+	rz
+	mvi a,0ffh
+	ret
+cost4n:	mvi a,0ffh	;no modem: output is always ready (and goes nowhere)
 	ret
 cost1:	in prts
 	ret

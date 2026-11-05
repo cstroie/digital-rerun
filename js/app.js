@@ -7,7 +7,7 @@
     'use strict';
 
     const { Machine, Disk, CpmFs, FORMATS, diskFromImage, ALTAIR_SIZE, altairFiles, Terminal, TerminalView, FX80, PaperView, Storage,
-        isTextFile, looksText, toCpmText, fromCpmText } = window.DigitalRerun;
+        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory } = window.DigitalRerun;
 
     const $ = id => document.getElementById(id);
     const DRIVES = [0, 1, 2, 3, 8];                 // A: B: C: D: I:
@@ -23,6 +23,7 @@
 
     const sound = new window.DigitalRerun.Sound();
     machine.console.output = b => term.write(b);
+    machine.modem.attach(new Hayes({ dial: new Directory().dial }));       // the modem on ports 6 and 7: TERM and ATDT
     term.reply = bytes => machine.console.type(bytes);
     term.bell = () => { $('crt').animate([{ filter: 'brightness(1.8)' }, { filter: 'none' }], 120); sound.bell(); };
     let lineChars = 0;                       // characters struck since the last CR, for the sound

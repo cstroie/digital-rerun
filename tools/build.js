@@ -71,6 +71,7 @@ function main() {
     const com = file => { const r = build(file, null).result; return r.image(0x100, r.high); };
     const sysgenCom = com('sysgen.asm');
     const prtdemoCom = com('prtdemo.asm');
+    const termCom = com('term.asm');
     fs.writeFileSync(path.join(ROOT, 'system/boot.bin'), boot.image);
     fs.writeFileSync(path.join(ROOT, 'system/cpm22.bin'), system);
 
@@ -82,7 +83,8 @@ function main() {
     for (const f of files) fsys.write(f, fs.readFileSync(path.join(dir, f)));
     fsys.write('SYSGEN.COM', sysgenCom);
     fsys.write('PRTDEMO.COM', prtdemoCom);
-    for (const f of ['bios.asm', 'boot.asm', 'sysgen.asm', 'prtdemo.asm']) fsys.write(f.toUpperCase(), toCpmText(fs.readFileSync(path.join(ROOT, 'system', f))));
+    fsys.write('TERM.COM', termCom);
+    for (const f of ['bios.asm', 'boot.asm', 'sysgen.asm', 'prtdemo.asm', 'term.asm']) fsys.write(f.toUpperCase(), toCpmText(fs.readFileSync(path.join(ROOT, 'system', f))));
     fs.writeFileSync(path.join(ROOT, 'disks/cpm22.dsk'), disk.data);
 
     buildShelf();

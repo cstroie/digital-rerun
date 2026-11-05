@@ -462,8 +462,8 @@
     "path": "disks/shelf/cpm3/XREF.COM"
    }
   ],
-  "size": 322106,
-  "free": 30720
+  "size": 322865,
+  "free": 28672
  },
  {
   "id": "curses",

@@ -59,3 +59,15 @@ have spent them), otherwise 1200 baud would crawl at an idle prompt.
 
 A line is any object with `send(byte)` (from the Z80), `dtr(on)` and `reset()`; it calls `modem.receive(bytes)`
 and sets `modem.carrier`. A snapshot does not keep a connection: restoring drops carrier.
+
+## Status (2026-11-05)
+
+Steps 1–3 are built. `TERM.COM` is on the CP/M 2.2 disk (with its source, `TERM.ASM`): `TERM`, then `AT`,
+`ATDT0` (the echo service), `+++` and `ATH`; Ctrl-] Q leaves with the call up, Ctrl-] H hangs up. Under CP/M 3
+the modem is the character device `MODEM` (`DEVICE AUXOUT:=MODEM`, then `PIP AUX:=file`); copy `TERM.COM`
+over from the 2.2 disk (the CP/M 3 disk has no room left to carry it). The numbers dialed are in
+`js/devices/directory.js`; the built-in BBS (step 4) adds its own.
+
+A program that polls the modem is "waiting": the run loop spends the T-states up to the next byte, answer or
+timer on the modem's clock (`Machine.skipIdle`), so 1200 baud is exact at an idle prompt too. The line has no
+flow control: a byte nobody reads before the next arrives is lost (overrun), as on a real serial port.

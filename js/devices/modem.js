@@ -4,7 +4,7 @@
  *
  *   IN  6   status: bit 0 a received byte waits, bit 1 the transmitter is
  *           empty, bit 2 carrier detect, bit 3 overrun. Bits 4-7 are 0: a
- *           status of 0FFh means no modem is here.
+ *           status of 0FFh means no modem is here (no line is attached).
  *   OUT 6   control: bit 0 DTR (dropping it hangs up)
  *   IN  7   the received byte
  *   OUT 7   a byte to send (lost when the transmitter is busy)
@@ -78,6 +78,7 @@
         }
 
         status() {
+            if (!this.line) return 0xFF;                 // nothing plugged in: like a port nobody answers
             this.pump();
             return (this.ready ? RDA : 0) | (this.now() >= this.txAt ? TBE : 0) | (this.carrier ? DCD : 0) | (this.overrun ? OVERRUN : 0);
         }
@@ -102,6 +103,22 @@
             if (this.dtr && !dtr && this.line && this.line.dtr) this.line.dtr(false);
             else if (!this.dtr && dtr && this.line && this.line.dtr) this.line.dtr(true);
             this.dtr = dtr;
+        }
+
+        /**
+         * T-states until the next thing a polling program would see change: a
+         * byte arriving, the transmitter free, the line's own timer (a dial
+         * answering, the "+++" guard time). null: nothing is coming.
+         */
+        untilEvent() {
+            if (!this.line) return null;
+            const now = this.now();
+            let at = null;
+            const soon = t => { if (t > now && (at === null || t < at)) at = t; };
+            if (this.inbox.length) soon(this.inbox[0].at);
+            soon(this.txAt);
+            if (this.line.nextAt) soon(this.line.nextAt());
+            return at === null ? null : at - now;
         }
 
         /** A waiting program did not run `tstates`: the modem's time passes anyway. */

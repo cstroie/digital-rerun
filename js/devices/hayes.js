@@ -128,6 +128,13 @@
             }
         }
 
+        /** When the line next changes by itself (the modem's time), or 0. */
+        nextAt() {
+            if (this.dialing && this.dialing.finish) return this.dialing.until;
+            if (this.online && this.plus === 3) return this.lastTx + this.guard;
+            return 0;
+        }
+
         /** The UART's DTR went down: hang up. */
         dtr(on) { if (!on && (this.online || this.dialing)) this.hangup(); }
 
@@ -183,8 +190,12 @@
             const modem = this.modem;
             const until = modem.now() + this.dialTime * this.hz;
             this.dialing = { ticket };
+            const early = [];                                  // what the other end says before the CONNECT is shown
             const link = {
-                receive: bytes => { if (this.ticket === ticket && this.online) modem.receive(bytes); },
+                receive: bytes => {
+                    if (this.ticket !== ticket) return;
+                    if (this.online) modem.receive(bytes); else if (this.dialing) early.push(typeof bytes === 'string' ? bytes : Array.from(bytes).map(b => String.fromCharCode(b)).join(''));
+                },
                 hangup: () => { if (this.ticket === ticket && this.remote) this.hangup(true); }
             };
             Promise.resolve().then(() => this.dial(number, link)).catch(() => 'NO CARRIER').then(answer => {
@@ -199,6 +210,7 @@
                     this.lastTx = modem.now();
                     modem.carrier = true;
                     this.result(this.x > 0 ? 'CONNECT 1200' : 'CONNECT');
+                    if (early.length) modem.receive(early.join(''));
                 };
                 this.dialing.answer = answer;
                 this.dialing.finish = finish;

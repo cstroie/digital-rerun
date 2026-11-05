@@ -244,11 +244,13 @@ test('mail door: no replies yet is said kindly; an empty note is not sent', () =
 
 test('dial directory: real hosts, how to dial them, a word on the bridge', () => {
     const r = rig('directory');
-    assert.match(plain(r.text), /ATDT telehack\.com\n/);
-    assert.match(plain(r.text), /ATDT particlesbbs\.dyndns\.org:6400/);
+    assert.match(plain(r.text), /ATDT 0101 {2}telehack\.com\n/);
+    assert.match(plain(r.text), /ATDT 0107 {2}particlesbbs\.dyndns\.org:6400/);
+    assert.doesNotMatch(plain(r.text), /555-0101 {2}/, 'the number is shown by its last four digits');
     assert.match(r.text, /bridge/);
     assert.equal(r.left, true);
-    for (const [host, port] of D.DIRECTORY) { assert.match(host, /^[a-z0-9.-]+$/); assert.ok(port > 0 && port < 65536); }
+    for (const { n, host, port } of D.DIRECTORY) { assert.match(n, /^01\d\d$/); assert.match(host, /^[a-z0-9.-]+$/); assert.ok(port > 0 && port < 65536); }
+    assert.equal(new Set(D.DIRECTORY.map(e => e.n)).size, D.DIRECTORY.length, 'every number once');
 });
 
 test('news desk: off without Online services; Hacker News and Wikipedia when on', async () => {

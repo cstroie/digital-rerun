@@ -75,7 +75,7 @@ flow control: a byte nobody reads before the next arrives is lost (overrun), as 
 
 ## The BBS (step 4)
 
-`ATDT5550100` (dashes are ignored) reaches the Digital Rerun BBS (`js/bbs.js`):
+`ATDT0100` (or `ATDT5550100`; dashes are ignored) reaches the Digital Rerun BBS (`js/bbs.js`):
 
 - **T** time and date (the host clock); **M** the moon (phase, age, lit fraction, a drawing; computed, offline).
 - **B** bulletins: the last 8 of 50, kept in the browser (localStorage); a post is a name and one line.
@@ -217,3 +217,10 @@ caller number and the last call, mail, the games), a small picture of the day, a
 is drawn whole the first time and on a line of 2400 baud or more; coming back on a slow line only the menu is redrawn, and at
 300 baud it is always the menu alone. Nothing is written to the screen while an XMODEM block is on the wire. Leaving the board (`Q`)
 resets the terminal (no region, plain, cursor shown); so does `TERM`'s `Ctrl-] Q` and `H`.
+
+## Numbers
+
+Every place has a number, 555-nnnn, which may be dialed in full, without the dash, or by its last four digits: the board is `ATDT0100`
+(also `ATDT 555-0100`), the echo service `ATDT0`, and the ten telnet hosts of the dial directory `0101` to `0110` (telehack.com is
+`ATDT0101`). The directory shows the last four digits only. The hosts need the bridge; without one the modem answers `NO DIALTONE`.
+A host can still be dialed by name: `ATDT telehack.com`. The table is `PHONEBOOK` in `js/devices/directory.js`.

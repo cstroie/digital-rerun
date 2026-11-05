@@ -105,7 +105,7 @@ test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodby
     m.modem.attach(new Hayes({ dial: dir.dial, dialTime: 1 }));
     await until(m, 'A>');
     let at = say(m, 'TERM\r');
-    await until(m, 'Try ATDT5550100', at);
+    await until(m, 'Try ATDT0100', at);
     at = say(m, 'ATDT555-0100\r');
     await until(m, 'DIGITAL RERUN BBS', at);
     await until(m, 'uit', at);

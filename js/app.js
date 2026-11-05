@@ -23,7 +23,7 @@
 
     const sound = new window.DigitalRerun.Sound();
     machine.console.output = b => term.write(b);
-    // the modem on ports 6 and 7 (TERM, ATDT): 0 is the echo service, 5550100 the bulletin board
+    // the modem on ports 6 and 7 (TERM, ATDT): 0 is the echo service, 555-0100 the bulletin board, 555-0101 to 0110 telnet hosts
     const bbsStore = { get: k => localStorage.getItem('digitalrerun.bbs.' + k), set: (k, v) => localStorage.setItem('digitalrerun.bbs.' + k, v) };
     const bbsAnswer = bbs({
         baud: () => machine.modem.baud,

@@ -556,7 +556,7 @@ purge:	lxi	h,300
 pend:	db	0		;a key waiting for the transmitter
 rstr:	db	27,'[r',27,'[0m',27,'[?25h$'	;no scroll region, plain, the cursor shown
 nomsg:	db	'No modem on this machine.',cr,lf,'$'
-hello:	db	'TERM: Ctrl-] for commands. Try ATDT5550100.',cr,lf,'$'
+hello:	db	'TERM: Ctrl-] for commands. Try ATDT0100.',cr,lf,'$'
 prompt:	db	cr,lf,'[R receive, S send, Q quit, H hang up, ? help] $'
 helpmsg:db	cr,lf,'R receives a file and S sends one by XMODEM (checksum); Q quits',cr,lf
 	db	'(the call stays up); H hangs up; Ctrl-] twice sends one; Ctrl-X stops a transfer.',cr,lf,'$'

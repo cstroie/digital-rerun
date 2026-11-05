@@ -206,23 +206,13 @@
 
     /* =========================== dial directory ======================= */
 
-    const DIRECTORY = [
-        ['telehack.com', 23, 'Telehack: a simulated 1980s ARPANET, with games and a very old shell'],
-        ['bbs.fozztexx.com', 23, 'Level 29 BBS: a retro BBS with doors and files'],
-        ['towel.blinkenlights.nl', 23, 'Star Wars in ASCII, frame by frame (leave it running)'],
-        ['nethack.alt.org', 23, 'NetHack, played on a public server'],
-        ['bbs.retrocampus.com', 23, 'RetroCampus: a BBS for old computers'],
-        ['bbs.hispamsx.org', 23, 'A Synchronet BBS of the MSX community'],
-        ['particlesbbs.dyndns.org', 6400, 'Particles BBS'],
-        ['aardmud.org', 4000, 'Aardwolf: a long-running text MUD'],
-        ['batmud.bat.org', 23, 'BatMUD: another, older, MUD'],
-        ['sdf.org', 23, 'SDF Public Access Unix System']
-    ];
+    /** The telnet hosts, with the numbers they are dialed by (js/devices/directory.js). */
+    const DIRECTORY = node ? require('./devices/directory.js').PHONEBOOK : root.DigitalRerun.PHONEBOOK;
 
     function directory(h) {
         h.out(begin(h, 'DIAL DIRECTORY', 'checked 5 Nov 2026'));
-        const lines = DIRECTORY.map(([host, port, text]) => `${BOLD}ATDT ${host}${port === 23 ? '' : ':' + port}${OFF}\n${wrap(text, 76, '   ')}`).join('\n');
-        show(h, `${lines}\n\nThese are other people's machines, over the internet. They need the bridge (SETUP,\nMODEM) with --allow naming the host. Boards come and go; be kind to them.`, () => finish(h));
+        const lines = DIRECTORY.map(e => `${BOLD}ATDT ${e.n}${OFF}  ${e.host}${e.port === 23 ? '' : ':' + e.port}\n${wrap(e.text, 76, '   ')}`).join('\n');
+        show(h, `${lines}\n\nDial 0101 or 555-0101. These are other people's machines, over the internet: they need the\nbridge (SETUP, MODEM). You can also dial a host by name: ATDT telehack.com. Be kind to them.`, () => finish(h));
     }
 
     /* ============================ online desks ======================== */

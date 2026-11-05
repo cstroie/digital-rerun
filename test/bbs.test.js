@@ -602,7 +602,7 @@ test('S: the services menu runs a door and comes back to it; Q returns to the ma
     c.take();
     c.type('d');
     assert.match(plain(c.out), /DIAL DIRECTORY/);
-    assert.match(plain(c.out), /ATDT telehack\.com/);
+    assert.match(plain(c.out), /ATDT 0101 {2}telehack\.com/);
     c.take();
     c.type(' ');                                              // a key at the end of the directory...
     c.type(' ');                                              // ...and one at the end of its page

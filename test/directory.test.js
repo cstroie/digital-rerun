@@ -43,3 +43,30 @@ test('sometimesBusy: busy when the dice say so, the real answer otherwise', asyn
     assert.equal(typeof sometimesBusy(make, 0.1, () => 0.5)(link).send, 'function');
     assert.equal(typeof sometimesBusy(make, 0, () => 0)(link).send, 'function', 'never busy at 0');
 });
+
+test('numbers: 555-0101 by its last four digits, in full, with the dash; the BBS as 0100', async () => {
+    const { PHONEBOOK } = require('../js/devices/directory.js');
+    const calls = [];
+    const d = new Directory();
+    d.gateway = { dial: (host, port) => { calls.push([host, port]); return Promise.resolve('BUSY'); } };
+    d.add('5550100', () => ({ send() {}, close() {} }));
+    for (const n of ['0101', '5550101']) d.dial(n, link, n);
+    d.dial('0107', link, '0107');
+    assert.deepEqual(calls, [['telehack.com', 23], ['telehack.com', 23], ['particlesbbs.dyndns.org', 6400]]);
+    assert.equal(typeof (await d.dial('0100', link, '0100')).send, 'function', 'the short number of the board');
+    assert.equal(typeof (await d.dial('5550100', link, '5550100')).send, 'function');
+    assert.equal(d.dial('0199', link, '0199'), 'NO CARRIER', 'a number nobody has');
+    assert.equal(PHONEBOOK.length, 10);
+    assert.deepEqual(PHONEBOOK.map(e => e.n), ['0101', '0102', '0103', '0104', '0105', '0106', '0107', '0108', '0109', '0110']);
+});
+
+test('numbers: with no bridge the line has no dial tone', () => {
+    const d = new Directory();
+    assert.equal(d.dial('0101', link, '0101'), 'NO DIALTONE');
+    assert.equal(d.dial('5550101', link, '555-0101'), 'NO DIALTONE');
+});
+
+test('numbers: the echo service is still 0, and a four digit number is not mistaken for it', () => {
+    const d = new Directory();
+    assert.equal(typeof d.dial('0', link, '0').send, 'function');
+});

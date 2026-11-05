@@ -132,7 +132,8 @@ secret from someone who knows the machine name, the user and the port. Then SETU
   hanging up `NO CARRIER`.
 - The line is the UART's: 1200 baud (or what SETUP says) however fast the host is, and the same XMODEM in TERM.
   Colour BBSes send ANSI colour and CP437 line drawing, which the VT100 screen does not draw (ASCII only, by
-  decision); most say VT100 and send plain text.
+  decision); most say VT100 and send plain text. The DEC line-drawing set (`ESC ( 0`, `ESC ) 0`, SO/SI, the box and line characters
+  of curses programs) is drawn in VT100 mode; SETUP → *DEC line drawing* turns it off (the sequences are then ignored).
 
 ## The sysop (chat)
 

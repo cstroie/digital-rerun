@@ -162,3 +162,21 @@ test('cursor hiding: VT100 ?25, ADM B4/C4 and TeleVideo . n, VT52 Atari f/e and 
     r.reset();
     assert.equal(r.cursorVisible, true);
 });
+
+test('DEC line drawing: ESC ( 0 and ESC ( B, SO and SI, saved with the cursor, off by option', () => {
+    const row = t => [...t.chars[0].slice(0, 6)];
+    const g = c => c.charCodeAt(0) | 0x80;
+    assert.deepEqual(row(term('\x1b(0lqk\x1b(Blqk')), [g('l'), g('q'), g('k'), 108, 113, 107]);
+    assert.deepEqual(row(term('\x1b)0a\x0elq\x0fl')).slice(0, 4), [97, g('l'), g('q'), 108], 'G1 by SO, G0 by SI');
+    assert.equal(term('\x1b(0\x1b7\x1b(B\x1b8x').chars[0][0], g('x'), 'ESC 8 brings the set back');
+    assert.equal(term('\x1b(0A').chars[0][0], 65, 'only 0x5F-0x7E change');
+    const off = new Terminal();
+    off.lineDrawing = false;
+    off.writeString('\x1b(0lq\x0e');
+    assert.equal(off.text().split('\n')[0], 'lq', 'the option off: the sequences are ignored');
+    const r = new Terminal();
+    r.writeString('\x1b(0');
+    r.setState(r.getState());
+    r.writeString('q');
+    assert.equal(r.chars[0][0], g('q'), 'a snapshot keeps the set');
+});

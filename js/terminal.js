@@ -11,7 +11,8 @@
  *   C0      BEL BS HT LF VT FF CR, ESC; CAN/SUB cancel a sequence
  *   ESC     7 8 (save/restore cursor), D (index), M (reverse index),
  *           E (next line), c (reset), = > (keypad, ignored),
- *           ( ) charset (ignored), # 8 (screen of E)
+ *           ( ) charset: G0/G1 as ASCII (B and the rest) or DEC line drawing (0), with
+ *           SO/SI to choose; off with `lineDrawing = false` (then ignored); # 8 (screen of E)
  *   CSI     A B C D (move), H f (position), J K (erase; K's blanks keep reverse
  *           video, so a bar of reverse text and spaces stays one bar), m (bold, dim,
  *           underline, blink, reverse), r (scroll region), s u (save,
@@ -57,6 +58,8 @@
             this.reply = null;
             /** Called on BEL. */
             this.bell = null;
+            /** Honour ESC ( 0, ESC ) 0, SO and SI: the DEC special graphics set (SETUP: DEC line drawing). */
+            this.lineDrawing = true;
             this.reset();
         }
 
@@ -73,7 +76,9 @@
             this.autowrap = true;
             this.insertMode = false;
             this.cursorVisible = true;
-            this.saved = { x: 0, y: 0, attr: 0 };
+            this.g = 'BB';                        // what G0 and G1 hold: 'B' ASCII, '0' line drawing
+            this.gl = 0;                          // which of them is in use
+            this.saved = { x: 0, y: 0, attr: 0, g: 'BB', gl: 0 };
             this.state = 'ground';
             this.params = '';
             this.tabs = new Set();
@@ -90,7 +95,10 @@
             switch (this.state) {
                 case 'esc': return this.escape(b);
                 case 'csi': return this.csi(b);
-                case 'charset': this.state = 'ground'; return;
+                case 'charset': case 'charset1':
+                    if (this.lineDrawing) this.g = this.state === 'charset' ? String.fromCharCode(b === 0x30 ? 0x30 : 0x42) + this.g[1] : this.g[0] + String.fromCharCode(b === 0x30 ? 0x30 : 0x42);
+                    this.state = 'ground';
+                    return;
                 case 'hash':
                     this.state = 'ground';
                     if (b === 0x38) this.fill(69);
@@ -98,7 +106,7 @@
             }
             if (b < 0x20) return this.control(b);
             if (b === 0x7F) return;
-            this.print(b);
+            this.print(this.lineDrawing && this.g[this.gl] === '0' && b >= 0x5F && b <= 0x7E ? b | 0x80 : b);   // line drawing: stored as 128 + the code
         }
 
         /* ---------- VT52 ---------- */
@@ -279,6 +287,8 @@
                 }
                 case 0x0A: case 0x0B: case 0x0C: this.lineFeed(); break;
                 case 0x0D: this.wrapPending = false; this.x = 0; break;
+                case 0x0E: if (this.lineDrawing && this.mode === 'vt100') this.gl = 1; break;     // SO: G1
+                case 0x0F: if (this.lineDrawing && this.mode === 'vt100') this.gl = 0; break;     // SI: G0
             }
         }
 
@@ -299,6 +309,15 @@
             if (this.x === this.cols - 1) {
                 if (this.autowrap) this.wrapPending = true;
             } else this.x++;
+        }
+
+        saveCursor() { this.saved = { x: this.x, y: this.y, attr: this.attr, g: this.g, gl: this.gl }; }
+
+        restoreCursor() {
+            const s = this.saved;
+            ({ x: this.x, y: this.y, attr: this.attr } = s);
+            this.g = s.g || 'BB';
+            this.gl = s.gl || 0;
         }
 
         lineFeed() {
@@ -351,14 +370,15 @@
             this.state = 'ground';
             switch (ch) {
                 case '[': this.state = 'csi'; this.params = ''; break;
-                case '7': this.saved = { x: this.x, y: this.y, attr: this.attr }; break;
-                case '8': ({ x: this.x, y: this.y, attr: this.attr } = this.saved); this.wrapPending = false; break;
+                case '7': this.saveCursor(); break;
+                case '8': this.restoreCursor(); break;
                 case 'D': this.lineFeed(); break;
                 case 'M': this.reverseIndex(); break;
                 case 'E': this.x = 0; this.lineFeed(); break;
                 case 'c': this.reset(); break;
                 case 'H': this.tabs.add(this.x); break;
-                case '(': case ')': this.state = 'charset'; break;
+                case '(': this.state = 'charset'; break;
+                case ')': this.state = 'charset1'; break;
                 case '#': this.state = 'hash'; break;
                 // '=' '>' keypad modes and anything else: ignored
             }
@@ -416,8 +436,8 @@
                     this.x = 0; this.y = 0;
                     break;
                 }
-                case 's': this.saved = { x: this.x, y: this.y, attr: this.attr }; break;
-                case 'u': ({ x: this.x, y: this.y, attr: this.attr } = this.saved); break;
+                case 's': this.saveCursor(); break;
+                case 'u': this.restoreCursor(); break;
                 case 'L': if (this.y >= this.top && this.y <= this.bottom) this.scrollDown(this.y, this.bottom, Math.min(p(0, 1), this.bottom - this.y + 1)); break;
                 case 'M': if (this.y >= this.top && this.y <= this.bottom) this.scrollUp(this.y, this.bottom, Math.min(p(0, 1), this.bottom - this.y + 1)); break;
                 case '@': {
@@ -466,7 +486,7 @@
                 chars: this.chars.map(r => r.slice()), attrs: this.attrs.map(r => r.slice()),
                 x: this.x, y: this.y, attr: this.attr, top: this.top, bottom: this.bottom,
                 wrapPending: this.wrapPending, autowrap: this.autowrap, insertMode: this.insertMode,
-                cursorVisible: this.cursorVisible, saved: { ...this.saved },
+                cursorVisible: this.cursorVisible, saved: { ...this.saved }, g: this.g, gl: this.gl,
                 state: this.state, params: this.params, tabs: [...this.tabs]
             };
         }
@@ -502,7 +522,11 @@
             this.terminal = terminal;
         }
 
+        /** DEC special graphics, 0x5F-0x7E (stored as 128 more). */
+        static GRAPHICS = '\u00a0\u25c6\u2592\u2409\u240c\u240d\u240a\u00b0\u00b1\u2424\u240b\u2518\u2510\u250c\u2514\u253c\u23ba\u23bb\u2500\u23bc\u23bd\u251c\u2524\u2534\u252c\u2502\u2264\u2265\u03c0\u2260\u00a3\u00b7';
+
         static escape(code) {
+            if (code >= 0xDF && code <= 0xFE) return TerminalView.GRAPHICS[code - 0xDF];
             if (code === 60) return '&lt;';
             if (code === 62) return '&gt;';
             if (code === 38) return '&amp;';

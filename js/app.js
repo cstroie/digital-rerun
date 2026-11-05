@@ -70,12 +70,14 @@
 
     /* ---------- settings ---------- */
 
-    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, baud: 1200, serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
+    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, lineDrawing: true, baud: 1200, serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
 
     function applySettings() {
         $('speed').value = String(settings.speed);
         $('terminal').value = settings.terminal;
         term.mode = settings.terminal;
+        term.lineDrawing = settings.lineDrawing;
+        $('lineDrawing').checked = settings.lineDrawing;
         $('arrows').value = settings.arrows;
         $('phosphor').value = settings.phosphor;
         $('resume').checked = settings.resume;
@@ -1121,6 +1123,7 @@
         if (!snap) throw new Error('that snapshot is gone');
         Snapshot.restore(snap, parts);
         term.mode = settings.terminal;                    // the SETUP choice wins over the snapshot's
+        term.lineDrawing = settings.lineDrawing;
         machine.modem.baud = settings.baud;               // ditto the line speed (the snapshot said 1200 and the page showed 9600)
         // The disks are now the snapshot's: keep them as the current ones.
         for (const d of DRIVES) {
@@ -1261,6 +1264,11 @@
     if (SerialLine.supported()) navigator.serial.addEventListener('disconnect', e => { if (serial && serial.port === e.target) { leaveSerial(); PWA.toast('The modem port was unplugged.'); } });
     showSerial();
 
+    $('lineDrawing').addEventListener('change', () => {
+        settings.lineDrawing = $('lineDrawing').checked;
+        term.lineDrawing = settings.lineDrawing;
+        Storage.set('settings', settings).catch(() => {});
+    });
     $('online').addEventListener('change', () => {
         settings.online = $('online').checked;
         Storage.set('settings', settings).catch(() => {});

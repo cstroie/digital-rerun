@@ -4,9 +4,11 @@
  *
  *   T  the time and date          M  the moon
  *   B  the bulletin board         W  the weather desk (online, off by default)
- *   F  the file area: download and upload by XMODEM (checksum or CRC)
+ *   F  the file area: download and upload by XMODEM (checksum or CRC); L, the software library of the shelf
  *   C  chat with the sysop (services.sysop: the page's, not the emulated machine's)
  *   G  games: WOPR (js/wopr.js)   O  a fortune (js/fortune.js)
+ *   S  services: reference desk, news, sky, the wall, last callers, high scores, the weekly vote,
+ *      art gallery, mail to the sysop, the dial directory (js/doors.js)
  *   Q  quit (hangs up)
  *
  * Output is plain 7-bit text with VT100 bold and reverse; the caller's
@@ -24,6 +26,9 @@
  *   fetchJson(url) -> Promise<object>
  *   files        { list() -> Promise<[{ name, size }]>, get(name) -> Promise<Uint8Array|null>,
  *                  put(name, bytes) -> Promise }
+ *   library      { list() -> Promise<[{ id, name, files: [name] }]>, get(id, name) -> Promise<Uint8Array> }: the shelf's programs
+ *   doors, wall, callers, mail, poll   the services (js/doors.js, js/records.js); callers and mail also
+ *                    count a call and tell of replies at sign-on
  *   games, scores   more games for WOPR (js/games.js) and the high-score tables (js/scores.js)
  *   wopr, fortunes   the game (js/wopr.js) and the cookie jar (js/fortune.js); default: the page's
  *   random()     0 <= r < 1 (default Math.random)
@@ -252,13 +257,27 @@
         /* --- screens --- */
 
         sign() {
+            let extra = '';
+            if (this.s.callers) {
+                const last = this.s.callers.list().at(-1);
+                this.callerN = this.s.callers.start();
+                const d = last && new Date(last.when);
+                extra = `You are caller #${this.callerN}.${d ? ` The last call was ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} at ${pad2(d.getHours())}:${pad2(d.getMinutes())}.` : ''}\n`;
+            }
+            if (this.s.mail && this.s.mail.unread()) extra += `${BOLD}You have mail from the sysop${OFF}: S for services, then E.\n`;
             this.out(`${CLEAR}${REV}  DIGITAL RERUN BBS  ${OFF}  1200 baud, 24 hours a day, one line\n\n` +
-                `Welcome, caller. The sysop is asleep; the board is not.\n`);
+                `Welcome, caller. The sysop is asleep; the board is not.\n${extra}`);
             this.menu();
         }
 
+        /** The call is over: how long it was. */
+        endCall() {
+            if (this.callerN && this.s.callers) this.s.callers.end(this.callerN);
+            this.callerN = null;
+        }
+
         menu() {
-            this.out(`\n${BOLD}T${OFF}ime  ${BOLD}M${OFF}oon  ${BOLD}B${OFF}ulletins  ${BOLD}F${OFF}iles  ${BOLD}C${OFF}hat  ${BOLD}W${OFF}eather  ${BOLD}G${OFF}ames  f${BOLD}O${OFF}rtune  ${BOLD}Q${OFF}uit   ? `);
+            this.out(`\n${BOLD}T${OFF}ime  ${BOLD}M${OFF}oon  ${BOLD}B${OFF}ulletins  ${BOLD}F${OFF}iles  ${BOLD}C${OFF}hat  ${BOLD}W${OFF}eather  ${BOLD}G${OFF}ames  f${BOLD}O${OFF}rtune  ${BOLD}S${OFF}ervices  ${BOLD}Q${OFF}uit   ? `);
             this.mode = 'menu';
         }
 
@@ -280,6 +299,7 @@
         goodbye() {
             this.out(`\n\nThank you for calling. Mind the gap between signals.\n`);
             this.mode = 'busy';
+            this.endCall();
             this.link.hangup();
         }
 
@@ -327,10 +347,11 @@
             this.out(`\n\n${REV} FILES ${OFF}  XMODEM, checksum or CRC\n\n`);
             for (const f of list) this.out(`${f.name.padEnd(13)}${String(f.size).padStart(7)} bytes  ${String(Math.ceil(f.size / BLOCK)).padStart(4)} blocks\n`);
             if (!list.length) this.out('Nothing here.\n');
-            this.out(`\n${BOLD}D${OFF}ownload, ${BOLD}U${OFF}pload, ${BOLD}Q${OFF}uit to the menu? `);
+            this.out(`\n${BOLD}D${OFF}ownload, ${BOLD}U${OFF}pload, ${this.s.library ? `${BOLD}L${OFF}ibrary, ` : ''}${BOLD}Q${OFF}uit to the menu? `);
             this.ask('key', k => {
                 if (k === 'D') this.download(list);
                 else if (k === 'U') this.upload();
+                else if (k === 'L' && this.s.library) this.library();
                 else { this.out('\n'); this.menu(); }
             });
         }
@@ -341,12 +362,43 @@
                 const name = cpmName(text);
                 const data = name && await this.s.files.get(name);
                 if (!data) { this.out('No such file.\n'); return this.menu(); }
-                this.out(`${name}: ${Math.ceil(data.length / BLOCK)} blocks, about ${Math.ceil(data.length * 10 / 120)} seconds.\n` +
-                    'Start your XMODEM receive now. Ctrl-X cancels.\n');
-                this.xsend = { data, blocks: Math.ceil(data.length / BLOCK), n: 1, crc: false, state: 'wait', tries: 0 };
-                this.mode = 'xsend';
-                this.timeout(60000, () => this.xabort('Nobody answered. Back to the menu.'));
+                this.beginSend(name, data);
             }, 12);
+        }
+
+        /** The caller is to receive `data` by XMODEM. */
+        beginSend(name, data) {
+            this.out(`${name}: ${Math.ceil(data.length / BLOCK)} blocks, about ${Math.ceil(data.length * 10 / 120)} seconds.\n` +
+                'Start your XMODEM receive now. Ctrl-X cancels.\n');
+            this.xsend = { data, blocks: Math.ceil(data.length / BLOCK), n: 1, crc: false, state: 'wait', tries: 0 };
+            this.mode = 'xsend';
+            this.timeout(60000, () => this.xabort('Nobody answered. Back to the menu.'));
+        }
+
+        /** The software library: the shelf's programs, by XMODEM. */
+        async library() {
+            this.mode = 'busy';
+            let disks = [];
+            try { disks = await this.s.library.list(); } catch (e) { /* none */ }
+            this.out(`\n\n${REV} SOFTWARE LIBRARY ${OFF}\n\n`);
+            if (!disks.length) { this.out('The shelves are bare (or not reachable from here).\n'); return this.menu(); }
+            disks.forEach((d, i) => this.out(`${String(i + 1).padStart(3)}  ${clean(d.name).padEnd(30).slice(0, 30)} ${d.files.length} files\n`));
+            this.out('\nWhich disk (number, RETURN to leave)? ');
+            this.ask('line', async text => {
+                const d = disks[Number.parseInt(text, 10) - 1];
+                if (!d) { this.out('\n'); return this.menu(); }
+                this.out(`\n${BOLD}${clean(d.name)}${OFF}\n`);
+                const cols = d.files.map(f => f.padEnd(13)).join('').match(/.{1,78}/g) || [];
+                this.out(cols.join('\n') + '\n\nFile name? ');
+                this.ask('line', async f => {
+                    const name = d.files.find(x => x.toUpperCase() === f.trim().toUpperCase());
+                    if (!name) { this.out('No such file.\n'); return this.menu(); }
+                    let data = null;
+                    try { data = await this.s.library.get(d.id, name); } catch (e) { /* not reachable */ }
+                    if (!data) { this.out('The shelf would not give it up (offline?).\n'); return this.menu(); }
+                    this.beginSend(cpmName(name) || name.toUpperCase(), data);
+                }, 12);
+            }, 3);
         }
 
         /** The receiver's byte while a file goes out. */
@@ -488,6 +540,26 @@
             }, TEXT_MAX);
         }
 
+        /* --- the services --- */
+
+        services() {
+            const doors = this.s.doors;
+            if (!doors) { this.out('\n\nThe services desk is closed.\n'); return this.menu(); }
+            this.out(`\n\n${REV} SERVICES ${OFF}\n\n`);
+            const half = Math.ceil(doors.length / 2);
+            for (let i = 0; i < half; i++) {
+                const left = doors[i], right = doors[i + half];
+                this.out(` ${BOLD}${left.key}${OFF}  ${left.title.padEnd(26)}${right ? `${BOLD}${right.key}${OFF}  ${right.title}` : ''}\n`);
+            }
+            this.out(`\n ${BOLD}Q${OFF}  back to the menu   ? `);
+            this.ask('key', k => {
+                const door = doors.find(d => d.key === k);
+                if (!door) { this.out('\n'); return this.menu(); }
+                this.mode = 'busy';
+                door.run({ out: t => this.out(t), ask: (mode, fn, max) => this.ask(mode, fn, max), leave: () => this.services(), random: this.s.random || Math.random, s: this.s });
+            });
+        }
+
         /* --- WOPR --- */
 
         game() {
@@ -581,6 +653,7 @@
                 case 'C': return this.chat();
                 case 'G': return this.game();
                 case 'O': return this.fortune();
+                case 'S': return this.services();
                 case 'Q': return this.goodbye();
                 case '?': case 'H': this.out('\n'); return this.menu();
                 default: /* RETURN, line feed, noise: nothing */
@@ -603,7 +676,7 @@
             this.out(String.fromCharCode(byte));
         }
 
-        close() { this.closed = true; this.clear(); }
+        close() { this.closed = true; this.clear(); this.endCall(); }
     }
 
     /** The function a directory entry is: dials make a Session. */

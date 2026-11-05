@@ -86,7 +86,7 @@ flow control: a byte nobody reads before the next arrives is lost (overrun), as 
 - **W** the weather desk, needs SETUP → *Online services* (off by default): the city name goes to open-meteo.com
   (geocoding, then a 4-day forecast), nothing else. Off or unreachable: "the weather desk is not answering".
 - **C** chat with the sysop (below).
-- **G** games: WOPR (below). **O** a fortune. **Q** quit (hangs up).
+- **G** games: WOPR (below). **O** a fortune. **S** services (below). **Q** quit (hangs up).
 
 The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: a built-in terminal for CP/M 3's own `TERM`.
 
@@ -159,3 +159,36 @@ emulated machine, and says he is a program when sincerely asked.
   fiction, retro computing, cyberpunk, cold-war computing), plain ASCII, never repeating one of the last twenty;
   **Y** another.
 - **Q** at the menu quits the board (it was G, Goodbye).
+
+## The games of WOPR
+
+`G` enters WOPR; its list (`LIST GAMES`) holds, by name or number: TIC-TAC-TOE, BLACK JACK (bankroll, double down,
+3 to 2), HANGMAN (tech words, the streak is the score), CODEBREAKER (four letters A to F, ten tries), NIM (3-5-7,
+last object wins, WOPR plays the nim-sum), BATTLESHIP (8 by 8, ships of 4, 3, 3 and 2), HUNT THE WUMPUS (the
+classic twenty-room cave), LUNAR LANDER (fuel left is the score; the constants are tuned so a soft landing with fuel
+to spare exists, and a test lands it), FALKEN'S MAZE (a new 6 by 6 maze each time; fewer moves is better), HACK THE
+GIBSON (a daily cipher puzzle in a pretend terminal: LS, CAT, ROT, LOGIN, HINT), TWENTY QUESTIONS and KETTLE-7 (a text
+adventure of the relay station), then GLOBAL THERMONUCLEAR WAR. CHESS, CHECKERS, POKER and the like are listed
+as not loaded on this line. The games are `js/games.js`, `js/gibson.js`, `js/twentyq.js`, `js/adventure.js`; each
+is `{ name, play(h, done) }` (see the header of `js/wopr.js`), so a new one is one object in the list. High scores
+(`js/scores.js`): one table per game, kept in the browser, the best ten.
+
+**TWENTY QUESTIONS** has two minds: offline, you think of an animal and WOPR guesses it with yes/no questions, and
+*learns* a new animal and a question that tells it apart when it is wrong (kept in the browser). With the sysop's
+language model connected you can also choose to ask: the program keeps the secret and checks guesses itself, the
+model only answers Yes, No or Sometimes. **KETTLE-7** and **HACK THE GIBSON** ask the model for hints when it is
+connected (`Sysop.converse`), with their own hints as the fallback.
+
+## The services
+
+`S` at the menu opens the services (`js/doors.js`): **R** the reference desk (ASCII chart, a number converter,
+BDOS functions, the BIOS jump table, AT commands, 8080 and Z80 opcodes, VT100 codes: `js/reference.js`), **N** the
+news desk (Hacker News, Wikipedia on this day), **K** the sky desk (the space station now; sunrise and sunset of a
+city: the name goes to open-meteo.com), **L** the wall (one-liners, the last 30), **U** last callers (also counted at
+every call: "you are caller #N"), **H** high scores, **V** this week's vote (one of 26 questions a week; the regulars'
+votes are a fixed made-up tally, yours is added), **A** the art gallery, **E** mail to the sysop (he answers, a
+program, by the next call: "you have mail from the sysop"), **D** the dial directory (real telnet hosts, checked on
+5 Nov 2026, to dial through the bridge). News and sky are online desks: they need *Online services*, like the weather.
+
+**F, L** in the file area is the software library: the shelf's programs (disks made of files), sent by XMODEM
+(text files as CP/M text); at 1200 baud a big one takes minutes, as it should.

@@ -29,7 +29,7 @@
         'computer running inside a web page. You work the night shift. Your day job is Relay Station Kettle-7, where',
         'you tune a spectrogram and deliver letters to recurring callers, with a cat named Pixel. You are dry, warm',
         'and a little tired, and you like callers.',
-        'You know the board: T time, M moon, B bulletins, F files (XMODEM), W weather, C this chat, G games (WOPR), O a fortune, Q quit. You know',
+        'You know the board: T time, M moon, B bulletins, F files (XMODEM), W weather, C this chat, G games (WOPR), O a fortune, S services (reference, news, wall, mail), Q quit. You know',
         'TERM (Ctrl-] R receives and S sends a file, Q quits, H hangs up), Hayes AT commands, CP/M 2.2 and 3, the Z80,',
         '8080 assembler and the old software of the shelf.',
         'Write plain ASCII only, at most four short lines of about 70 characters, no markdown, no lists, no emoji.',
@@ -110,7 +110,7 @@
         [/\b(bbs|board|bulletin|post|message)s?\b/i, [
             'The bulletins are B at the menu: a name and one line. Keep it kind and keep it free of names and numbers.',
             'Leave a note on the board. Someone will read it, on the next shift or the one after.']],
-        [/\b(help|menu|commands|what can)\b/i, ['T time, M moon, B bulletins, F files, C chat, W weather, G games, O fortune. Q quits.']],
+        [/\b(help|menu|commands|what can)\b/i, ['T time, M moon, B bulletins, F files, C chat, W weather, G games, O fortune, S services. Q quits.']],
         [/\b(sad|tired|lonely|bored|stressed|anxious|angry)\b/i, [
             'It is a long night for everyone. Tell me more, if you like. I have time and tea.',
             'I know that one. The signals come back. They always come back.']],

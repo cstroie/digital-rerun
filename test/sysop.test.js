@@ -43,7 +43,7 @@ test('the rules: honest about being a program, know the board, reflect, and have
     assert.match(s.rules('I am worried about my exam'), /worried about your exam/);
     assert.match(s.rules('I want a quiet night'), /a quiet night/);
     assert.match(s.rules('zxcv qwerty'), /./);
-    assert.match(s.rules('help'), /T time.*G games.*Q quits/);
+    assert.match(s.rules('help'), /T time.*G games.*S services.*Q quits/);
 });
 
 test('the rules vary: the same question is not answered the same way every time', () => {

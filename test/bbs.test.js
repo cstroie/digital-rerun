@@ -579,3 +579,109 @@ test('G: the games of js/games.js join WOPR\'s list, and a game plays through th
     assert.match(c.out, /THE CODE WAS/);
     assert.match(c.out, /SHALL WE PLAY ANOTHER GAME/);
 });
+
+/* ---------- the services ---------- */
+
+test('S: the services menu runs a door and comes back to it; Q returns to the main menu', () => {
+    const D = require('../js/doors.js');
+    const { Wall, Callers, Mail, Poll } = require('../js/records.js');
+    const memory = new Map();
+    const store = { get: k => memory.get(k) ?? null, set: (k, v) => memory.set(k, v) };
+    const c = caller({ doors: D.DOORS, wall: new Wall(store), callers: new Callers(store), mail: new Mail(store), poll: new Poll(store), store });
+    const plain = t => t.replace(/\x1b\[[0-9;]*m/g, '');
+    c.take();
+    c.type('s');
+    assert.match(plain(c.out), /SERVICES/);
+    assert.match(plain(c.out), /R {2}Reference desk/);
+    assert.match(plain(c.out), /D {2}Dial directory/);
+    c.take();
+    c.type('d');
+    assert.match(c.out, /DIAL DIRECTORY/);
+    assert.match(c.out, /SERVICES/, 'back at the services menu');
+    c.take();
+    c.type('q');
+    assert.match(c.out, /ime .*oon .*ervices/s);
+});
+
+test('S: without the doors module the desk is closed', () => {
+    const c = caller();
+    c.take();
+    c.type('s');
+    assert.match(c.out, /services desk is closed/);
+});
+
+test('sign-on: the caller number and the last call; mail from the sysop is announced; the call length is kept at goodbye', () => {
+    const { Callers, Mail } = require('../js/records.js');
+    const memory = new Map();
+    const store = { get: k => memory.get(k) ?? null, set: (k, v) => memory.set(k, v) };
+    const callers = new Callers(store), mail = new Mail(store);
+    const first = caller({ callers, mail });
+    assert.match(first.out, /You are caller #1\./);
+    assert.doesNotMatch(first.out, /last call was/);
+    first.type('q');
+    assert.equal(callers.list()[0].minutes, 1);
+    const id = mail.send('hi'); mail.setReply(id, 'hello');
+    const second = caller({ callers, mail });
+    assert.match(second.out, /You are caller #2\. The last call was \d+ \w{3} at \d\d:\d\d\./);
+    assert.match(second.out, /You have mail from the sysop/);
+});
+
+test('a dropped call still counts: closing the session ends it', () => {
+    const { Callers } = require('../js/records.js');
+    const memory = new Map();
+    const store = { get: k => memory.get(k) ?? null, set: (k, v) => memory.set(k, v) };
+    const callers = new Callers(store);
+    const c = caller({ callers });
+    c.session.close();
+    assert.equal(callers.list()[0].minutes, 1);
+});
+
+test('F, L: the software library lists the shelf, names a disk\'s files, and sends one by XMODEM', async () => {
+    const { MemoryFiles, xmodemBlock } = require('../js/bbs.js');
+    const asked = [];
+    const library = {
+        list: async () => [{ id: 'z', name: 'A GAME', files: ['PLAY.COM', 'GAME.DAT'] }],
+        get: async (id, name) => { asked.push([id, name]); return Uint8Array.from({ length: 200 }, (_, i) => i); }
+    };
+    const timers = [];
+    const c = caller({ files: new MemoryFiles(), library, after: fn => timers.push(fn), cancel() {} });
+    const plain = t => t.replace(/\x1b\[[0-9;]*m/g, '');
+    c.type('f');
+    await c.settle();
+    assert.match(plain(c.out), /Library, /);
+    c.take();
+    c.type('l');
+    await c.settle();
+    assert.match(plain(c.out), /SOFTWARE LIBRARY/);
+    assert.match(plain(c.out), / 1 {2}A GAME +2 files/);
+    c.take();
+    c.type('1\r');
+    await c.settle();
+    assert.match(plain(c.out), /PLAY\.COM *GAME\.DAT/);
+    c.take();
+    c.type('play.com\r');
+    await c.settle();
+    assert.deepEqual(asked, [['z', 'PLAY.COM']]);
+    assert.match(c.out, /PLAY\.COM: 2 blocks/);
+    const bytes = [];
+    c.session.link.receive = t => { if (typeof t !== 'string') bytes.push(...t); };
+    c.session.send(21);
+    assert.deepEqual(bytes, xmodemBlock(Uint8Array.from({ length: 200 }, (_, i) => i), 1, false));
+});
+
+test('F, L: no library service, no L; a missing file or an unreachable shelf is said so', async () => {
+    const { MemoryFiles } = require('../js/bbs.js');
+    let c = caller({ files: new MemoryFiles() });
+    c.type('f');
+    await c.settle();
+    assert.doesNotMatch(c.out, /ibrary/);
+    c = caller({ files: new MemoryFiles(), library: { list: async () => [{ id: 'z', name: 'D', files: ['A.COM'] }], get: async () => { throw new Error('offline'); } } });
+    c.type('f'); await c.settle(); c.type('l'); await c.settle(); c.type('1\r'); await c.settle();
+    c.take();
+    c.type('nope\r'); await c.settle();
+    assert.match(c.out, /No such file/);
+    c = caller({ files: new MemoryFiles(), library: { list: async () => [{ id: 'z', name: 'D', files: ['A.COM'] }], get: async () => { throw new Error('offline'); } } });
+    c.type('f'); await c.settle(); c.type('l'); await c.settle(); c.type('1\r'); await c.settle(); c.take();
+    c.type('a.com\r'); await c.settle();
+    assert.match(c.out, /would not give it up/);
+});

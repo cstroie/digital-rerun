@@ -7,7 +7,7 @@
     'use strict';
 
     const { Machine, Disk, CpmFs, FORMATS, diskFromImage, ALTAIR_SIZE, altairFiles, Terminal, TerminalView, FX80, PaperView, Storage,
-        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard, StoredFiles, SerialLine, Gateway, Sysop, Scores } = window.DigitalRerun;
+        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard, StoredFiles, SerialLine, Gateway, Sysop, Scores, Wall, Callers, Mail, Poll, doors } = window.DigitalRerun;
 
     const $ = id => document.getElementById(id);
     const DRIVES = [0, 1, 2, 3, 8];                 // A: B: C: D: I:
@@ -24,16 +24,28 @@
     const sound = new window.DigitalRerun.Sound();
     machine.console.output = b => term.write(b);
     // the modem on ports 6 and 7 (TERM, ATDT): 0 is the echo service, 5550100 the bulletin board
+    const bbsStore = { get: k => localStorage.getItem('digitalrerun.bbs.' + k), set: (k, v) => localStorage.setItem('digitalrerun.bbs.' + k, v) };
     const directory = new Directory().add('5550100', bbs({
         now: () => new Date(),
         board: new StoredBoard(localStorage),
         files: new StoredFiles(localStorage),
-        store: { get: k => localStorage.getItem('digitalrerun.bbs.' + k), set: (k, v) => localStorage.setItem('digitalrerun.bbs.' + k, v) },
+        store: bbsStore,
         online: () => settings.online,
         wopr: window.DigitalRerun.wopr,
         games: [...window.DigitalRerun.games, window.DigitalRerun.gibson, window.DigitalRerun.twentyq, window.DigitalRerun.adventure],
-        scores: new Scores({ get: k => localStorage.getItem('digitalrerun.bbs.' + k), set: (k, v) => localStorage.setItem('digitalrerun.bbs.' + k, v) }),
+        scores: new Scores(bbsStore),
         fortunes: { pick: window.DigitalRerun.pick, FORTUNES: window.DigitalRerun.FORTUNES },
+        doors,
+        library: {                                                          // the shelf's programs, for XMODEM
+            list: async () => shelf.filter(e => e.files && !e.image && e.files.length).map(e => ({ id: e.id, name: e.name, files: e.files.map(f => f.name) })),
+            get: async (id, name) => {
+                const e = shelf.find(x => x.id === id), f = e && e.files.find(x => x.name === name);
+                if (!f) return null;
+                const bytes = await fetchBytes(f.path);
+                return window.DigitalRerun.Shelf.isText(e, name, bytes) ? toCpmText(bytes) : bytes;
+            }
+        },
+        wall: new Wall(bbsStore), callers: new Callers(bbsStore), mail: new Mail(bbsStore), poll: new Poll(bbsStore),
         sysop: new Sysop({ online: () => settings.online, config: () => ({ url: settings.sysopUrl, model: settings.sysopModel, key: settings.sysopKey }) }),
         fetchJson: url => fetch(url, { signal: AbortSignal.timeout(8000), referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
     }));

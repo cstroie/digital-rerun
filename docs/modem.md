@@ -106,12 +106,17 @@ DTR instead (off by default: a USB board with an ESP chip resets when DTR change
 A browser cannot open a TCP connection, so `ATDT host:port` goes through a small program you run yourself:
 
 ```
-node tools/modem-bridge.js --allow=bbs.example.org            # prints its address and a token
+tools/bridge.sh                      # the board's directory allowed, port 1984
+tools/bridge.sh telehack.com,bbs.fozztexx.com     # or name your own hosts
+tools/bridge.sh --show-token         # just print the token
 ```
 
-then SETUP → MODEM: *Bridge* `ws://localhost:8765` and *Bridge token*, and in TERM `ATDT bbs.example.org` (port
-23) or `ATDT bbs.example.org:2323` (use `ATDT`: Hayes takes a lone `T` or `P` after `D` as a dial modifier).
-Anything that is not a number of the built-in directory (letters or dots) goes to the bridge.
+It prints its address (`ws://127.0.0.1:1984`) and a token. The token is not random: it is worked out from this machine's name, your
+user name and the port (three words and four hex digits, e.g. `valve-yonder-dynamo-8829`), so it is the same every run and can be
+typed into SETUP once (`BRIDGE_SEED=salt` adds a salt; `BRIDGE_PORT` changes the port). It keeps stray web pages out; it is not a
+secret from someone who knows the machine name, the user and the port. Then SETUP → MODEM: *Bridge* `ws://localhost:1984` and
+*Bridge token*, and in TERM `ATDT bbs.example.org` (port 23) or `ATDT bbs.example.org:2323` (use `ATDT`: Hayes takes a lone `T` or
+`P` after `D` as a dial modifier). Anything that is not a number of the built-in directory (letters or dots) goes to the bridge.
 
 - **The bridge** (`tools/modem-bridge.js`, no dependencies) is a WebSocket to TCP pipe. `--allow` is required and
   names what may be dialed (`host`, `host:port`, `*.domain`, `*` for any public host; `--allow-private` lets `*`

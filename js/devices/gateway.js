@@ -24,7 +24,7 @@
     const REASONS = { 4002: 'BUSY', 4003: 'NO ANSWER' };
 
     class Gateway {
-        /** `url`: the bridge, e.g. ws://localhost:8765; `token`: its secret. */
+        /** `url`: the bridge, e.g. ws://localhost:1984; `token`: its secret. */
         constructor({ url, token = '', WebSocketClass = root.WebSocket } = {}) {
             this.url = url;
             this.token = token;

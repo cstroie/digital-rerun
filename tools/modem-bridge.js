@@ -3,14 +3,20 @@
  * modem-bridge.js: a WebSocket to TCP gateway, so the browser's modem can dial
  * a telnet host (a browser cannot open a TCP connection itself).
  *
- *   node tools/modem-bridge.js --allow=<hosts> [--port=8765] [--bind=127.0.0.1]
- *        [--token=<secret>] [--origin=<page origin>[,...]] [--timeout=10]
- *        [--max=8] [--allow-private]
+ *   node tools/modem-bridge.js --allow=<hosts> [--port=1984] [--bind=127.0.0.1]
+ *        [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<page origin>[,...]]
+ *        [--timeout=10] [--max=8] [--allow-private]
+ *   tools/bridge.sh [hosts]      the same, with the board's directory allowed by default
  *
  *   --allow    which hosts may be dialed, comma separated: `bbs.example.org`,
  *              `bbs.example.org:2323`, `*.example.org`, or `*` for any public
  *              host. Required: nothing is dialed that is not named.
- *   --token    a secret the page must send (default: made up and printed).
+ *   --port     default 1984 (the year of a certain novel, and of a certain computer).
+ *   --token    a secret the page must send. By default it is not random but worked out
+ *              from this machine's name, your user name and the port (and --seed, if
+ *              given): three words and four hex digits, the same every run, so it can be
+ *              typed into SETUP once. It keeps stray web pages out; it is not a secret
+ *              from someone who knows those three things. --show-token prints it and exits.
  *   --origin   the page origin(s) allowed to connect (default: any).
  *   --allow-private  let `*` reach private and loopback addresses too (they
  *              can always be named in --allow).
@@ -30,7 +36,24 @@ const http = require('http');
 const net = require('net');
 const crypto = require('crypto');
 
+const os = require('os');
+
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+const DEFAULT_PORT = 1984;
+
+const WORDS = ['relay', 'comet', 'lantern', 'signal', 'carrier', 'phosphor', 'beacon', 'orbit', 'kettle', 'pixel', 'cipher', 'vector', 'static', 'ghost', 'neon', 'quartz',
+    'binary', 'socket', 'packet', 'modem', 'daemon', 'kernel', 'buffer', 'tensor', 'photon', 'plasma', 'nebula', 'zenith', 'cobalt', 'amber', 'raven', 'ember',
+    'falcon', 'harbor', 'island', 'jungle', 'lumen', 'matrix', 'nimbus', 'onyx', 'prism', 'radar', 'sonar', 'tundra', 'umbra', 'valve', 'warp', 'xenon',
+    'yonder', 'zephyr', 'argon', 'bishop', 'copper', 'dynamo', 'echo', 'fusion', 'gravity', 'helix', 'ion', 'jade', 'krypton', 'laser', 'meteor', 'nova'];
+
+/**
+ * A token worked out from the machine's name, the user and the port (and a salt): three
+ * words and four hex digits. The same inputs, the same token, every run.
+ */
+function seedToken({ host = os.hostname(), user = (() => { try { return os.userInfo().username; } catch (e) { return 'user'; } })(), port = DEFAULT_PORT, salt = '' } = {}) {
+    const h = crypto.createHash('sha256').update(`digitalrerun|${host}|${user}|${port}|${salt}`).digest();
+    return `${WORDS[h[0] & 63]}-${WORDS[h[1] & 63]}-${WORDS[h[2] & 63]}-${h.subarray(3, 5).toString('hex')}`;
+}
 const MAX_FRAME = 1 << 20;
 
 /** Is `host` a private, loopback or link-local address, or a local name (a literal check: no DNS)? */
@@ -161,11 +184,13 @@ function createBridge({ allow = [], token = '', origins = null, timeout = 10, ma
 
 function main() {
     const args = Object.fromEntries(process.argv.slice(2).map(a => { const m = /^--([^=]+)(?:=(.*))?$/.exec(a); return m ? [m[1], m[2] === undefined ? true : m[2]] : [a, true]; }));
+    const port = Number(args.port) || DEFAULT_PORT;
+    const token = typeof args.token === 'string' ? args.token : seedToken({ port, salt: typeof args.seed === 'string' ? args.seed : '' });
+    if (args['show-token']) { console.log(token); return; }
     if (args.help || !args.allow || args.allow === true) {
-        console.error('usage: node tools/modem-bridge.js --allow=<host[:port],*.domain,*> [--port=8765] [--bind=127.0.0.1] [--token=<secret>] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private]');
+        console.error('usage: node tools/modem-bridge.js --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private]');
         process.exit(args.help ? 0 : 2);
     }
-    const token = typeof args.token === 'string' ? args.token : crypto.randomBytes(12).toString('hex');
     const server = createBridge({
         allow: args.allow.split(',').map(s => s.trim()).filter(Boolean),
         token,
@@ -175,7 +200,7 @@ function main() {
         allowPrivate: !!args['allow-private'],
         log: t => console.error(new Date().toISOString().slice(11, 19), t)
     });
-    const port = Number(args.port) || 8765, bind = typeof args.bind === 'string' ? args.bind : '127.0.0.1';
+    const bind = typeof args.bind === 'string' ? args.bind : '127.0.0.1';
     server.listen(port, bind, () => {
         console.error(`modem bridge on ws://${bind}:${port}  allowing: ${args.allow}`);
         console.error(`token: ${token}`);
@@ -185,4 +210,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { createBridge, allowed, isPrivate, frame, FrameReader };
+module.exports = { createBridge, allowed, isPrivate, frame, FrameReader, seedToken, DEFAULT_PORT };

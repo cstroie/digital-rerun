@@ -193,3 +193,55 @@ test('the gateway answers like a phone: no bridge, refused, busy', async () => {
     assert.equal(await new Gateway({ url: `ws://127.0.0.1:${bport}` }).dial('127.0.0.1', deadPort, link), 'BUSY');
     await closeAll(bridge);
 });
+
+/* ---------- the token and the script ---------- */
+
+const { seedToken, DEFAULT_PORT } = require('../tools/modem-bridge.js');
+const { execFileSync, spawn } = require('node:child_process');
+const path = require('node:path');
+
+test('the default port is 1984', () => assert.equal(DEFAULT_PORT, 1984));
+
+test('seedToken: three words and four hex digits, the same for the same inputs, different for any change', () => {
+    const base = { host: 'box', user: 'ann', port: 1984, salt: '' };
+    const t = seedToken(base);
+    assert.match(t, /^[a-z]+-[a-z]+-[a-z]+-[0-9a-f]{4}$/);
+    assert.equal(seedToken({ ...base }), t);
+    for (const change of [{ host: 'box2' }, { user: 'bob' }, { port: 2600 }, { salt: 'x' }]) assert.notEqual(seedToken({ ...base, ...change }), t, JSON.stringify(change));
+    assert.match(seedToken(), /^[a-z]+-[a-z]+-[a-z]+-[0-9a-f]{4}$/, 'from this machine and user by default');
+});
+
+test('--show-token prints the token the bridge would use, and exits', () => {
+    const script = path.join(__dirname, '../tools/modem-bridge.js');
+    const out = execFileSync('node', [script, '--show-token'], { encoding: 'utf8' }).trim();
+    assert.equal(out, seedToken({ port: DEFAULT_PORT }));
+    assert.equal(execFileSync('node', [script, '--show-token', '--port=2600'], { encoding: 'utf8' }).trim(), seedToken({ port: 2600 }));
+    assert.equal(execFileSync('node', [script, '--show-token', '--seed=abc'], { encoding: 'utf8' }).trim(), seedToken({ port: DEFAULT_PORT, salt: 'abc' }));
+    assert.equal(execFileSync('node', [script, '--show-token', '--token=mine'], { encoding: 'utf8' }).trim(), 'mine');
+});
+
+test('tools/bridge.sh: valid sh, executable, shows the same token, takes the port and a seed from the environment', () => {
+    const sh = path.join(__dirname, '../tools/bridge.sh');
+    execFileSync('sh', ['-n', sh]);
+    assert.ok(require('node:fs').statSync(sh).mode & 0o111, 'executable');
+    assert.equal(execFileSync(sh, ['--show-token'], { encoding: 'utf8' }).trim(), seedToken({ port: 1984 }));
+    assert.equal(execFileSync(sh, ['--show-token'], { encoding: 'utf8', env: { ...process.env, BRIDGE_PORT: '2600', BRIDGE_SEED: 'q' } }).trim(), seedToken({ port: 2600, salt: 'q' }));
+});
+
+test('tools/bridge.sh starts a bridge on the default port that the gateway can dial through, allowing the directory\'s hosts', async () => {
+    const sh = path.join(__dirname, '../tools/bridge.sh');
+    const port = 20000 + Math.floor(Math.random() * 20000);
+    const child = spawn(sh, [], { env: { ...process.env, BRIDGE_PORT: String(port) }, stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    child.stderr.on('data', d => { err += d; });
+    try {
+        for (let i = 0; i < 100 && !/token:/.test(err); i++) await new Promise(r => setTimeout(r, 50));
+        assert.match(err, new RegExp(`ws://127\\.0\\.0\\.1:${port}`));
+        assert.ok(err.includes(`token: ${seedToken({ port })}`), err);
+        const link = { receive() {}, hangup() {} };
+        // right token, a host not on the list: the bridge answers (4001: NO CARRIER), so it is there and checking the list
+        assert.equal(await new Gateway({ url: `ws://127.0.0.1:${port}`, token: seedToken({ port }) }).dial('example.org', 23, link), 'NO CARRIER');
+        // wrong token: refused before the upgrade, which the page sees as no bridge
+        assert.equal(await new Gateway({ url: `ws://127.0.0.1:${port}`, token: 'wrong' }).dial('example.org', 23, link), 'NO DIALTONE');
+    } finally { child.kill(); }
+});

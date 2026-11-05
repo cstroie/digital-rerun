@@ -45,7 +45,12 @@
                 const telnet = new Telnet({ send: bytes => { if (ws.readyState === 1) ws.send(Uint8Array.from(bytes)); } });
                 let reached = false, up = false;
                 const remote = {
-                    send: byte => { if (ws.readyState === 1) ws.send(Uint8Array.from(telnet.encode(byte))); },
+                    send: byte => {
+                        if (ws.readyState !== 1) return;
+                        ws.send(Uint8Array.from(telnet.encode(byte)));
+                        // a server that has not taken over the echo (a MUD such as Aardwolf) leaves it to us
+                        if (!telnet.serverEchoes()) link.receive(byte === 13 ? [13, 10] : [byte]);
+                    },
                     close: () => { try { ws.close(1000); } catch (e) { /* gone */ } }
                 };
                 ws.onopen = () => { reached = true; };

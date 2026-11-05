@@ -276,7 +276,7 @@
             const alive = (fleet, shots) => fleet.some(s => !sunk(fleet, shots, s));
             const cellChar = (fleet, shots, i, reveal) => (shots.has(i) ? (fleet.some(s => s.cells.includes(i)) ? 'X' : 'o') : reveal && fleet.some(s => s.cells.includes(i)) ? '#' : '.');
             const grids = () => {
-                let t = '\n   YOUR SHOTS          YOUR FLEET\n   1 2 3 4 5 6 7 8     1 2 3 4 5 6 7 8\n';
+                let t = '\n   YOUR SHOTS             YOUR FLEET\n   1 2 3 4 5 6 7 8        1 2 3 4 5 6 7 8\n';
                 for (let r = 0; r < N; r++) {
                     const row = f => Array.from({ length: N }, (_, c) => f(r * N + c)).join(' ');
                     t += `${'ABCDEFGH'[r]}  ${row(i => cellChar(theirs, myShots, i, false))}     ${'ABCDEFGH'[r]}  ${row(i => cellChar(mine, shotsAtMe, i, true))}\n`;

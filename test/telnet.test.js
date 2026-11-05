@@ -72,3 +72,12 @@ test('what the program sends: 255 doubled, CR as CR NUL', () => {
     assert.deepEqual(t.encode(255), [255, 255]);
     assert.deepEqual(t.encode(13), [13, 0]);
 });
+
+test('serverEchoes: false until the server says WILL ECHO, false again after WONT ECHO', () => {
+    const t = new Telnet({ send() {} });
+    assert.strictEqual(t.serverEchoes(), false);
+    t.feed([255, 251, 1]);
+    assert.strictEqual(t.serverEchoes(), true);
+    t.feed([255, 252, 1]);
+    assert.strictEqual(t.serverEchoes(), false);
+});

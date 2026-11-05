@@ -199,7 +199,7 @@
             if (!all.length) h.out('No replies yet. The sysop is asleep, or typing.\n');
             for (const m of all.slice(-5)) h.out(`${BOLD}you${OFF}    ${when(m.when)}  ${m.text}\n${BOLD}sysop${OFF}  ${m.reply}\n\n`);
             h.s.mail.markRead();
-            menu();
+            finish2(h, menu);
         };
         menu();
     }

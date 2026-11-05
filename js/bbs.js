@@ -129,7 +129,7 @@
     const MENU_ART = [
         ['      /\\_/\\', '     ( o.o )   PIXEL', '      > ^ <', '     /|   |\\'],
         ['        *', '       /|\\', '      / | \\', '     /--+--\\     KETTLE-7', '       |_|'],
-        ['    .--------.', '    | A> _  |', '    |        |   PHOSPHOR', "    '--------'"],
+        ['    .--------.', '    | A> _   |', '    |        |   PHOSPHOR', "    '--------'"],
         ['      _', '     [_]', '     /_\\    LIGHTHOUSE', '    |   |', '    | O |']
     ];
 
@@ -351,9 +351,8 @@
             const items = [['T', 'time', 'the clock, big'], ['M', 'moon', 'phase, age, a drawing'], ['B', 'bulletins', 'read and post'], ['F', 'files', 'XMODEM, the shelf'],
                 ['C', 'chat', 'the night-shift sysop'], ['W', 'weather', 'needs the internet'], ['G', 'games', 'WOPR and friends'], ['O', 'fortune', 'a cookie from the jar'],
                 ['S', 'services', 'desks and doors'], ['Q', 'quit', 'hang up']];
-            // the whole console the first time and on a fast line; coming back on a slow one, only the menu
-            const full = this.baud() >= 2400 || (!this.shown && this.baud() > 300);
-            this.shown = true;
+            // the whole console every time, except at 300 baud: only the menu
+            const full = this.baud() > 300;
             const item = ([k, name, desc], withDesc) => `${BOLD}[${k}]${OFF} ${withDesc ? name.padEnd(11) + `${DIM}${desc}${OFF}` : name}`;
             const itemWidth = ([, name, desc], withDesc) => 4 + 11 + (withDesc ? desc.length : 0);
 

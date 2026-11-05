@@ -1121,6 +1121,7 @@
         if (!snap) throw new Error('that snapshot is gone');
         Snapshot.restore(snap, parts);
         term.mode = settings.terminal;                    // the SETUP choice wins over the snapshot's
+        machine.modem.baud = settings.baud;               // ditto the line speed (the snapshot said 1200 and the page showed 9600)
         // The disks are now the snapshot's: keep them as the current ones.
         for (const d of DRIVES) {
             const disk = machine.fdc.drives[d];
@@ -1184,10 +1185,17 @@
     });
     /* ---------- the modem line: the built-in one, or a real modem on a serial port ---------- */
 
+    /** What the browser tells of a port: it never gives the device name, only the USB ids (none for a built-in UART). */
+    function serialName(port) {
+        const info = port && port.getInfo ? port.getInfo() : {};
+        const hex = n => n.toString(16).toUpperCase().padStart(4, '0');
+        return info.usbVendorId !== undefined ? `USB ${hex(info.usbVendorId)}:${hex(info.usbProductId || 0)}` : 'SERIAL PORT';
+    }
+
     function showSerial() {
         const on = !!serial;
-        $('serialBtn').textContent = on ? 'BUILT-IN MODEM' : 'REAL MODEM…';
-        $('serial-state').textContent = on ? 'REAL, ' + settings.baud + ' BAUD' : '';
+        $('serialBtn').textContent = on ? 'DISCONNECT REAL MODEM' : 'CONNECT REAL MODEM…';
+        $('serial-state').textContent = on ? `REAL MODEM CONNECTED, ${serialName(serial.port)}, ${settings.baud} BAUD` : 'NOT CONNECTED (BUILT-IN MODEM)';
         $('serialBtn').disabled = !on && !SerialLine.supported();
         $('serialBtn').title = SerialLine.supported() ? 'Use a real modem on a USB serial port instead of the built-in one' : 'This browser has no Web Serial (try Chrome or Edge)';
         $('serialSignals').disabled = on;

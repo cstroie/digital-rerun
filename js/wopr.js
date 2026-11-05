@@ -119,8 +119,12 @@
         ];
 
         function list() {
+            // only the games that run, in two columns, down the left one first
+            const shown = games.map((g, i) => ({ g, n: i + 1 })).filter(x => x.g.run);
+            const half = Math.ceil(shown.length / 2);
+            const cell = x => `${String(x.n).padStart(3)}  ${x.g.name}`;
             out('\n');
-            games.forEach((g, i) => out(`${String(i + 1).padStart(3)}  ${g.name}${g.run ? '' : '   (not loaded on this line)'}\n`));
+            for (let i = 0; i < half; i++) out(`${shown[i + half] ? cell(shown[i]).padEnd(38) + cell(shown[i + half]) : cell(shown[i])}\n`);
         }
 
         function command(text) {

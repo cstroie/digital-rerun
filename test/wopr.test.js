@@ -39,15 +39,16 @@ test('a blank or odd logon is still greeted; nothing odd is echoed', () => {
     assert.equal(v.text.includes('\x1b[2Jbob'), false);
 });
 
-test('LIST GAMES lists them; a game not loaded says so; unknown commands are refused; LOGOFF leaves', () => {
+test('LIST GAMES lists them; a game not loaded is not listed but says so when asked; unknown commands are refused; LOGOFF leaves', () => {
     const w = rig();
     w.say('x');
     w.take();
     w.say('list games');
     assert.match(w.text, /TIC-TAC-TOE/);
     assert.match(w.text, /GLOBAL THERMONUCLEAR WAR/);
-    assert.match(w.text, /CHESS {3}\(not loaded on this line\)/);
-    assert.match(w.text, /^ {2}1 {2}TIC-TAC-TOE/m);
+    assert.doesNotMatch(w.text, /CHESS|CHECKERS|not loaded/, 'the games not loaded are left off the list');
+    assert.match(w.text, /^ {2}1 {2}TIC-TAC-TOE {2,}\s*\d+ {2}\S/m, 'two columns');
+    assert.ok(w.text.split('\n').length < 20, 'the list fits a screen');
     w.take();
     w.say('chess');
     assert.match(w.text, /CHESS: NOT LOADED ON THIS LINE/);
@@ -196,7 +197,7 @@ test('the games that join through the host are listed, numbered after tic-tac-to
     h.asks.pop().fn('Ann');
     h.text = '';
     h.asks.pop().fn('list');
-    assert.match(h.text, /^ {2}1 {2}TIC-TAC-TOE\n {2}2 {2}HANGMAN\n {2}3 {2}GLOBAL THERMONUCLEAR WAR\n/m);
+    assert.match(h.text, /^ {2}1 {2}TIC-TAC-TOE +3 {2}GLOBAL THERMONUCLEAR WAR\n {2}2 {2}HANGMAN\n/m);
     h.text = '';
     h.asks.pop().fn('han');
     assert.match(h.text, /PLAYING/);

@@ -8,7 +8,7 @@
  *                 doubled, CR as CR NUL)
  *
  * It agrees to ECHO and SUPPRESS-GO-AHEAD from the server (the server does
- * the echoing, as a BBS does), offers TERMINAL-TYPE and NAWS (the window size),
+ * the echoing, as a BBS does; with no ECHO from the server, serverEchoes() is false and the gateway echoes locally), offers TERMINAL-TYPE and NAWS (the window size),
  * and refuses everything else (BINARY, LINEMODE ...).
  */
 (function (root) {
@@ -78,6 +78,9 @@
                 if (this.us.delete(opt)) this.send([IAC, WONT, opt]);
             }
         }
+
+        /** The server said WILL ECHO and we agreed: it echoes what is typed, so we must not. */
+        serverEchoes() { return this.them.has(ECHO); }
 
         sendSize() {
             const dim = n => [n >> 8, n & 0xFF].flatMap(v => (v === IAC ? [IAC, IAC] : [v]));

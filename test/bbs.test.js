@@ -697,7 +697,7 @@ test('F, L: no library service, no L; a missing file or an unreachable shelf is 
     assert.match(plain(c.out), /would not give it up/);
 });
 
-test('the main page follows the line: lean at 300 baud, the whole console the first time at 1200, always on a fast line', () => {
+test('the main page follows the line: lean at 300 baud, the whole console every time above it', () => {
     const slow = caller({ baud: () => 300 });
     assert.doesNotMatch(plain(slow.out), /SYSTEM/);
     assert.match(plain(slow.out), /\[T\] time/, 'the menu is there');
@@ -707,8 +707,7 @@ test('the main page follows the line: lean at 300 baud, the whole console the fi
     assert.match(plain(mid.out), /LOG/);
     mid.take();
     mid.session.menu();
-    assert.doesNotMatch(plain(mid.out), /SYSTEM/, 'coming back on a slow line: only the menu');
-    assert.ok(mid.out.length < 700, `a lean menu: ${mid.out.length} characters`);
+    assert.match(plain(mid.out), /SYSTEM/, 'coming back at 1200: the system panel is drawn again');
     const fast = caller({ baud: () => 9600 });
     fast.take();
     fast.session.menu();

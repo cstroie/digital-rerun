@@ -92,14 +92,14 @@ The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: 
 
 ## A real modem (Web Serial, step 6)
 
-SETUP → MODEM → *REAL MODEM…* opens the browser's port chooser (Chrome, Edge or another browser with Web Serial;
+SETUP → MODEM → *CONNECT REAL MODEM…* opens the browser's port chooser (Chrome, Edge or another browser with Web Serial;
 https or localhost; a click is needed) and puts the chosen USB serial port in place of the built-in Hayes
 modem (`js/devices/webserial.js`). A WiFi modem (Zimodem, WiModem232 …) speaks Hayes itself, so bytes go
 through both ways: `TERM`, `ATDT host:port`. Set the speed in SETUP to the modem's (300–19200; changing it reopens
 the port). The UART still spaces what comes in at that speed, so a fast modem is heard at 1200 baud if you like.
 Carrier is read from the modem's `CONNECT` and `NO CARRIER` lines; *Use the DTR and DCD lines* reads DCD and drives
 DTR instead (off by default: a USB board with an ESP chip resets when DTR changes). Unplugging the port, or
-*BUILT-IN MODEM*, goes back to the BBS. The BBS and the echo service are not reachable while a real modem is on.
+*DISCONNECT REAL MODEM*, goes back to the BBS. The BBS and the echo service are not reachable while a real modem is on.
 
 ## A telnet host (the bridge, step 5)
 
@@ -159,7 +159,7 @@ emulated machine, and says he is a program when sincerely asked.
   **TIC-TAC-TOE** (against WOPR, which cannot lose: a test walks every line of play; or 0 players, WOPR against
   itself ten times, all drawn) and **GLOBAL THERMONUCLEAR WAR** (a simulation between two fictional blocs: pick a
   side and three of eight made-up targets; the exchange runs, assets fall, winner none, "a strange game, the only
-  winning move is not to play", and a polite offer of chess). The other names on the list are not loaded on this line.
+  winning move is not to play", and a polite offer of chess). The other names (chess, checkers ...) are left off the list and answer "not loaded on this line"; the list is in two columns.
 - **O** is the fortune cookie jar (`js/fortune.js`): 97 messages written for this board (hacker koans, science
   fiction, retro computing, cyberpunk, cold-war computing), plain ASCII, never repeating one of the last twenty;
   **Y** another.
@@ -214,8 +214,7 @@ touches the bars. Every screen is a page (`Session.page(crumb, hint)`: clear, ba
 The **main page** is a vertical menu with a one-line description of each key, a **system** panel (the line, the date, the moon, your
 caller number and the last call, mail, the games), a small picture of the day, and a **log** of what has happened this call
 (carrier, your uploads, a bulletin posted). The prompt is `bbs>`. Drawing the whole page takes 1.5 KB, ten seconds at 1200 baud: it
-is drawn whole the first time and on a line of 2400 baud or more; coming back on a slow line only the menu is redrawn, and at
-300 baud it is always the menu alone. Nothing is written to the screen while an XMODEM block is on the wire. Leaving the board (`Q`)
+is drawn whole every time, coming back from a page too; at 300 baud it is always the menu alone. Nothing is written to the screen while an XMODEM block is on the wire. Leaving the board (`Q`)
 resets the terminal (no region, plain, cursor shown); so does `TERM`'s `Ctrl-] Q` and `H`.
 
 ## Numbers

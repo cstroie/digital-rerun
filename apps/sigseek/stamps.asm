@@ -163,7 +163,7 @@ sn9:    db      'the lantern',0
 sn10:   db      'a ghost',0
 sn11:   db      'an echo',0
 sn12:   db      'dawn',0
-sn13:   db      'a useful gift',0
+sn13:   db      'a good gift',0
 sn14:   db      'fixed it',0
 sn15:   db      '100 tonight',0
 m_stamp: db     'A stamp for the book: ',0

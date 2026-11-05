@@ -221,6 +221,9 @@ An independent colleague, not a pet to manage: warm, earnest, a little absurd.
 | keyboard | the floor's keyboard | she walks across it: the dial jumps |
 | console | on the band | in the way. "She is helping." |
 | mug | the log's bottom border | "The mug is fine." |
+| kettle | the shelf (once bought) | waits for it to sing; curls round it |
+| plant | the shelf (once bought) | sniffs it, twice: it is on probation |
+| lamp | the shelf (once bought) | asleep under it, the warmest spot in the station |
 
 - **`P`:** at home, a petting answered by her mood (it mends a huffy or needy cat).
   Out on a spot, she comes when called only if needy.
@@ -393,8 +396,6 @@ copies match, an overlong line is refused) and a shelf test (`PLAY` starts a shi
 
 From the design notes:
 
-- **PIXEL and the shelf:** asleep under the desk lamp, sniffing the plant, by the
-  kettle when it is on: the decorations as places she goes.
 - **More shop things:** a star chart that marks where old signals were heard; a
   second buffer, so one packet can wait while another comes in.
 - **A Z80-uLM tie-in** (put off): Hum talking through the tiny language model on its

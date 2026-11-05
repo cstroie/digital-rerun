@@ -18,6 +18,9 @@ SP_ANT  equ     1
 SP_KEY  equ     2
 SP_CON  equ     3
 SP_MUG  equ     4
+SP_KETL equ     5               ; the shelf's things, once bought
+SP_PLANT equ    6
+SP_LAMP equ     7
 
 MD_SLEEP equ    0
 MD_CURI equ     1
@@ -75,11 +78,7 @@ cd2:    call    rnd
         ld      a,b
         and     3
         jr      nz,cd4
-cd3:    ld      a,b             ; a spot 1..4
-        rrca
-        rrca
-        and     3
-        inc     a
+cd3:    call    pickspot
         jp      goto
 cd4:    call    gift            ; while you are away, maybe a gift
         jp      pose
@@ -91,11 +90,7 @@ cd5:    ld      a,(cmood)
         ld      a,b
         and     3
         ret     nz
-        ld      a,b
-        rrca
-        rrca
-        and     3
-        inc     a
+        call    pickspot
         jp      goto
 
 ; ---------------------------------------------------------------- walking
@@ -249,6 +244,24 @@ drawsp: ld      a,(cspot)
         call    gotoxy
         ld      hl,s_cat
         jp      puts
+
+; pickspot: a spot to go to: 1-7, the shelf's three only if bought
+; (otherwise one of the first four)
+pickspot: call  rnd
+        and     7
+        jr      z,pickspot
+        cp      SP_KETL
+        ret     c
+        ld      c,a             ; kettle, plant, lamp: upgrade bits 4, 5, 6
+        dec     a
+        call    mask            ; (uses B)
+        ld      hl,upg
+        and     (hl)
+        ld      a,c
+        ret     nz
+        and     3
+        inc     a
+        ret
 
 ; spotxy: A = spot -> B = row, C = column
 spotxy: add     a,a
@@ -605,9 +618,9 @@ opmood: db      0ffh, 0ffh, 0ffh, 0ffh, 1, 1, 5, 2, 1, 0ffh, 0ffh, 0ffh, 0ffh, 0
 
 ; ---------------------------------------------------------------- data
 ; spots: row, column (the heater is the box)
-spots:  db      0,0, 2,30, 23,61, 4,40, 21,46
+spots:  db      0,0, 2,30, 23,61, 4,40, 21,46, 23,10, 23,16, 23,22
 ; what she covers on each spot
-restore: dw     0, r_dash, r_keys, s_blank, r_dash
+restore: dw     0, r_dash, r_keys, s_blank, r_dash, d4, d5, d6
 r_keys: db      ':::::',0
 r_dash: db      '-----',0
 s_blank: db     '     ',0
@@ -643,7 +656,10 @@ p_empty: db     '            '
         db      '            '
         db      '  ~~~~~~~~  '
 
-spotlbl: dw     ml_heat, ml_ant, ml_key, ml_con, ml_mug
+spotlbl: dw     ml_heat, ml_ant, ml_key, ml_con, ml_mug, ml_ketl, ml_plant, ml_lamp
+ml_ketl: db     '  the kettle',0
+ml_plant: db    '  the plant ',0
+ml_lamp: db     '  the lamp  ',0
 ml_heat: db     '  heater    ',0
 ml_ant: db      '  antenna   ',0
 ml_key: db      '  keyboard  ',0
@@ -651,14 +667,32 @@ ml_con: db      '  console   ',0
 ml_mug: db      '  your mug  ',0
 ml_wand: db     '  wandering ',0
 
-goingto: dw     g_home, g_ant, g_key, g_con, g_mug
+goingto: dw     g_home, g_ant, g_key, g_con, g_mug, g_ketl, g_plant, g_lamp
+g_ketl: db      'PIXEL heads for the kettle. It might sing.',0
+g_plant: db     'PIXEL is stalking the plant. Slowly.',0
+g_lamp: db      'PIXEL is going to the desk lamp, the warmest place there is.',0
 g_home: db      'PIXEL pads back toward the heater.',0
 g_ant:  db      'PIXEL has business at the antenna hatch.',0
 g_key:  db      'PIXEL is walking toward the keyboard. Uh oh.',0
 g_con:  db      'PIXEL hops down from the box. She is going somewhere.',0
 g_mug:  db      'PIXEL has noticed your mug.',0
 
-arrmsg: dw      a_home, 0, 0, a_con, a_mug
+arrmsg: dw      a_home, 0, 0, a_con, a_mug, a_ketl, a_plant, a_lamp
+a_ketl: db      3
+        dw      a_ketl0, a_ketl1, a_ketl2
+a_ketl0: db     'PIXEL sits by the kettle, waiting for it to sing.',0
+a_ketl1: db     'PIXEL curls round the kettle. It is warm. She approves.',0
+a_ketl2: db     'PIXEL watches the kettle. A watched kettle never boils.',0
+a_plant: db     3
+        dw      a_plnt0, a_plnt1, a_plnt2
+a_plnt0: db     'PIXEL sniffs the plant. Twice. It is on probation.',0
+a_plnt1: db     'PIXEL nibbles one leaf of the plant, then pretends she did not.',0
+a_plnt2: db     'PIXEL sits beside the plant like an old friend. It does not mind.',0
+a_lamp: db      3
+        dw      a_lamp0, a_lamp1, a_lamp2
+a_lamp0: db     'PIXEL falls asleep under the desk lamp. Warmest spot in the station.',0
+a_lamp1: db     'PIXEL basks under the lamp, eyes half shut, glowing faintly.',0
+a_lamp2: db     'PIXEL is a small loaf in a pool of lamplight.',0
 a_home: db      3
         dw      a_home_0, a_home_1, a_home_2
 a_home_0: db      'PIXEL is back on the heater. Purring lowers the static.',0

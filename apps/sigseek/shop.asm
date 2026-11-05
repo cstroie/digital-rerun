@@ -161,6 +161,18 @@ sh1:    ld      (sitem),a
         ld      a,(upg)
         and     c
         jr      z,sh2
+        ld      a,(sitem)       ; each in its place (PIXEL sits on them)
+        sub     4
+        ld      c,a
+        add     a,a
+        add     a,a
+        add     a,a
+        sub     c
+        sub     c               ; 6 * (item - 4)
+        add     a,10
+        ld      c,a
+        ld      b,23
+        call    gotoxy
         ld      a,(sitem)
         ld      hl,decor
         call    msgof
@@ -363,10 +375,10 @@ b6:     db      'A desk lamp. The station feels warmer already.',0
 b7:     db      'A postcard wall. Pinned: a nebula, a beach, a cat.',0
 
 decor:  dw      0,0,0,0, d4,d5,d6,d7
-d4:     db      ' c[_]',0
-d5:     db      '  \|/',0
-d6:     db      '  (*)',0
-d7:     db      '  wall:',0
+d4:     db      ' c[_]',0            ; (five each: PIXEL's spots put them back)
+d5:     db      ' \|/ ',0
+d6:     db      ' (*) ',0
+d7:     db      ' wall:',0
 m_shelf: db     'shelf:',0
 
 m_shop: db      'The shop. 1-8 buy, S to close.',0

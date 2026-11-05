@@ -276,3 +276,87 @@ test('TERM: leaving it (Ctrl-] Q, or H) sets the terminal right: no scroll regio
     await until(m, 'A>', at);
     assert.ok(m.out.slice(at).includes('\x1b[r\x1b[0m\x1b[?25h'));
 });
+
+test('TERM menu: Ctrl-] shows it; Z resets and answers OK; I names the modem; a stray key shows it again', async () => {
+    const m = boot();
+    await until(m, 'A>');
+    let at = say(m, 'TERM\r');
+    await until(m, 'Ctrl-] for the menu', at);
+    at = say(m, '\x1d');
+    await until(m, 'D dial from TERM.DIR', at);
+    at = say(m, 'z');
+    await until(m, 'OK', at);
+    assert.match(m.out.slice(at), /ATZ/, 'the command went to the modem (and was echoed)');
+    at = say(m, '\x1di');
+    await until(m, 'DIGITAL RERUN MODEM', at);
+    at = say(m, '\x1d');
+    await until(m, 'Key?', at);
+    at = say(m, '7');
+    await until(m, 'I modem info', at + 2);
+});
+
+test('TERM menu: D lists TERM.DIR and dials the chosen entry; L redials it; # types a number', async () => {
+    const m = boot();
+    await until(m, 'A>');
+    let at = say(m, 'TERM\r');
+    await until(m, 'for the menu', at);
+    at = say(m, '\x1dd');
+    await until(m, 'Which', at);
+    const list = m.out.slice(at);
+    assert.match(list, /1 0100 Digital Rerun BBS/);
+    assert.match(list, /2 0101 telehack\.com/);
+    assert.match(list, /B 0110 sdf\.org/);
+    at = say(m, '1');
+    await until(m, 'ATDT0100', at);
+    await until(m, 'NO CARRIER', at);                  // no board in this rig: the dial was sent, and answered
+    at = say(m, '\x1dd');
+    await until(m, 'Which', at);
+    at = say(m, '#');
+    await until(m, 'Number or host?', at);
+    at = say(m, '0\r');
+    await until(m, 'CONNECT 1200', at);
+    assert.match(m.out.slice(at), /ATDT0\r/);
+    at = say(m, '\x1dl');
+    await until(m, 'On line: use E', at);
+    at = say(m, '\x1dh');
+    await until(m, 'Hung up.', at);
+    at = say(m, '\x1dl');
+    await until(m, 'ATDT0\r', at);
+    await until(m, 'CONNECT 1200', at);
+});
+
+test('TERM menu: E escapes to command mode with the call up, O goes back; M K A toggle', async () => {
+    const m = boot();
+    await until(m, 'A>');
+    let at = say(m, 'TERM\r');
+    await until(m, 'for the menu', at);
+    at = say(m, '\x1de');
+    await until(m, 'Not on line', at);
+    at = say(m, 'ATDT0\r');
+    await until(m, 'What you type comes back', at);
+    at = say(m, '\x1de');
+    await until(m, 'OK', at);
+    assert.equal(m.modem.carrier, true, 'the call is still up');
+    at = say(m, '\x1dm');
+    await until(m, 'OK', at);
+    assert.match(m.out.slice(at), /ATM0/);
+    at = say(m, '\x1da');
+    await until(m, 'OK', at);
+    assert.match(m.out.slice(at), /ATS0=1/);
+    at = say(m, '\x1do');
+    await until(m, 'ATO\r', at);
+    at = say(m, 'abc\r');
+    await until(m, 'abc', at);               // online again: the echo service answers (the modem itself no longer echoes)
+});
+
+test('TERM menu: D without a TERM.DIR offers to type a number', async () => {
+    const m = boot();
+    await until(m, 'A>');
+    let at = say(m, 'ERA TERM.DIR\r');
+    await until(m, 'A>', at + 5);
+    at = say(m, 'TERM\r');
+    await until(m, 'for the menu', at);
+    at = say(m, '\x1dd');
+    await until(m, 'No TERM.DIR', at);
+    await until(m, 'Number or host?', at);
+});

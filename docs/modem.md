@@ -64,9 +64,18 @@ and sets `modem.carrier`. A snapshot does not keep a connection: restoring drops
 ## Status (2026-11-05)
 
 Steps 1–3 are built. `TERM.COM` is on the CP/M 2.2 disk (its source is `system/term.asm`; it is not on the disk, which needs the room for rebuilding the BIOS): `TERM`, then `AT`,
-`ATDT0` (the echo service), `+++` and `ATH`; Ctrl-] Q leaves with the call up, Ctrl-] H hangs up. Under CP/M 3
+`ATDT0` (the echo service), `+++` and `ATH`; Ctrl-] Q leaves with the call up, Ctrl-] H hangs up.
+
+**The TERM menu (Ctrl-]).** Ctrl-] shows a menu and waits for a key: **D** dials from `TERM.DIR` (a CP/M text file, one
+`number name` per line, up to 16: written by `tools/build.js` from the board and `PHONEBOOK`, and yours to edit with any
+CP/M editor; `#` types a number or host instead), **L** redials the last one, **Z** resets the modem (ATZ), **F** gives
+the factory settings (AT&F), **I** asks who it is (ATI3), **E** escapes to command mode (a second of silence, `+++`; the
+call stays up) and **O** goes back on line (ATO), **M**, **K**, **A** toggle the speaker, the echo and auto-answer, **R**
+and **S** are XMODEM, **H** hangs up (DTR), **Q** quits, a second Ctrl-] sends one. The AT keys are refused while a call
+is up, unless E has been used: they would go to the remote host. The menu text goes out of the modem a byte at a time
+through the terminal loop, so the modem's echo and answer show on the screen as with typed commands. Under CP/M 3
 the modem is the character device `MDM` (`DEVICE AUXOUT:=MDM`, then `PIP AUX:=file`); copy `TERM.COM`
-over from the 2.2 disk (the CP/M 3 disk has no room left to carry it). The numbers dialed are in
+over from the 2.2 disk, with `TERM.DIR` (the CP/M 3 disk has no room left to carry them). The numbers dialed are in
 `js/devices/directory.js`; the built-in BBS (step 4) adds its own.
 
 A program that polls the modem is "waiting": the run loop spends the T-states up to the next byte, answer or

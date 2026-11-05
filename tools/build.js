@@ -34,6 +34,7 @@ const path = require('path');
 const { assemble, formatListing } = require('../js/asm8080.js');
 const { Disk } = require('../js/devices/fdc.js');
 const { CpmFs, toCpmText } = require('../js/cpmfs.js');
+const { PHONEBOOK } = require('../js/devices/directory.js');
 const { playCom } = require('./play.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -84,6 +85,9 @@ function main() {
     fsys.write('SYSGEN.COM', sysgenCom);
     fsys.write('PRTDEMO.COM', prtdemoCom);
     fsys.write('TERM.COM', termCom);
+    // TERM.DIR: what TERM's D key offers, the board first, then the telnet hosts (one line each, edit it with any CP/M editor)
+    const termDir = ['0100 Digital Rerun BBS', ...PHONEBOOK.map(e => `${e.n} ${e.host}${e.port === 23 ? '' : ':' + e.port}`)].join('\n') + '\n';
+    fsys.write('TERM.DIR', toCpmText(Buffer.from(termDir)));
     for (const f of ['bios.asm', 'boot.asm', 'sysgen.asm', 'prtdemo.asm']) fsys.write(f.toUpperCase(), toCpmText(fs.readFileSync(path.join(ROOT, 'system', f))));
     fs.writeFileSync(path.join(ROOT, 'disks/cpm22.dsk'), disk.data);
 

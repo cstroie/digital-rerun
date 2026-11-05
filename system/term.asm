@@ -2,9 +2,12 @@
 ;
 ;	What is typed goes out of the modem (ports 6 and 7), what comes in goes
 ;	to the screen. Talk to the modem in AT commands: ATDT then a number.
-;	Ctrl-] is the escape: R receives a file and S sends one (XMODEM,
-;	checksum), Q quits (the call stays up, run TERM again to come back),
-;	H hangs up, ^] sends a Ctrl-], ? helps. A>TERM
+;	Ctrl-] opens a menu: D dials a number from TERM.DIR, L redials, Z and F
+;	reset the modem, E escapes to command mode (+++) and O goes back on line,
+;	M K A toggle speaker, echo and auto-answer, I asks the modem who it is.
+;	R receives a file and S sends one (XMODEM, checksum), Q quits (the call
+;	stays up, run TERM again to come back), H hangs up, ^] sends a Ctrl-].
+;	A>TERM
 ;
 ;	Copyright (c) 2026 Costin Stroie, MIT licence.
 
@@ -62,7 +65,24 @@ loop:	in	mst
 nokey:	lda	pend
 	ora	a
 	jnz	tosend
-	mvi	e,0ffh
+	lhld	outq		;text for the modem (a menu command) goes first, a byte a time
+	mov	a,h
+	ora	l
+	jz	getkey
+	in	mst
+	ani	2
+	jz	loop
+	mov	a,m
+	ora	a
+	jz	qend
+	out	mdat
+	inx	h
+	shld	outq
+	jmp	loop
+qend:	lxi	h,0
+	shld	outq
+	jmp	loop
+getkey:	mvi	e,0ffh
 	mvi	c,conio
 	call	bdos
 	ora	a
@@ -81,7 +101,7 @@ tosend:	in	mst
 
 ;	Ctrl-] and a letter
 command:
-	lxi	d,prompt
+	lxi	d,menu
 	mvi	c,print
 	call	bdos
 cmd1:	mvi	c,1		;a key, with echo
@@ -97,15 +117,367 @@ cmd1:	mvi	c,1		;a key, with echo
 	jz	send
 	cpi	esc & 5fh
 	jz	sendesc
-	lxi	d,helpmsg
-	mvi	c,print
-	call	bdos
-	jmp	loop
+	cpi	'D'
+	jz	dial
+	cpi	'L'
+	jz	redial
+	cpi	'Z'
+	jz	reset
+	cpi	'F'
+	jz	factory
+	cpi	'E'
+	jz	escape
+	cpi	'O'
+	jz	goon
+	cpi	'I'
+	jz	info
+	cpi	'M'
+	jz	speaker
+	cpi	'K'
+	jz	echoer
+	cpi	'A'
+	jz	autoans
+	jmp	command		;anything else: the menu again
 sendesc:
 	mvi	a,esc
 	sta	pend
 	jmp	loop
+
+;	---- the modem commands (the modem must be in command mode) ----
+
+;	return to the caller if AT text may go to the modem; else say so and back to the loop
+chkoff:	lda	cm
+	ora	a
+	rnz			;we escaped: it is in command mode
+	in	mst
+	ani	4
+	rz			;no carrier
+	lxi	d,monl
+	call	pr
+	pop	h
+	jmp	loop
+
+;	queue the 0-ended text at DE for the modem
+sendat:	xchg
+	shld	outq		;the loop sends it while it shows what the modem says
+	ret
+
+;	wait HL milliseconds (the line is read meanwhile so an idle machine lets the clock run)
+delay:	push	h
+	call	now
+	shld	t0
+	pop	h
+	shld	tlim
+dl1:	in	mst
+	ani	1
+	jz	dl2
+	in	mdat
+dl2:	call	now
+	xchg			;DE = now
+	lhld	t0
+	mov	a,e
+	sub	l
+	mov	l,a
+	mov	a,d
+	sbb	h
+	mov	h,a
+	xchg			;DE = elapsed
+	lhld	tlim
+	mov	a,e
+	sub	l
+	mov	a,d
+	sbb	h
+	jc	dl1
+	ret
+
+;	a plain AT command: DE has it
+atcmd:	call	sendat
+	jmp	loop
+reset:	call	chkoff
+	lxi	d,atz
+	jmp	reset1
+factory:call	chkoff
+	lxi	d,atf
+reset1:	xra	a
+	sta	cm
+	sta	aa
+	inr	a
+	sta	spk
+	sta	ech
+	jmp	atcmd
+info:	call	chkoff
+	lxi	d,ati
+	jmp	atcmd
+redial:	call	chkoff
+	lda	havenum
+	ora	a
+	jnz	rd1
+	lxi	d,mnonum
+	call	pr
+	jmp	loop
+rd1:	xra	a
+	sta	cm
+	lxi	d,dialbuf
+	jmp	atcmd
+
+;	M, K: toggle the speaker (ATM0/1) and the echo (ATE0/1)
+speaker:call	chkoff
+	lxi	h,spk
+	mvi	b,'M'
+	jmp	setopt
+echoer:	call	chkoff
+	lxi	h,ech
+	mvi	b,'E'
+setopt:	mov	a,m
+	xri	1
+	mov	m,a
+	adi	'0'
+	sta	opt+3
+	mov	a,b
+	sta	opt+2
+	lxi	d,opt
+	jmp	atcmd
+autoans:call	chkoff
+	lda	aa
+	xri	1
+	sta	aa
+	lxi	d,ats00
+	jz	atcmd
+	lxi	d,ats01
+	jmp	atcmd
+
+;	E: escape to command mode (a second of silence, then +++; the modem answers OK after another)
+escape:	in	mst
+	ani	4
+	jnz	es1
+	lxi	d,mnoon
+	call	pr
+	jmp	loop
+es1:	lxi	d,mesc
+	call	pr
+	lxi	h,1100
+	call	delay
+	mvi	a,'+'
+	call	txb
+	call	txb
+	call	txb		;the second of silence after it is the modem's to measure: its OK comes then
+	mvi	a,1
+	sta	cm
+	jmp	loop
+goon:	lda	cm
+	ora	a
+	jnz	go1
+	lxi	d,mnoesc
+	call	pr
+	jmp	loop
+go1:	xra	a
+	sta	cm
+	lxi	d,ato
+	jmp	atcmd
+
+;	D: dial a number from TERM.DIR (or type one)
+dial:	call	chkoff
+	call	loaddir
+	jnc	dr0
+	lxi	d,mnodir
+	call	pr
+	jmp	manual
+dr0:	lxi	d,mdial
+	call	pr
+	xra	a
+	sta	nent
+	lxi	h,dirbuf
+dr1:	mov	a,m
+	cpi	1ah
+	jz	dr9
+	ora	a
+	jz	dr9
+	cpi	21h
+	jc	dr8		;blanks and line ends
+	lda	nent
+	cpi	16
+	jnc	dr9
+	push	h		;the line starts here: remember where
+	add	a
+	mov	e,a
+	mvi	d,0
+	lxi	h,ent
+	dad	d
+	pop	d
+	mov	m,e
+	inx	h
+	mov	m,d
+	xchg			;HL = the line
+	push	h
+	lda	nent
+	call	keych
+	mov	e,a
+	mvi	c,2
+	call	bdos
+	mvi	e,' '
+	mvi	c,2
+	call	bdos
+	pop	h
+dr2:	mov	a,m
+	cpi	' '
+	jc	dr3
+	push	h
+	mov	e,a
+	mvi	c,2
+	call	bdos
+	pop	h
+	inx	h
+	jmp	dr2
+dr3:	push	h
+	lxi	d,crlf
+	call	pr
+	pop	h
+	lda	nent
+	inr	a
+	sta	nent
+	jmp	dr1
+dr8:	inx	h
+	jmp	dr1
+dr9:	lxi	d,mwhich
+	call	pr
+	mvi	c,1
+	call	bdos
+	cpi	'#'
+	jz	manual0
+	call	upper
+	cpi	'A'
+	jnc	dk1
+	cpi	'9'+1
+	jnc	cancel
+	sui	'1'
+	jc	cancel
+	jmp	dk2
+dk1:	sui	'A'-9
+dk2:	mov	b,a
+	lda	nent
+	cmp	b
+	jc	cancel
+	jz	cancel
+	mov	a,b
+	add	a
+	mov	e,a
+	mvi	d,0
+	lxi	h,ent
+	dad	d
+	mov	e,m
+	inx	h
+	mov	d,m
+	xchg			;HL = the chosen line
+	lxi	d,dialbuf+4
+	mvi	c,24
+dk3:	mov	a,m
+	cpi	21h
+	jc	dk4
+	stax	d
+	inx	h
+	inx	d
+	dcr	c
+	jnz	dk3
+dk4:	mvi	a,cr
+	stax	d
+	inx	d
+	xra	a
+	stax	d
+	lxi	d,crlf
+	call	pr
+	jmp	dodial
+manual0:lxi	d,crlf
+	call	pr
+manual:	lxi	d,pnum
+	call	pr
+	lxi	d,numbuf
+	mvi	c,rdbuf
+	call	bdos
+	lxi	d,crlf
+	call	pr
+	lda	numbuf+1
+	ora	a
+	jz	loop
+	mov	c,a
+	lxi	h,numbuf+2
+	lxi	d,dialbuf+4
+mn1:	mov	a,m
+	stax	d
+	inx	h
+	inx	d
+	dcr	c
+	jnz	mn1
+	jmp	dk4
+cancel:	lxi	d,crlf
+	call	pr
+	jmp	loop
+dodial:	mvi	a,1
+	sta	havenum
+	xra	a
+	sta	cm
+	lxi	d,dialbuf
+	jmp	atcmd
+
+;	the key for entry A: 1-9 then A-
+keych:	cpi	9
+	jc	kc1
+	adi	'A'-9
+	ret
+kc1:	adi	'1'
+	ret
+
+;	read TERM.DIR into DIRBUF (^Z ends it); CY set: no such file
+loaddir:lxi	h,fcb
+	mvi	c,36
+	xra	a
+ld0:	mov	m,a
+	inx	h
+	dcr	c
+	jnz	ld0
+	lxi	h,fcb+1
+	lxi	d,dirname
+	mvi	c,11
+ld1:	ldax	d
+	mov	m,a
+	inx	h
+	inx	d
+	dcr	c
+	jnz	ld1
+	lxi	d,fcb
+	mvi	c,openf
+	call	bdos
+	inr	a
+	jnz	ld2
+	stc
+	ret
+ld2:	lxi	h,dirbuf
+ld3:	push	h
+	xchg
+	mvi	c,setdma
+	call	bdos
+	lxi	d,fcb
+	mvi	c,readsq
+	call	bdos
+	pop	h
+	ora	a
+	jnz	ld4		;the end of the file
+	lxi	d,128
+	dad	d
+	lxi	d,dirend
+	mov	a,l
+	sub	e
+	mov	a,h
+	sbb	d
+	jc	ld3
+ld4:	mvi	m,1ah
+	lxi	d,80h
+	mvi	c,setdma
+	call	bdos
+	xra	a
+	ret
+
 hang:	xra	a		;DTR down and up again
+	sta	cm
 	out	mctl
 	mvi	a,1
 	out	mctl
@@ -554,12 +926,39 @@ purge:	lxi	h,300
 
 
 pend:	db	0		;a key waiting for the transmitter
+outq:	dw	0		;the menu's text for the modem, when there is some
 rstr:	db	27,'[r',27,'[0m',27,'[?25h$'	;no scroll region, plain, the cursor shown
 nomsg:	db	'No modem on this machine.',cr,lf,'$'
-hello:	db	'TERM: Ctrl-] for commands. Try ATDT0100.',cr,lf,'$'
-prompt:	db	cr,lf,'[R receive, S send, Q quit, H hang up, ? help] $'
-helpmsg:db	cr,lf,'R receives a file and S sends one by XMODEM (checksum); Q quits',cr,lf
-	db	'(the call stays up); H hangs up; Ctrl-] twice sends one; Ctrl-X stops a transfer.',cr,lf,'$'
+hello:	db	'TERM: Ctrl-] for the menu. Try ATDT0100.',cr,lf,'$'
+menu:	db	cr,lf,'D dial from TERM.DIR  L redial  Z reset  F factory reset  I modem info',cr,lf
+	db	'E escape (+++)  O back on line  M speaker  K echo  A auto-answer',cr,lf
+	db	'R receive  S send (XMODEM)  H hang up  Q quit  ^] sends a ^]   Key? $'
+mdial:	db	cr,lf,'$'
+mwhich:	db	'Which (# types a number)? $'
+pnum:	db	'Number or host? $'
+mnodir:	db	'No TERM.DIR on this disk.',cr,lf,'$'
+monl:	db	cr,lf,'On line: use E (escape) first.',cr,lf,'$'
+mnoon:	db	cr,lf,'Not on line.',cr,lf,'$'
+mesc:	db	cr,lf,'Escaping: a second of silence...',cr,lf,'$'
+mnoesc:	db	cr,lf,'Not escaped: use E first.',cr,lf,'$'
+mnonum:	db	cr,lf,'Nothing dialed yet: use D.',cr,lf,'$'
+atz:	db	'ATZ',cr,0
+atf:	db	'AT&F',cr,0
+ati:	db	'ATI3',cr,0
+ato:	db	'ATO',cr,0
+ats00:	db	'ATS0=0',cr,0
+ats01:	db	'ATS0=1',cr,0
+opt:	db	'AT??',cr,0
+dirname:db	'TERM    DIR'
+cm:	db	0		;1: we escaped, the modem is in command mode with the carrier up
+spk:	db	1
+ech:	db	1
+aa:	db	0
+havenum:db	0
+dialbuf:db	'ATDT'
+	ds	30
+numbuf:	db	24,0
+	ds	24
 hungup:	db	cr,lf,'Hung up.',cr,lf,'$'
 crlf:	db	cr,lf,'$'
 pname:	db	'File name? $'
@@ -581,4 +980,8 @@ linebuf:db	14,0
 	ds	14
 fcb:	ds	36
 buf:	ds	133
+ent:	ds	32
+nent:	ds	1
+dirbuf:	ds	1664
+dirend	equ	dirbuf+1536
 	end

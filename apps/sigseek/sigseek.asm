@@ -216,6 +216,91 @@ back:   call    showdia
         ld      a,BEL
         jp      putc
 
+; ---------------------------------------------------------------- the star chart
+; heardit: IX = a signal ending (captured, or faded): its frequency goes
+; in the chart's ring of eight
+heardit: ld     a,(hring)
+        inc     a
+        and     7
+        ld      (hring),a
+        add     a,a
+        ld      e,a
+        ld      d,0
+        ld      hl,heard
+        add     hl,de
+        ld      a,(ix+S_FRQ)
+        ld      (hl),a
+        inc     hl
+        ld      a,(ix+S_FRQ+1)
+        ld      (hl),a
+        ret
+
+; chart: with the star chart, a + on the dial row where signals were
+; heard before (columns 3-39 and 52-63: the ^ and LOCK keep theirs)
+chart:  ld      a,(upg2)
+        and     1
+        ret     z
+        ld      hl,chrow        ; the row, blank
+        ld      b,SPEC_W
+ch1:    ld      (hl),' '
+        inc     hl
+        djnz    ch1
+        ld      hl,heard        ; a + for each heard, on the band
+        ld      b,8
+ch2:    push    bc
+        ld      e,(hl)
+        inc     hl
+        ld      d,(hl)
+        inc     hl
+        push    hl
+        ld      a,d
+        or      e
+        jr      z,ch3           ; (an empty slot)
+        ex      de,hl           ; column = it - the dial + centre
+        ld      de,(freq)
+        or      a
+        sbc     hl,de
+        ld      de,SPEC_W/2
+        add     hl,de
+        ld      a,h
+        or      a
+        jr      nz,ch3
+        ld      a,l
+        cp      SPEC_W
+        jr      nc,ch3
+        ld      de,chrow
+        add     hl,de
+        ld      (hl),'+'
+ch3:    pop     hl
+        pop     bc
+        djnz    ch2
+        ld      b,MARK_Y        ; columns 3-32, 34-39, 52-63
+        ld      c,3
+        call    gotoxy
+        ld      hl,chrow+1
+        ld      b,30
+        call    chput
+        ld      b,MARK_Y
+        ld      c,34
+        call    gotoxy
+        ld      hl,chrow+32
+        ld      b,6
+        call    chput
+        ld      b,MARK_Y
+        ld      c,52
+        call    gotoxy
+        ld      hl,chrow+50
+        ld      b,12
+chput:  ld      a,(hl)
+        call    putc
+        inc     hl
+        djnz    chput
+        ret
+
+heard:  ds      16
+hring:  db      0
+chrow:  ds      SPEC_W
+
 ; ---------------------------------------------------------------- fingerprints
 ; Every signal knows who it carries from the start, and its peak shows
 ; it: how fast it falls away from its centre, at 0..3 columns out.
@@ -781,7 +866,7 @@ k_dial: db      ' [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rchive  [W]all  [P
 k_dialf: db     ' [F]IX THE POWER  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
-k_shop: db      ' [1]-[8] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
+k_shop: db      ' [1]-[9] [0] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
 k_arch: db      ' [,.] turn the page  [K] stamps  [A] close the Archive  [P]et PIXEL  [Q]uit',0
 k_stamp: db     ' [K] close the stamp book  [P]et PIXEL  [Q]uit',0
 k_fix:  db      ' [1]-[8] flip a bit  [F] later  [P]et PIXEL  [Q]uit',0
@@ -982,6 +1067,7 @@ ag1:    push    bc
         ld      a,h
         or      l
         jr      nz,ag2
+        call    heardit         ; (for the star chart)
         ld      hl,m_fade
         call    quiet
         jr      ag3
@@ -1098,6 +1184,7 @@ st9:    ld      de,S_SIZE
         pop     bc
         dec     b
         jp      nz,st1
+        call    chart           ; the star chart's marks, if there is one
 ; the edge arrows on the dial row: '<' at column 2, '>' at column 64
         ld      b,MARK_Y
         ld      c,SPEC_X
@@ -1218,7 +1305,11 @@ captur: ld      a,(havepk)      ; one packet at a time
         ld      hl,m_full
         call    logmsg
         jp      meters
-cap1:   xor     a
+cap1:   push    af
+        ld      ix,(lockix)
+        call    heardit         ; (for the star chart)
+        pop     af
+        xor     a
         ld      (buf),a
         ld      (rcv),a
         inc     a

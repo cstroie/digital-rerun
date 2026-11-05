@@ -188,7 +188,7 @@ flip them, as in cleaning. Set right, PWR is full again and pays 3 tokens. `F` o
 
 ### The shop
 
-`S`; `1`-`8` buy, once each. All 585 tokens' worth takes a few shifts.
+`S`; `1`-`9` and `0` buy, once each. All 815 tokens' worth takes a few shifts.
 
 | # | | Price | |
 |---|---|---|---|
@@ -200,6 +200,8 @@ flip them, as in cleaning. Set right, PWR is full again and pays 3 tokens. `F` o
 | 6 | Small plant | 30 | `\|/` |
 | 7 | Desk lamp | 60 | `(*)` |
 | 8 | Postcard wall | 90 | the callers' postcards, `W`; on the shelf `wall:[#.......]` |
+| 9 | Star chart | 80 | a `+` on the dial row where signals were heard before (the last eight caught or faded) |
+| 0 | Second buffer | 150 | another packet can come in while one waits |
 
 Nothing makes anything harder.
 
@@ -362,11 +364,11 @@ One 128-byte record, written on quit and after each purchase:
 | Offset | |
 |---|---|
 | 0 | `SG` |
-| 2 | version (6) |
+| 2 | version (8) |
 | 3 | terminal |
 | 4 | the random seed (word) |
 | 6 | tokens (word) |
-| 8 | upgrades (a bit for each shop item) |
+| 8 | upgrades (a bit for each of the first eight shop items) |
 | 9 | packets captured (stops at 255) |
 | 10 | the shift number (the next run is one more) |
 | 11 | PIXEL's mood |
@@ -375,10 +377,13 @@ One 128-byte record, written on quit and after each purchase:
 | 24 | flags: 1 the last lantern found, 2 a Lantern Keeper |
 | 25 | the postcards, a bit for each caller |
 | 26 | each caller's reply waiting: 0 none, 1 warm, 2 from PIXEL (8 bytes) |
+| 34 | the stamp book (2 bytes) |
+| 36 | the ninth and tenth shop items (1 the star chart, 2 the second buffer) |
 | 40 | an echo: waiting (1 byte), the shift it was sent (1), its text (21) |
 
 Versions 1 (before the story), 2 (before the flags), 3 (before the
-postcards), 4 (before the echo) and 5 (before the replies) still load. No room on the
+postcards), 4 (before the echo), 5 (before the replies), 6 (before the stamps) and 7
+(before the ninth and tenth items) still load. No room on the
 disk: no save, no fuss. Delete the file to start afresh.
 
 ## Testing
@@ -396,8 +401,6 @@ copies match, an overlong line is refused) and a shelf test (`PLAY` starts a shi
 
 From the design notes:
 
-- **More shop things:** a star chart that marks where old signals were heard; a
-  second buffer, so one packet can wait while another comes in.
 - **A Z80-uLM tie-in** (put off): Hum talking through the tiny language model on its
   own disk, say.
 

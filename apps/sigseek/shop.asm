@@ -26,15 +26,19 @@ skey:   cp      'S'
         jr      z,skout
         cp      ESC
         jr      z,skout
+        cp      '0'             ; 0 is the tenth
+        ld      b,9
+        jr      z,sk0
         sub     '1'
         jp      c,nokey
-        cp      8
+        cp      9
         jp      nc,nokey
+        ld      b,a
+sk0:    ld      a,b
         ld      (sitem),a
-        call    mask            ; C = the item's bit
-        ld      c,a
-        ld      a,(upg)
-        and     c
+        ld      (sbuy),a        ; (sitem is the drawing loops' too)
+        call    itemhl
+        and     (hl)
         ld      hl,m_have
         jr      nz,sklog
         ld      a,(sitem)       ; the price
@@ -53,9 +57,10 @@ sk1:    ld      e,(hl)
         ld      hl,(tokens)
         sbc     hl,de
         ld      (tokens),hl
-        ld      a,(upg)
-        or      c
-        ld      (upg),a
+        ld      a,(sitem)
+        call    itemhl
+        or      (hl)
+        ld      (hl),a
         ld      a,BEL
         call    putc
         call    showtk
@@ -65,7 +70,7 @@ sk1:    ld      e,(hl)
         ld      a,ST_SHOP
         call    stampit
         call    save
-        ld      a,(sitem)
+        ld      a,(sbuy)
         ld      hl,bought
         call    msgof
 sklog:  call    logmsg
@@ -76,7 +81,19 @@ skout:  xor     a
         ld      hl,m_shut
         jr      sklog
 
-; drawsh: two columns of four, in the packet box
+; itemhl: A = an item -> HL = its byte (upg, or upg2 from the ninth),
+; A = its bit
+itemhl: push    bc
+        ld      hl,upg
+        cp      8
+        jr      c,ih1
+        ld      hl,upg2
+        sub     8
+ih1:    call    mask
+        pop     bc
+        ret
+
+; drawsh: two columns of five, in the packet box
 drawsh: ld      b,PK_Y
 ds0:    ld      c,2
         call    gotoxy
@@ -91,17 +108,20 @@ ds1:    ld      a,' '
         jr      nz,ds0
         xor     a
 ds2:    ld      (sitem),a
-        ld      b,a             ; row 7 + i mod 4, column 4 or 35
-        and     3
-        add     a,PK_Y
-        ld      c,4
-        bit     2,b
-        ld      b,a
-        jr      z,ds3
+        ld      c,4             ; the first five on the left
+        cp      5
+        jr      c,ds2a
+        sub     5
         ld      c,35
+ds2a:   add     a,PK_Y
+        ld      b,a
 ds3:    call    gotoxy
-        ld      a,(sitem)
-        add     a,'1'
+        ld      a,(sitem)       ; its key: 1-9, then 0
+        inc     a
+        cp      10
+        jr      c,ds3a
+        xor     a
+ds3a:   add     a,'0'
         call    putc
         ld      a,' '
         call    putc
@@ -110,10 +130,8 @@ ds3:    call    gotoxy
         call    msgof
         call    puts
         ld      a,(sitem)       ; the price, or got
-        call    mask
-        ld      c,a
-        ld      a,(upg)
-        and     c
+        call    itemhl
+        and     (hl)
         ld      hl,m_got2
         jr      nz,ds4
         ld      a,(sitem)
@@ -128,7 +146,7 @@ ds5:    ld      a,(hl)
 ds4:    call    puts
         ld      a,(sitem)
         inc     a
-        cp      8
+        cp      NITEM
         jr      nz,ds2
         ret
 
@@ -189,7 +207,7 @@ sh2:    ld      a,(sitem)
 ; ---------------------------------------------------------------- the save file
 ; SIGSEEK.SAV, one record: 'SG', version, terminal, seed, tokens,
 ; upgrades, packets, shift, PIXEL's mood.
-SV_VER  equ     7               ; 1: before the callers; 2: flags; 3: cards; 4: echo; 5: replies; 6: stamps
+SV_VER  equ     8               ; 1: before the callers; 2: flags; 3: cards; 4: echo; 5: replies; 6: stamps; 7: upg2
 
 ; load: at start. A new shift begins: shift + 1.
 load:   call    fcbclr
@@ -220,7 +238,7 @@ load:   call    fcbclr
         cp      1
         jr      z,ld8           ; version 1: no story yet
         cp      SV_VER+1
-        jr      nc,ld9
+        jp      nc,ld9
         push    af
         ld      hl,savbuf+12    ; the callers' chapters, the Archive
         ld      de,chap
@@ -259,6 +277,10 @@ load:   call    fcbclr
         jr      c,ld8
         ld      hl,(savbuf+34)
         ld      (stamps),hl
+        cp      8               ; version 8: the ninth and tenth items
+        jr      c,ld8
+        ld      a,(savbuf+36)
+        ld      (upg2),a
 ld8:
         ld      a,(savbuf+3)
         ld      (term),a
@@ -322,6 +344,8 @@ sv0:    ld      (hl),1ah
         ldir
         ld      hl,(stamps)     ; the stamp book
         ld      (savbuf+34),hl
+        ld      a,(upg2)
+        ld      (savbuf+36),a
         ld      de,savbuf
         ld      c,26
         call    BDOS
@@ -351,8 +375,11 @@ fc1:    ld      (hl),0
         ret
 
 ; ---------------------------------------------------------------- data
-prices: db      60, 120, 75, 105, 45, 30, 60, 90
-names:  dw      n0,n1,n2,n3,n4,n5,n6,n7
+NITEM   equ     10
+prices: db      60, 120, 75, 105, 45, 30, 60, 90, 80, 150
+names:  dw      n0,n1,n2,n3,n4,n5,n6,n7,n8,n9
+n8:     db      'Star chart     ',0
+n9:     db      'Second buffer  ',0
 n0:     db      'Fine tuner     ',0
 n1:     db      'Bit hints      ',0
 n2:     db      'Good heater    ',0
@@ -364,7 +391,9 @@ n7:     db      'Postcard wall  ',0
 m_got2: db      'got',0
 m_tok:  db      ' tk',0
 
-bought: dw      b0,b1,b2,b3,b4,b5,b6,b7
+bought: dw      b0,b1,b2,b3,b4,b5,b6,b7,b8,b9
+b8:     db      'A star chart. Signals heard before are marked + on the dial row.',0
+b9:     db      'A second buffer: another packet can come in while one waits.',0
 b0:     db      'Fine tuner fitted. Close enough is now on the nose.',0
 b1:     db      'Bit hints on. Wrong bits show as ! now.',0
 b2:     db      'A good heater. PIXEL has inspected it. It passes.',0
@@ -381,7 +410,7 @@ d6:     db      ' (*) ',0
 d7:     db      ' wall:',0
 m_shelf: db     'shelf:',0
 
-m_shop: db      'The shop. 1-8 buy, S to close.',0
+m_shop: db      'The shop. 1-9 and 0 buy, S to close.',0
 m_shut: db      'Shop closed. Back to the dial.',0
 m_have: db      'You have that already. It is lovely.',0
 m_poor: db      'Not enough tokens yet. The night is long.',0
@@ -390,6 +419,8 @@ fcb:    db      0,'SIGSEEK SAV'
         ds      24
 savbuf: ds      128
 upg:    db      0
+upg2:   db      0               ; 1 the star chart, 2 the second buffer
 shift:  db      1
 saved:  db      0ffh
 sitem:  db      0
+sbuy:   db      0

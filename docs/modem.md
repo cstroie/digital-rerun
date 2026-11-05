@@ -39,12 +39,13 @@ A character takes 10 bit times: 120 a second at 1200 baud, about 33 000 T-states
 ## Idle machine
 
 A program polling the modem at an empty prompt is idle, like one polling the console: `Machine.run()` stops
-after 64 idle polls. The T-states it did not run are credited to the modem's clock (a waiting loop would
-have spent them), otherwise 1200 baud would crawl at an idle prompt.
+after 64 idle polls. The T-states it did not run pass as machine time (a waiting loop would have spent them:
+`Modem.idle` adds them to `machine.cycles`, so the clock, the modem and TERM's timeouts all keep real time),
+otherwise 1200 baud would crawl at an idle prompt.
 
 ## Build order
 
-1. The UART (`js/devices/modem.js`), a loopback line, the idle credit, snapshots. `test/modem.test.js`.
+1. The UART (`js/devices/modem.js`), a loopback line, idle time, snapshots. `test/modem.test.js`.
 2. The Hayes layer: `AT`, `ATZ`, `ATE`, `ATV`, `ATDT`, `ATH`, `ATA`, `+++`, S-registers, `CONNECT 1200`,
    `NO CARRIER`, `BUSY`.
 3. A terminal program in 8080 assembly on a shelf disk; the CP/M 3 BIOS AUX device.
@@ -62,7 +63,7 @@ and sets `modem.carrier`. A snapshot does not keep a connection: restoring drops
 
 ## Status (2026-11-05)
 
-Steps 1–3 are built. `TERM.COM` is on the CP/M 2.2 disk (with its source, `TERM.ASM`): `TERM`, then `AT`,
+Steps 1–3 are built. `TERM.COM` is on the CP/M 2.2 disk (its source is `system/term.asm`; it is not on the disk, which needs the room for rebuilding the BIOS): `TERM`, then `AT`,
 `ATDT0` (the echo service), `+++` and `ATH`; Ctrl-] Q leaves with the call up, Ctrl-] H hangs up. Under CP/M 3
 the modem is the character device `MDM` (`DEVICE AUXOUT:=MDM`, then `PIP AUX:=file`); copy `TERM.COM`
 over from the 2.2 disk (the CP/M 3 disk has no room left to carry it). The numbers dialed are in
@@ -72,11 +73,19 @@ A program that polls the modem is "waiting": the run loop spends the T-states up
 timer on the modem's clock (`Machine.skipIdle`), so 1200 baud is exact at an idle prompt too. The line has no
 flow control: a byte nobody reads before the next arrives is lost (overrun), as on a real serial port.
 
-## The BBS (step 4, in progress)
+## The BBS (step 4)
 
-`ATDT5550100` (dashes are ignored) reaches the Digital Rerun BBS (`js/bbs.js`): **T** time and date (the host
-clock), **M** the moon (phase, age, lit fraction, a drawing; computed, offline), **B** bulletins (the last 8 of
-50, kept in the browser's localStorage; a post is a name and one line), **W** the weather desk, **G** goodbye
-(hangs up). Weather needs SETUP → *Online services*, off by default: the city name goes to open-meteo.com
-(geocoding, then a 4-day forecast), nothing else; off or unreachable, "the weather desk is not answering".
-The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). To do: XMODEM file area, SYSOP chat.
+`ATDT5550100` (dashes are ignored) reaches the Digital Rerun BBS (`js/bbs.js`):
+
+- **T** time and date (the host clock); **M** the moon (phase, age, lit fraction, a drawing; computed, offline).
+- **B** bulletins: the last 8 of 50, kept in the browser (localStorage); a post is a name and one line.
+- **F** files: `ABOUT.TXT`, `HELLO.COM` (a nine-byte CP/M program) and what callers uploaded (32K each, 256K in
+  all, in the browser). **D**ownload and **U**pload by XMODEM; the board sends checksum or CRC, and asks for
+  checksum. In TERM: `Ctrl-] R` receives (file name, then the board sends), `Ctrl-] S` sends; Ctrl-X stops.
+  TERM times out through the machine's clock (port 20), so a transfer that gets no answer stops on its own.
+- **W** the weather desk, needs SETUP → *Online services* (off by default): the city name goes to open-meteo.com
+  (geocoding, then a 4-day forecast), nothing else. Off or unreachable: "the weather desk is not answering".
+- **G** goodbye (hangs up).
+
+The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: the SYSOP chat (Z80-μLM, which
+lives on its own shelf disk), a built-in terminal for CP/M 3's own `TERM`.

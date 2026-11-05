@@ -7,7 +7,8 @@ const { Machine } = require('../js/machine.js');
 const { Disk } = require('../js/devices/fdc.js');
 const { Hayes } = require('../js/devices/hayes.js');
 const { Directory } = require('../js/devices/directory.js');
-const { bbs, MemoryBoard } = require('../js/bbs.js');
+const { bbs, MemoryBoard, MemoryFiles } = require('../js/bbs.js');
+const { CpmFs } = require('../js/cpmfs.js');
 
 function boot({ modem = true } = {}) {
     const m = new Machine();
@@ -83,11 +84,10 @@ test('TERM: Ctrl-] Q leaves the call up; Ctrl-] H hangs it up', async () => {
     assert.equal(m.modem.carrier, false);
 });
 
-test('TERM is on the system disk with its source', () => {
+test('TERM is on the system disk', () => {
     const { CpmFs } = require('../js/cpmfs.js');
     const files = new CpmFs(Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/cpm22.dsk'))))).list().map(f => f.name);
     assert.ok(files.includes('TERM.COM'));
-    assert.ok(files.includes('TERM.ASM'));
 });
 
 test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodbye', async () => {
@@ -119,4 +119,89 @@ test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodby
     at = say(m, 'g');
     await until(m, 'NO CARRIER', at);
     assert.equal(m.modem.carrier, false);
+});
+
+/** A machine on the BBS, its timers ours (a list to fire by hand). */
+function onBbs() {
+    const m = boot();
+    const timers = [];
+    const files = new MemoryFiles();
+    const dir = new Directory().add('5550100', bbs({
+        now: () => new Date(2026, 10, 5, 14, 3), board: new MemoryBoard(), files, store: { get: () => null, set() {} },
+        online: () => false, fetchJson: () => Promise.reject(new Error('x')),
+        after: fn => { timers.push(fn); return timers.length; }, cancel: h => { timers[h - 1] = null; }
+    }));
+    m.modem.attach(new Hayes({ dial: dir.dial, dialTime: 1 }));
+    return { m, files, timers, fire: () => { const t = timers.filter(Boolean).pop(); if (t) t(); } };
+}
+
+test('TERM: XMODEM download from the BBS (Ctrl-] R), and the program runs', async () => {
+    const { m } = onBbs();
+    await until(m, 'A>');
+    let at = say(m, 'TERM\r');
+    await until(m, 'Try ATDT', at);
+    at = say(m, 'ATDT5550100\r');
+    await until(m, 'oodbye', at);
+    at = say(m, 'f');
+    await until(m, 'ownload, ', at);
+    at = say(m, 'd');
+    await until(m, 'File?', at);
+    at = say(m, 'hello.com\r');
+    await until(m, 'Start your XMODEM receive now', at);
+    at = say(m, '\x1dr');
+    await until(m, 'File name?', at);
+    at = say(m, 'got.com\r');
+    await until(m, 'Receiving', at);
+    await until(m, 'Done.', at);
+    await until(m, 'Transfer complete', at);
+    at = say(m, '\x1dq');
+    await until(m, 'A>', at);
+    const file = new CpmFs(m.fdc.drives[0]).read('GOT.COM');
+    assert.equal(file.length, 128);
+    assert.deepEqual([...file.slice(0, 9)], [0x11, 0x09, 0x01, 0x0E, 0x09, 0xCD, 0x05, 0x00, 0xC9]);
+    at = say(m, 'GOT\r');
+    await until(m, 'Hello from the BBS!', at);
+});
+
+test('TERM: XMODEM upload to the BBS (Ctrl-] S)', async () => {
+    const { m, files, fire } = onBbs();
+    const text = Array.from({ length: 300 }, (_, i) => 'abcdefghij'.charCodeAt(i % 10));
+    new CpmFs(m.fdc.drives[0]).write('UP.TXT', Uint8Array.from(text));
+    await until(m, 'A>');
+    let at = say(m, 'TERM\r');
+    await until(m, 'Try ATDT', at);
+    at = say(m, 'ATDT5550100\r');
+    await until(m, 'oodbye', at);
+    at = say(m, 'f');
+    await until(m, 'ownload, ', at);
+    at = say(m, 'u');
+    await until(m, '(8.3)?', at);
+    at = say(m, 'mine.txt\r');
+    await until(m, 'Start your XMODEM send now', at);
+    at = say(m, '\x1ds');
+    await until(m, 'File name?', at);
+    at = say(m, 'up.txt\r');
+    await until(m, 'Sending: waiting', at);
+    for (let i = 0; i < 40; i++) m.run(200000);          // the BBS's first NAK went by while TERM was not listening
+    fire();                                               // it asks again
+    await until(m, 'Done.', at);
+    await until(m, 'received, ', at);
+    const got = await files.get('MINE.TXT');
+    assert.equal(got.length, 384);
+    assert.deepEqual([...got.slice(0, 300)], text);
+});
+
+test('TERM: Ctrl-X stops a transfer', async () => {
+    const { m } = onBbs();
+    await until(m, 'A>');
+    let at = say(m, 'TERM\r');
+    await until(m, 'Try ATDT', at);
+    at = say(m, '\x1dr');
+    await until(m, 'File name?', at);
+    at = say(m, 'none.dat\r');
+    await until(m, 'Receiving', at);
+    for (let i = 0; i < 20; i++) m.run(200000);
+    at = say(m, '\x18');
+    await until(m, 'Transfer stopped.', at);
+    assert.equal(new CpmFs(m.fdc.drives[0]).list().some(f => f.name === 'NONE.DAT'), true, 'the empty file made for it is still there');
 });

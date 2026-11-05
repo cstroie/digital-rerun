@@ -90,6 +90,7 @@
             this.cpu.reset();
             this.cycles = 0;
             this.clock.reset();
+            this.modem.setState(null);            // a power cycle: the call is dropped, the times start again
             const fdc = this.fdc;
             Object.assign(fdc, { drive: 0, track: 0, sector: 1, dma: 0x0000 });
             const status = fdc.command(0);

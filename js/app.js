@@ -7,7 +7,7 @@
     'use strict';
 
     const { Machine, Disk, CpmFs, FORMATS, diskFromImage, ALTAIR_SIZE, altairFiles, Terminal, TerminalView, FX80, PaperView, Storage,
-        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard } = window.DigitalRerun;
+        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard, StoredFiles } = window.DigitalRerun;
 
     const $ = id => document.getElementById(id);
     const DRIVES = [0, 1, 2, 3, 8];                 // A: B: C: D: I:
@@ -27,6 +27,7 @@
     const directory = new Directory().add('5550100', bbs({
         now: () => new Date(),
         board: new StoredBoard(localStorage),
+        files: new StoredFiles(localStorage),
         store: { get: k => localStorage.getItem('digitalrerun.bbs.' + k), set: (k, v) => localStorage.setItem('digitalrerun.bbs.' + k, v) },
         online: () => settings.online,
         fetchJson: url => fetch(url, { signal: AbortSignal.timeout(8000), referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })

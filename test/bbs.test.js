@@ -227,3 +227,200 @@ test('a closed session says nothing more', () => {
     c.type('t');
     assert.equal(c.out, '');
 });
+
+/* ---------- the file area and XMODEM ---------- */
+
+const { MemoryFiles, BUILTIN_FILES, xmodemBlock, crc16, cpmName } = require('../js/bbs.js');
+
+/** A caller whose timers are ours: advance them by hand. */
+function timed(extra = {}) {
+    const timers = [];
+    let id = 0;
+    const c = caller({
+        files: new MemoryFiles(),
+        after: (fn, ms) => { timers.push({ id: ++id, fn, ms }); return id; },
+        cancel: h => { const i = timers.findIndex(t => t.id === h); if (i >= 0) timers.splice(i, 1); },
+        ...extra
+    });
+    c.timers = timers;
+    c.fire = () => { const t = timers.shift(); if (t) t.fn(); return !!t; };
+    c.bytes = [];
+    const receive = c.session.link.receive;
+    c.session.link.receive = t => { if (typeof t === 'string') receive(t); else c.bytes.push(...t); };
+    return c;
+}
+const wire = c => c.bytes.splice(0);
+
+test('cpmName: 8.3, upper case, nothing odd', () => {
+    assert.equal(cpmName('hello.com'), 'HELLO.COM');
+    assert.equal(cpmName(' term '), 'TERM');
+    assert.equal(cpmName('toolongname.txt'), null);
+    assert.equal(cpmName('a/b.txt'), null);
+    assert.equal(cpmName('x.abcd'), null);
+});
+
+test('crc16 is the XMODEM one', () => {
+    assert.equal(crc16(Buffer.from('123456789')), 0x31C3);
+});
+
+test('F: lists the built-in files', async () => {
+    const c = timed();
+    c.take();
+    c.type('f');
+    await c.settle();
+    assert.match(c.out, /ABOUT\.TXT .* bytes/);
+    assert.match(c.out, /HELLO\.COM +\d+ bytes +1 blocks/);
+});
+
+test('download: waits for NAK, sends blocks, ACK moves on, EOT ends it (checksum)', async () => {
+    const c = timed();
+    c.type('f');
+    await c.settle();
+    c.type('d');
+    c.type('hello.com\r');
+    await c.settle();
+    assert.match(c.out, /Start your XMODEM receive now/);
+    assert.deepEqual(wire(c), []);
+    c.session.send(21);                                       // NAK
+    const b1 = wire(c);
+    assert.equal(b1.length, 132);
+    assert.deepEqual(b1, xmodemBlock(BUILTIN_FILES['HELLO.COM'], 1, false));
+    assert.equal(b1[0], 1);
+    assert.equal(b1[1] + b1[2], 255);
+    assert.deepEqual(b1.slice(3, 12), [0x11, 0x09, 0x01, 0x0E, 0x09, 0xCD, 0x05, 0x00, 0xC9]);
+    assert.equal(b1[3 + 128 - 1], 26, 'the last block is padded with ^Z');
+    c.session.send(6);                                        // ACK: that was the only block
+    assert.deepEqual(wire(c), [4]);                           // EOT
+    c.take();
+    c.session.send(6);
+    assert.match(c.out, /Transfer complete/);
+    assert.match(c.out, /ime .*oon/s);
+});
+
+test('download: a CRC receiver asking with C gets a CRC block; a NAK repeats the block; CAN stops it', async () => {
+    const c = timed();
+    c.type('f');
+    await c.settle();
+    c.type('dabout.txt\r');
+    await c.settle();
+    c.session.send(67);
+    const b = wire(c);
+    assert.equal(b.length, 133);
+    assert.equal((b[131] << 8) | b[132], crc16(b.slice(3, 131)));
+    c.session.send(21);
+    assert.deepEqual(wire(c), b, 'resent');
+    c.take();
+    c.session.send(24);
+    assert.match(c.out, /Cancelled/);
+    assert.deepEqual(wire(c), [24, 24]);
+});
+
+test('download: a file of three blocks; the receiver that never answers is given up on', async () => {
+    const files = new MemoryFiles();
+    await files.put('BIG.DAT', Uint8Array.from({ length: 300 }, (_, i) => i & 0xFF));
+    let c = timed({ files });
+    c.type('f');
+    await c.settle();
+    c.type('dbig.dat\r');
+    await c.settle();
+    c.session.send(21);
+    for (let n = 1; n <= 3; n++) { const b = wire(c); assert.equal(b[1], n); c.session.send(6); }
+    assert.deepEqual(wire(c), [4]);
+
+    c = timed({ files });
+    c.type('f');
+    await c.settle();
+    c.type('dbig.dat\r');
+    await c.settle();
+    c.take();
+    assert.ok(c.fire());                                      // nobody answered
+    assert.match(c.out, /Nobody answered/);
+});
+
+test('download: no such file', async () => {
+    const c = timed();
+    c.type('f');
+    await c.settle();
+    c.take();
+    c.type('dnothing\r');
+    await c.settle();
+    assert.match(c.out, /No such file/);
+});
+
+/** What a checksum XMODEM sender puts on the wire for `data`. */
+const sendFile = (c, data) => {
+    for (let n = 1; n <= Math.ceil(data.length / 128); n++) for (const b of xmodemBlock(Uint8Array.from(data), n, false)) c.session.send(b);
+};
+
+test('upload: NAK asks, blocks are ACKed, EOT stores the file', async () => {
+    const c = timed();
+    c.type('f');
+    await c.settle();
+    c.type('u');
+    c.type('mine.txt\r');
+    await c.settle();
+    assert.deepEqual(wire(c), [21], 'the first NAK');
+    const data = Array.from({ length: 200 }, (_, i) => 65 + (i % 26));
+    sendFile(c, data);
+    assert.deepEqual(wire(c), [6, 6]);
+    c.session.send(4);
+    await c.settle();
+    assert.deepEqual(wire(c), [6]);
+    const got = await c.services.files.get('MINE.TXT');
+    assert.equal(got.length, 256);
+    assert.deepEqual([...got.slice(0, 200)], data);
+    assert.equal(got[200], 26);
+    assert.match(c.out, /MINE\.TXT received, 256 bytes/);
+});
+
+test('upload: a bad checksum is NAKed, a repeated block is ACKed and kept once, a gap aborts', async () => {
+    const c = timed();
+    c.type('f');
+    await c.settle();
+    c.type('u');
+    c.type('x\r');
+    await c.settle();
+    wire(c);
+    const b1 = xmodemBlock(Uint8Array.from([1, 2, 3]), 1, false);
+    const bad = b1.slice(); bad[bad.length - 1] ^= 0xFF;
+    for (const b of bad) c.session.send(b);
+    assert.deepEqual(wire(c), [21]);
+    for (const b of b1) c.session.send(b);
+    assert.deepEqual(wire(c), [6]);
+    for (const b of b1) c.session.send(b);                    // the sender missed the ACK
+    assert.deepEqual(wire(c), [6]);
+    c.session.send(4);
+    await c.settle();
+    assert.equal((await c.services.files.get('X')).length, 128, 'kept once');
+
+    const d = timed();
+    d.type('f'); await d.settle(); d.type('u'); d.type('y\r'); await d.settle(); wire(d);
+    for (const b of xmodemBlock(Uint8Array.from([1]), 3, false)) d.session.send(b);
+    assert.match(d.out, /Out of step/);
+});
+
+test('upload: nothing comes: it asks again, then gives up; a silence mid-block asks again; built-ins cannot be replaced', async () => {
+    let c = timed();
+    c.type('f'); await c.settle(); c.type('u'); c.type('z\r'); await c.settle();
+    assert.deepEqual(wire(c), [21]);
+    for (let i = 0; i < 5; i++) { c.fire(); assert.deepEqual(wire(c), [21]); }
+    c.take();
+    c.fire();
+    assert.match(c.out, /Nothing came/);
+
+    c = timed();
+    c.type('f'); await c.settle(); c.type('u'); c.type('z\r'); await c.settle(); wire(c);
+    c.session.send(1); c.session.send(1);
+    c.fire();
+    assert.deepEqual(wire(c), [21]);
+
+    c = timed();
+    c.type('f'); await c.settle(); c.take(); c.type('u'); c.type('hello.com\r'); await c.settle();
+    assert.match(c.out, /Not a name I can use/);
+});
+
+test('the file area keeps uploads small: a file over the limit is refused', async () => {
+    const files = new MemoryFiles();
+    await assert.rejects(files.put('BIG', new Uint8Array(40000)));
+    await assert.rejects(files.put('HELLO.COM', new Uint8Array(1)));
+});

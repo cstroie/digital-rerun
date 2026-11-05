@@ -133,7 +133,7 @@ test('a Z80 program polling the modem sends and receives, and waiting costs no h
     assert.equal(m.state, 'halted');
     assert.equal(m.memory[0x200], 0x48);
     assert.equal(m.memory[0x201], 0x69);
-    assert.ok(m.modem.credit > 0, 'idle T-states were credited');
+    assert.ok(m.cycles > 100000, 'idle T-states were spent');
     assert.ok(m.modem.now() >= 3 * PER, 'two characters out and back take their time');
 });
 
@@ -145,5 +145,5 @@ test('polling an empty modem is waiting: the run loop stops early', () => {
     const used = m.run(200000);
     assert.ok(used < 200000);
     assert.equal(m.waiting, true);
-    assert.equal(m.modem.credit, 200000 - used);
+    assert.equal(m.cycles, 200000, 'the rest of the budget passed as time');
 });

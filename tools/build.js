@@ -84,7 +84,7 @@ function main() {
     fsys.write('SYSGEN.COM', sysgenCom);
     fsys.write('PRTDEMO.COM', prtdemoCom);
     fsys.write('TERM.COM', termCom);
-    for (const f of ['bios.asm', 'boot.asm', 'sysgen.asm', 'prtdemo.asm', 'term.asm']) fsys.write(f.toUpperCase(), toCpmText(fs.readFileSync(path.join(ROOT, 'system', f))));
+    for (const f of ['bios.asm', 'boot.asm', 'sysgen.asm', 'prtdemo.asm']) fsys.write(f.toUpperCase(), toCpmText(fs.readFileSync(path.join(ROOT, 'system', f))));
     fs.writeFileSync(path.join(ROOT, 'disks/cpm22.dsk'), disk.data);
 
     buildShelf();

@@ -4,6 +4,7 @@
  *
  *   T  the time and date          M  the moon
  *   B  the bulletin board         W  the weather desk (online, off by default)
+ *   F  the file area: download and upload by XMODEM (checksum or CRC)
  *   G  goodbye
  *
  * Output is plain 7-bit text with VT100 bold and reverse; the caller's
@@ -19,6 +20,9 @@
  *   store        { get(key), set(key, value) }: small memories (the last city)
  *   online()     may the board ask the internet? (SETUP; off by default)
  *   fetchJson(url) -> Promise<object>
+ *   files        { list() -> Promise<[{ name, size }]>, get(name) -> Promise<Uint8Array|null>,
+ *                  put(name, bytes) -> Promise }
+ *   after(fn, ms) -> handle, cancel(handle): timers (default setTimeout, clearTimeout)
  */
 (function (root) {
     'use strict';
@@ -110,6 +114,86 @@
 
     const clean = s => s.replace(/[^\x20-\x7e]/g, '').trim();
 
+    /* ---------- XMODEM ---------- */
+
+    const SOH = 1, EOT = 4, ACK = 6, NAK = 21, CAN = 24, EOF = 26, CRC_C = 67;
+    const BLOCK = 128, XRETRIES = 10;
+
+    function crc16(bytes) {
+        let crc = 0;
+        for (const b of bytes) {
+            crc ^= b << 8;
+            for (let i = 0; i < 8; i++) crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+        }
+        return crc;
+    }
+
+    /** Block `n` (1-based) of `data` as it goes on the wire; checksum or CRC. */
+    function xmodemBlock(data, n, crc) {
+        const chunk = new Uint8Array(BLOCK).fill(EOF);
+        chunk.set(data.subarray((n - 1) * BLOCK, n * BLOCK));
+        const out = [SOH, n & 0xFF, ~n & 0xFF, ...chunk];
+        if (crc) { const c = crc16(chunk); out.push(c >> 8, c & 0xFF); } else out.push(chunk.reduce((a, b) => (a + b) & 0xFF, 0));
+        return out;
+    }
+
+    /* ---------- the files ---------- */
+
+    const TEXT = s => Uint8Array.from(Array.from(s.replace(/\n/g, '\r\n') + '\x1a', c => c.charCodeAt(0) & 0xFF));
+    /** What the board always has. HELLO.COM is a CP/M program: nine bytes of code and a greeting. */
+    const BUILTIN_FILES = {
+        'ABOUT.TXT': TEXT('This is the Digital Rerun BBS, a board that lives in your browser.\n' +
+            'It answers at 1200 baud, one caller at a time, and is never busy.\n\n' +
+            'Download files with XMODEM (TERM: Ctrl-] R). Upload yours (Ctrl-] S).\n' +
+            'Uploads stay in this browser.\n'),
+        'HELLO.COM': Uint8Array.from([0x11, 0x09, 0x01, 0x0E, 0x09, 0xCD, 0x05, 0x00, 0xC9,
+            ...Array.from('Hello from the BBS!\r\n$', c => c.charCodeAt(0))])
+    };
+    const UPLOAD_MAX = 32768, UPLOADS_MAX = 262144;
+
+    /** The file area in memory: the built-in files, then what callers uploaded. */
+    class MemoryFiles {
+        constructor(uploads = {}) { this.uploads = new Map(Object.entries(uploads)); }
+        all() { return new Map([...Object.entries(BUILTIN_FILES), ...this.uploads]); }
+        list() { return Promise.resolve([...this.all()].map(([name, data]) => ({ name, size: data.length }))); }
+        get(name) { return Promise.resolve(this.all().get(name) || null); }
+        put(name, bytes) {
+            if (name in BUILTIN_FILES) return Promise.reject(new Error('reserved'));
+            if (bytes.length > UPLOAD_MAX) return Promise.reject(new Error('too big'));
+            const others = [...this.uploads].filter(([n]) => n !== name).reduce((t, [, d]) => t + d.length, 0);
+            if (others + bytes.length > UPLOADS_MAX) return Promise.reject(new Error('full'));
+            this.uploads.set(name, Uint8Array.from(bytes));
+            return Promise.resolve();
+        }
+    }
+
+    /** The file area with its uploads kept in the browser (localStorage, base64). */
+    class StoredFiles extends MemoryFiles {
+        constructor(storage, key = 'digitalrerun.bbs.files') {
+            super();
+            this.storage = storage;
+            this.key = key;
+            try {
+                for (const [name, b64] of Object.entries(JSON.parse(storage.getItem(key)) || {})) {
+                    this.uploads.set(name, Uint8Array.from(atob(b64), c => c.charCodeAt(0)));
+                }
+            } catch (e) { this.uploads.clear(); }
+        }
+        put(name, bytes) {
+            return super.put(name, bytes).then(() => {
+                const o = {};
+                for (const [n, d] of this.uploads) o[n] = btoa(String.fromCharCode(...d));
+                try { this.storage.setItem(this.key, JSON.stringify(o)); } catch (e) { /* full: it stays in memory */ }
+            });
+        }
+    }
+
+    /** "name.ext" as CP/M files have it: upper case, 8.3, nothing else; null if it is not one. */
+    function cpmName(text) {
+        const m = /^([A-Za-z0-9$_-]{1,8})(?:\.([A-Za-z0-9$_-]{0,3}))?$/.exec(text.trim());
+        return m ? (m[1] + (m[2] ? '.' + m[2] : '')).toUpperCase() : null;
+    }
+
     /* ---------- the board ---------- */
 
     /** The bulletin board in memory: tests, and the page's fallback. */
@@ -157,7 +241,7 @@
         }
 
         menu() {
-            this.out(`\n${BOLD}T${OFF}ime  ${BOLD}M${OFF}oon  ${BOLD}B${OFF}ulletins  ${BOLD}W${OFF}eather  ${BOLD}G${OFF}oodbye   ? `);
+            this.out(`\n${BOLD}T${OFF}ime  ${BOLD}M${OFF}oon  ${BOLD}B${OFF}ulletins  ${BOLD}F${OFF}iles  ${BOLD}W${OFF}eather  ${BOLD}G${OFF}oodbye   ? `);
             this.mode = 'menu';
         }
 
@@ -217,6 +301,146 @@
             }, NAME_MAX);
         }
 
+        /* --- the file area --- */
+
+        async files() {
+            this.mode = 'busy';
+            let list;
+            try { list = await this.s.files.list(); } catch (e) { list = []; }
+            this.out(`\n\n${REV} FILES ${OFF}  XMODEM, checksum or CRC\n\n`);
+            for (const f of list) this.out(`${f.name.padEnd(13)}${String(f.size).padStart(7)} bytes  ${String(Math.ceil(f.size / BLOCK)).padStart(4)} blocks\n`);
+            if (!list.length) this.out('Nothing here.\n');
+            this.out(`\n${BOLD}D${OFF}ownload, ${BOLD}U${OFF}pload, ${BOLD}Q${OFF}uit to the menu? `);
+            this.ask('key', k => {
+                if (k === 'D') this.download(list);
+                else if (k === 'U') this.upload();
+                else { this.out('\n'); this.menu(); }
+            });
+        }
+
+        download(list) {
+            this.out('\n\nFile? ');
+            this.ask('line', async text => {
+                const name = cpmName(text);
+                const data = name && await this.s.files.get(name);
+                if (!data) { this.out('No such file.\n'); return this.menu(); }
+                this.out(`${name}: ${Math.ceil(data.length / BLOCK)} blocks, about ${Math.ceil(data.length * 10 / 120)} seconds.\n` +
+                    'Start your XMODEM receive now. Ctrl-X cancels.\n');
+                this.xsend = { data, blocks: Math.ceil(data.length / BLOCK), n: 1, crc: false, state: 'wait', tries: 0 };
+                this.mode = 'xsend';
+                this.timeout(60000, () => this.xabort('Nobody answered. Back to the menu.'));
+            }, 12);
+        }
+
+        /** The receiver's byte while a file goes out. */
+        xsendByte(b) {
+            const x = this.xsend;
+            if (b === CAN) return this.xabort('Cancelled.');
+            if (x.state === 'wait') {
+                if (b !== NAK && b !== CRC_C) return;
+                x.crc = b === CRC_C;
+                return this.xblock();
+            }
+            if (b === ACK) {
+                x.tries = 0;
+                if (x.state === 'eot') { this.clear(); this.mode = 'busy'; this.out('\n\nTransfer complete.\n'); return this.menu(); }
+                if (x.n >= x.blocks) { x.state = 'eot'; return this.xeot(); }
+                x.n++;
+                return this.xblock();
+            }
+            if (b === NAK) {
+                if (++x.tries > XRETRIES) return this.xabort('Too many errors.');
+                return x.state === 'eot' ? this.xeot() : this.xblock();
+            }
+        }
+
+        xblock() {
+            const x = this.xsend;
+            x.state = 'sent';
+            this.link.receive(xmodemBlock(x.data, x.n, x.crc));
+            this.timeout(20000, () => { if (++x.tries > XRETRIES) this.xabort('Lost the line.'); else this.xblock(); });
+        }
+
+        xeot() {
+            this.link.receive([EOT]);
+            this.timeout(20000, () => { if (++this.xsend.tries > XRETRIES) this.xabort('Lost the line.'); else this.xeot(); });
+        }
+
+        xabort(why) {
+            this.clear();
+            this.link.receive([CAN, CAN]);
+            this.mode = 'busy';
+            this.out(`\n\n${why}\n`);
+            this.menu();
+        }
+
+        upload() {
+            this.out('\n\nName for the file (8.3)? ');
+            this.ask('line', text => {
+                const name = cpmName(text);
+                if (!name || name in BUILTIN_FILES) { this.out('Not a name I can use.\n'); return this.menu(); }
+                this.out(`Start your XMODEM send now. Ctrl-X cancels.\n`);
+                this.xrecv = { name, data: [], n: 1, step: 'soh', block: [], tries: 0, started: false };
+                this.mode = 'xrecv';
+                this.xnak();
+            }, 12);
+        }
+
+        /** Ask for the first block, or again for the last. */
+        xnak() {
+            const x = this.xrecv;
+            if (++x.tries > (x.started ? XRETRIES : 6)) return this.xabort('Nothing came. Back to the menu.');
+            x.step = 'soh';
+            x.block = [];
+            this.link.receive([NAK]);
+            this.timeout(x.started ? 5000 : 10000, () => this.xnak());
+        }
+
+        xrecvByte(b) {
+            const x = this.xrecv;
+            if (x.step === 'soh') {
+                if (b === SOH) { x.step = 'body'; x.block = []; this.timeout(3000, () => this.xnak()); } else if (b === CAN) this.xabort('Cancelled.');
+                else if (b === EOT) this.xfinish();
+                return;
+            }
+            x.block.push(b);
+            this.timeout(3000, () => this.xnak());
+            if (x.block.length < 2 + BLOCK + 1) return;
+            const [n, inv, ...rest] = x.block;
+            const data = rest.slice(0, BLOCK), sum = rest[BLOCK];
+            if ((n + inv) !== 0xFF || data.reduce((a, c) => (a + c) & 0xFF, 0) !== sum) return this.xnak();
+            if (n === ((x.n - 1) & 0xFF)) { x.step = 'soh'; this.link.receive([ACK]); return this.timeout(5000, () => this.xnak()); }   // the last one again
+            if (n !== (x.n & 0xFF)) return this.xabort('Out of step.');
+            if (x.data.length + BLOCK > UPLOAD_MAX) return this.xabort('That file is too big.');
+            x.data.push(...data);
+            x.n++;
+            x.tries = 0;
+            x.started = true;
+            x.step = 'soh';
+            this.link.receive([ACK]);
+            this.timeout(5000, () => this.xnak());
+        }
+
+        async xfinish() {
+            const x = this.xrecv;
+            this.clear();
+            this.link.receive([ACK]);
+            this.mode = 'busy';
+            const bytes = x.data;
+            try { await this.s.files.put(x.name, Uint8Array.from(bytes)); this.out(`\n\n${x.name} received, ${bytes.length} bytes. Thank you.\n`); } catch (e) { this.out(`\n\nThe file area could not keep ${x.name}.\n`); }
+            this.menu();
+        }
+
+        timeout(ms, fn) {
+            this.clear();
+            this.timer = (this.s.after || setTimeout)(() => { this.timer = null; if (!this.closed) fn(); }, ms);
+        }
+
+        clear() {
+            if (this.timer) (this.s.cancel || clearTimeout)(this.timer);
+            this.timer = null;
+        }
+
         /* --- the weather desk --- */
 
         weather() {
@@ -265,6 +489,8 @@
                 case 'menu': return this.command(String.fromCharCode(byte).toUpperCase());
                 case 'key': { const fn = this.done; this.mode = 'busy'; return fn(String.fromCharCode(byte).toUpperCase()); }
                 case 'line': return this.edit(byte);
+                case 'xsend': return this.xsendByte(byte);
+                case 'xrecv': return this.xrecvByte(byte);
                 default: /* busy: the caller types ahead; it is dropped */
             }
         }
@@ -275,6 +501,7 @@
                 case 'M': return this.moonPage();
                 case 'B': return this.bulletins();
                 case 'W': return this.weather();
+                case 'F': return this.files();
                 case 'G': return this.goodbye();
                 case '?': case 'H': this.out('\n'); return this.menu();
                 default: /* RETURN, line feed, noise: nothing */
@@ -297,7 +524,7 @@
             this.out(String.fromCharCode(byte));
         }
 
-        close() { this.closed = true; }
+        close() { this.closed = true; this.clear(); }
     }
 
     /** The function a directory entry is: dials make a Session. */
@@ -305,7 +532,7 @@
         return link => new Session(link, services);
     }
 
-    const api = { bbs, Session, moon, moonArt, weatherPage, sky, MemoryBoard, StoredBoard };
+    const api = { bbs, Session, moon, moonArt, weatherPage, sky, MemoryBoard, StoredBoard, MemoryFiles, StoredFiles, BUILTIN_FILES, xmodemBlock, crc16, cpmName };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

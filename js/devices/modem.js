@@ -10,7 +10,7 @@
  *   OUT 7   a byte to send (lost when the transmitter is busy)
  *
  * A character takes ten bit times. Time is the machine's own: its T-states
- * at `hz`, plus the T-states a waiting program did not run (`credit`), so the
+ * at `hz` (a waiting program's idle T-states are added to them), so the
  * rate is the same at any emulator speed, paused or restored from a snapshot.
  *
  * What is on the other end is a "line": an object with send(byte), dtr(on)
@@ -28,7 +28,6 @@
             this.machine = machine;
             this.baud = 1200;
             this.line = null;
-            this.credit = 0;
             this.reset();
         }
 
@@ -47,8 +46,8 @@
         /** T-states one character takes at the baud rate. */
         get perChar() { return Math.round(this.machine.clock.hz * 10 / this.baud); }
 
-        /** The modem's time: T-states run, and idle ones credited. */
-        now() { return this.machine.cycles + this.credit; }
+        /** The modem's time: the machine's T-states (a waiting program spends them too: see idle). */
+        now() { return this.machine.cycles; }
 
         attach(line) {
             if (this.line && this.line.reset) this.line.reset();
@@ -121,15 +120,17 @@
             return at === null ? null : at - now;
         }
 
-        /** A waiting program did not run `tstates`: the modem's time passes anyway. */
-        idle(tstates) { if (tstates > 0) this.credit += tstates; }
+        /**
+         * A waiting program would have spent `tstates` polling: the machine's time passes
+         * (its clock, its paste timing and this modem's bytes all go by it).
+         */
+        idle(tstates) { if (tstates > 0) this.machine.cycles += tstates; }
 
         getState() { return { baud: this.baud, dtr: this.dtr }; }
 
         /** The line's connection is gone: carrier drops, the wire empties. */
         setState(s) {
             this.reset();
-            this.credit = 0;
             this.baud = (s && s.baud) || 1200;
             if (this.line && this.line.reset) this.line.reset();
         }

@@ -69,6 +69,7 @@
         /** Deliver the bytes whose time has come into the receive register. */
         pump() {
             const now = this.now();
+            if (this.line && this.line.tick) this.line.tick(now);
             while (this.inbox.length && this.inbox[0].at <= now) {
                 if (this.ready) this.overrun = true;          // the last one was never read: lost
                 this.register = this.inbox.shift().byte;

@@ -742,7 +742,7 @@ test('C: a long reply never runs past column 79: the lines are set after the "sy
     c.take();
     c.type('how is your cat doing?\r');
     await c.settle();
-    const lines = plain(c.out).split(/\r?\n/).filter(l => l.trim());
+    const lines = plain(c.out.replace(/[^\n]*\r\x1b\[K/, '')).split(/\r?\n/).filter(l => l.trim());     // the "(typing)" is written over
     assert.ok(lines.length >= 4, 'wrapped to several lines');
     for (const line of lines) assert.ok(line.length <= 79, `${line.length}: ${line}`);
     assert.ok(lines.some(l => /^ {7}\S/.test(l)), 'a continuation is indented under the first line');

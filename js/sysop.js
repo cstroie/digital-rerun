@@ -165,10 +165,20 @@
             return wrap(this.rules(text));
         }
 
+        /**
+         * A reply for something other than the chat (a game's questions, a hint), under its own
+         * instructions: ASCII text from the endpoint, or null when there is none (no endpoint,
+         * the internet not allowed, or it failed): the caller has its own fallback.
+         */
+        async converse(system, history, text) {
+            if (!this.connected) return null;
+            try { return tidy(await this.ask(history, text, system)) || null; } catch (e) { return null; }
+        }
+
         /** One chat completion from the endpoint. */
-        async ask(history, text) {
+        async ask(history, text, system = PERSONA) {
             const c = this.config();
-            const messages = [{ role: 'system', content: PERSONA }, ...history.slice(-KEEP * 2), { role: 'user', content: text }];
+            const messages = [{ role: 'system', content: system }, ...history.slice(-KEEP * 2), { role: 'user', content: text }];
             const res = await this.fetch(c.url.replace(/\/+$/, '') + '/chat/completions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...(c.key ? { Authorization: `Bearer ${c.key}` } : {}) },

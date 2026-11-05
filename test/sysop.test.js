@@ -122,3 +122,15 @@ test('no key: no Authorization header', async () => {
     await s.reply([], 'x');
     assert.equal('Authorization' in headers, false);
 });
+
+test('converse: another set of instructions, tidied text; null with no endpoint or on failure', async () => {
+    let body;
+    const s = new Sysop({ online: () => true, config: () => ({ url: 'http://h/v1', model: 'm' }), fetch: async (u, i) => { body = JSON.parse(i.body); return answer('**Yes.**'); } });
+    assert.equal(await s.converse('Play twenty questions.', [], 'is it alive?'), 'Yes.');
+    assert.equal(body.messages[0].content, 'Play twenty questions.');
+    assert.equal(body.messages.at(-1).content, 'is it alive?');
+    const off = new Sysop({ online: () => false, config: () => ({ url: 'http://h/v1', model: 'm' }), fetch: async () => answer('x') });
+    assert.equal(await off.converse('s', [], 'q'), null);
+    const down = new Sysop({ online: () => true, config: () => ({ url: 'http://h/v1', model: 'm' }), fetch: async () => { throw new Error('down'); } });
+    assert.equal(await down.converse('s', [], 'q'), null);
+});

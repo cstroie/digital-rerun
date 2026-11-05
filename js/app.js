@@ -31,7 +31,7 @@
         store: { get: k => localStorage.getItem('digitalrerun.bbs.' + k), set: (k, v) => localStorage.setItem('digitalrerun.bbs.' + k, v) },
         online: () => settings.online,
         wopr: window.DigitalRerun.wopr,
-        games: window.DigitalRerun.games,
+        games: [...window.DigitalRerun.games, window.DigitalRerun.gibson, window.DigitalRerun.twentyq, window.DigitalRerun.adventure],
         scores: new Scores({ get: k => localStorage.getItem('digitalrerun.bbs.' + k), set: (k, v) => localStorage.setItem('digitalrerun.bbs.' + k, v) }),
         fortunes: { pick: window.DigitalRerun.pick, FORTUNES: window.DigitalRerun.FORTUNES },
         sysop: new Sysop({ online: () => settings.online, config: () => ({ url: settings.sysopUrl, model: settings.sysopModel, key: settings.sysopKey }) }),

@@ -7,7 +7,7 @@ const fortunes = require('../js/fortune.js');
 
 const NOW = new Date(2026, 10, 5, 14, 3);
 /** The text of a screen: the sequences gone, a cursor move a line break. */
-const plain = t => t.replace(/\x1b\[\d+;\d+H/g, '\n').replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b[78]/g, '');          // Thursday 5 November 2026, 14:03 local
+const plain = t => t.replace(/\x1b\[\d+;\d+H/g, '\n').replace(/\x1b\[(\d+)C/g, (m, n) => ' '.repeat(Number(n))).replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b[78]/g, '');          // Thursday 5 November 2026, 14:03 local
 
 function caller(extra = {}) {
     const memory = new Map();
@@ -541,10 +541,10 @@ test('O: a fortune, numbered; Y another, a different one; anything else back to 
     const c = caller({ random: () => 0 });
     c.take();
     c.type('o');
-    assert.match(c.out, /fortune 1 of \d+/);
+    assert.match(plain(c.out), /FORTUNE 1 OF \d+/);
     const first = c.take();
     c.type('y');
-    assert.match(c.out, /fortune 2 of \d+/, 'not the same one again');
+    assert.match(plain(c.out), /FORTUNE 2 OF \d+/, 'not the same one again');
     assert.notEqual(plain(c.out), plain(first), 'a different fortune');
     c.take();
     c.type('n');
@@ -556,7 +556,8 @@ test('O: a fortune is wrapped to the screen', () => {
     c.take();
     c.type('o');
     for (const line of plain(c.out).split(/\r?\n/)) assert.ok(line.length <= 80, line);
-    assert.match(plain(c.out), /\|  word word/, 'in a box');
+    assert.match(c.out, /\x1b\[6;5Hword word/, 'set at column 5, under the bar');
+    assert.match(c.out, /\x1b\[4;1H\x1b\[7m\x1b\[K/, 'a bar drawn by erase-to-end-of-line');
 });
 
 test('O: without the cookie jar it says so', () => {

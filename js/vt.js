@@ -3,13 +3,19 @@
  * status bar on row 24, the 22 rows between them a scroll region, so that what
  * scrolls never touches the bars. Pure strings: the BBS session sends them.
  *
+ * A line is drawn the way a terminal draws one cheaply: reverse video on, the text,
+ * "erase to end of line" (the blanks it leaves are reverse too, so it fills the
+ * row), and only a short right-hand text positioned over the end: not eighty spaces
+ * sent down a 1200 baud line.
+ *
  *   frame({ title, titleRight, status, statusRight })   clear the screen, draw both bars,
  *                                                       set the region, cursor to its top
  *   statusBar(left, right)    redraw the status bar only (cursor kept)
- *   at(row, col)  fit(left, right, width)  big(text)  RESET
+ *   bar(row, left, right)     a full-width reverse bar    rule(row, labels)  a bar with
+ *                             texts at columns, [[col, text], ...]
+ *   at(row, col)  forward(n)  big(text)  RESET
  *
- * ASCII only: no line-drawing set, no colour. Bars are reverse video; helpers are
- * dim and bold. Every line stays within 79 columns so that nothing wraps.
+ * ASCII only: no line-drawing set, no colour. Every line stays within 79 columns.
  */
 (function (root) {
     'use strict';
@@ -20,14 +26,18 @@
 
     const at = (row, col = 1) => `${ESC}[${row};${col}H`;
 
-    /** `left` and `right` in one string of exactly `width` characters, spaces between. */
-    function fit(left, right = '', width = WIDTH) {
-        const r = right.slice(0, Math.max(0, width - 2));
-        const l = left.slice(0, Math.max(0, width - r.length - (r ? 1 : 0)));
-        return l + ' '.repeat(Math.max(0, width - l.length - r.length)) + r;
+    /** `n` columns to the right (a few bytes, where an absolute move would be seven). */
+    const forward = n => (n > 0 ? `${ESC}[${n}C` : '');
+
+    /** A reverse bar across the row: `left` from column 1, `right` ending at column 80; the rest by "erase to end of line". */
+    function bar(row, left = '', right = '') {
+        const r = right.slice(0, Math.max(0, WIDTH - 2));
+        const l = left.slice(0, Math.max(0, WIDTH - r.length - (r ? 1 : 0)));
+        return `${at(row, 1)}${REV}${l}${ESC}[K${r ? at(row, WIDTH - r.length + 1) + r : ''}${OFF}`;
     }
 
-    const bar = (row, left, right) => `${at(row, 1)}${REV}${fit(left, right)}${OFF}`;
+    /** A reverse bar with labels at columns: rule(3, [[3, 'MAIN'], [47, 'SYSTEM']]): filled by erase-to-end-of-line, then the labels written over it. */
+    const rule = (row, labels) => `${at(row, 1)}${REV}${ESC}[K${labels.map(([col, text]) => at(row, col) + text).join('')}${OFF}`;
 
     /** A new page: both bars, the region between them, the cursor at its top. */
     function frame({ title = '', titleRight = '', status = '', statusRight = '' } = {}) {
@@ -54,7 +64,7 @@
         return Array.from({ length: 5 }, (_, row) => [...text].map(c => (GLYPHS[c] || GLYPHS[' '])[row]).join(' '));
     }
 
-    const api = { ESC, BOLD, DIM, REV, OFF, WIDTH, TOP, BOTTOM, at, fit, bar, frame, statusBar, RESET, big };
+    const api = { ESC, BOLD, DIM, REV, OFF, WIDTH, TOP, BOTTOM, at, forward, bar, rule, frame, statusBar, RESET, big };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, { vt: api });
 })(typeof window !== 'undefined' ? window : globalThis);

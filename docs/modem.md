@@ -224,3 +224,9 @@ Every place has a number, 555-nnnn, which may be dialed in full, without the das
 (also `ATDT 555-0100`), the echo service `ATDT0`, and the ten telnet hosts of the dial directory `0101` to `0110` (telehack.com is
 `ATDT0101`). The directory shows the last four digits only. The hosts need the bridge; without one the modem answers `NO DIALTONE`.
 A host can still be dialed by name: `ATDT telehack.com`. The table is `PHONEBOOK` in `js/devices/directory.js`.
+
+Lines are drawn the cheap way (`js/vt.js`): a bar is reverse video on, the text, *erase to end of line* (the blanks it leaves are
+reverse too, so it fills the row), and a short right-hand text positioned over the end; a rule is the same with labels at columns.
+The main page writes the left text of a row once and reaches the right-hand panel with a four-byte cursor-forward, not a second
+absolute move. A frame went from 219 to 154 bytes, the whole main page from 1405 to 1115, the menu alone from 484 to 431; the
+fortune is two bars and the cookie, and the Gibson's banner two reverse lines, not 120 characters.

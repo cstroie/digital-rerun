@@ -59,7 +59,8 @@
             const p = makePuzzle(dayNumber(now.getTime ? now.getTime() : now));
             let commands = 0, hints = 0, strikes = 0, user = 'GUEST', stage = 0;
 
-            h.out(`\n${'='.repeat(60)}\nCONNECTED TO ${p.host}.  GUEST ACCESS.\nTHIS IS A PUZZLE. NO REAL SYSTEM IS TOUCHED. TYPE HELP.\n${'='.repeat(60)}\n`);
+            const bar = '\x1b[7m\x1b[K\x1b[0m\n';        // a reverse line across the screen: erase-to-end-of-line, not sixty characters
+            h.out(`\n${bar}CONNECTED TO ${p.host}.  GUEST ACCESS.\nTHIS IS A PUZZLE. NO REAL SYSTEM IS TOUCHED. TYPE HELP.\n${bar}`);
 
             const score = () => Math.max(1, 100 - commands * 2 - hints * 15);
             const files = dir => (dir === 'SAFE' ? p.safe : p.files);

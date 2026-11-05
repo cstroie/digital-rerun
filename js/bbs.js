@@ -113,7 +113,7 @@
         const d = w.daily, n = d.time.length;
         const lo = Math.min(...d.temperature_2m_min), hi = Math.max(...d.temperature_2m_max);
         const span = Math.max(1, hi - lo), width = 30;
-        lines.push(`${REV} Day Date   ${'Low'.padStart(4)}  ${'High'.padStart(4)}  ${'Rain'.padStart(4)}  ${'Range'.padEnd(width)} ${'Sky'.padEnd(14)}${OFF}`);
+        lines.push(`${REV} Day Date   ${'Low'.padStart(4)}  ${'High'.padStart(4)}  ${'Rain'.padStart(4)}  ${'Range'.padEnd(width)} Sky\x1b[K${OFF}`);
         for (let i = 0; i < n; i++) {
             const day = DAYS[new Date(d.time[i] + 'T12:00:00Z').getUTCDay()].slice(0, 3);
             const a = Math.round((d.temperature_2m_min[i] - lo) / span * (width - 1));
@@ -352,17 +352,17 @@
                 ['C', 'chat', 'the night-shift sysop'], ['W', 'weather', 'needs the internet'], ['G', 'games', 'WOPR and friends'], ['O', 'fortune', 'a cookie from the jar'],
                 ['S', 'services', 'desks and doors'], ['Q', 'quit', 'hang up']];
             // the whole console the first time and on a fast line; coming back on a slow one, only the menu
-            // (a full page is 1.5 KB: ten seconds at 1200 baud)
             const full = this.baud() >= 2400 || (!this.shown && this.baud() > 300);
             this.shown = true;
-            let o = `${vt.at(3, 3)}${BOLD}MAIN CONSOLE${OFF}`;
-            if (full) o += `${vt.at(4, 3)}${DIM}${'-'.repeat(42)}${OFF}`;
-            items.forEach(([k, name, desc], i) => { o += `${vt.at(5 + i, 3)}${BOLD}[${k}]${OFF} ${name.padEnd(11)}${full ? `${DIM}${desc}${OFF}` : ''}`; });
+            const item = ([k, name, desc], withDesc) => `${BOLD}[${k}]${OFF} ${withDesc ? name.padEnd(11) + `${DIM}${desc}${OFF}` : name}`;
+            const itemWidth = ([, name, desc], withDesc) => 4 + 11 + (withDesc ? desc.length : 0);
+
             if (!full) {
+                let o = vt.rule(3, [[3, 'MAIN CONSOLE']]);
+                items.forEach((it, i) => { o += `${vt.at(4 + i, 3)}${item(it, false)}`; });
                 const last = (this.logs || []).at(-1);
                 if (last && note) o += `${vt.at(21, 3)}${DIM}${last.slice(0, 74)}${OFF}`;
-                o += `${vt.at(23, 3)}${BOLD}bbs>${OFF} `;
-                this.out(o);
+                this.out(`${o}${vt.at(23, 3)}${BOLD}bbs>${OFF} `);
                 this.mode = 'menu';
                 return;
             }
@@ -376,15 +376,25 @@
                 ['caller', `#${this.callerN || '-'}${prev ? `, last ${prev.getDate()} ${MONTHS[prev.getMonth()].slice(0, 3)} ${pad2(prev.getHours())}:${pad2(prev.getMinutes())}` : ''}`],
                 ['mail', unread ? `${unread} new repl${unread === 1 ? 'y' : 'ies'}` : 'none'],
                 ['games', `${(this.s.games ? this.s.games.length : 0) + 2} on the list`]];
-            o += `${vt.at(3, 47)}${BOLD}SYSTEM${OFF}${vt.at(4, 47)}${DIM}${'-'.repeat(32)}${OFF}`;
-            info.forEach(([k, v], i) => { o += `${vt.at(5 + i, 47)}${DIM}${k.padEnd(8)}${OFF}${v.slice(0, 24)}`; });
+            const right = info.map(([k, v]) => `${DIM}${k.padEnd(8)}${OFF}${v.slice(0, 24)}`);
+            const rightWidth = info.map(([k, v]) => 8 + Math.min(24, v.length));
             const art = MENU_ART[Math.floor(d.getTime() / 86400000) % MENU_ART.length];
-            art.forEach((line, i) => { o += `${vt.at(13 + i, 49)}${DIM}${line}${OFF}`; });
-
-            o += `${vt.at(18, 3)}${BOLD}LOG${OFF}${vt.at(19, 3)}${DIM}${'-'.repeat(74)}${OFF}`;
-            (this.logs || []).slice(-3).forEach((line, i) => { o += `${vt.at(20 + i, 3)}${DIM}${line.slice(0, 74)}${OFF}`; });
-            o += `${vt.at(23, 3)}${BOLD}bbs>${OFF} `;
-            this.out(o);
+            // one pass, row by row: the left text positioned once, then a short move right to the other column
+            let o = vt.rule(3, [[3, 'MAIN CONSOLE'], [47, 'SYSTEM']]);
+            const rows = Math.max(items.length, info.length + 1 + art.length);
+            for (let i = 0; i < rows; i++) {
+                const row = 4 + i;
+                const r = i < info.length ? right[i] : (i > info.length && art[i - info.length - 1] ? `${DIM}${art[i - info.length - 1]}${OFF}` : '');
+                const rWidth = i < info.length ? rightWidth[i] : 0;
+                const rCol = i < info.length ? 47 : 49;
+                if (i < items.length) {
+                    o += `${vt.at(row, 3)}${item(items[i], true)}`;
+                    if (r) o += vt.forward(rCol - 3 - itemWidth(items[i], true)) + r;
+                } else if (r) o += vt.at(row, rCol) + r;
+            }
+            o += vt.rule(18, [[3, 'LOG']]);
+            (this.logs || []).slice(-4).forEach((line, i) => { o += `${vt.at(19 + i, 3)}${DIM}${line.slice(0, 74)}${OFF}`; });
+            this.out(`${o}${vt.at(23, 3)}${BOLD}bbs>${OFF} `);
             this.mode = 'menu';
         }
 
@@ -689,10 +699,12 @@
             this.seen = this.seen || [];
             const i = fortunes.pick(this.s.random || Math.random, this.seen);
             this.seen = [...this.seen, i].slice(-20);
-            const text = wrapText(fortunes.FORTUNES[i], 62).split('\n');
+            const text = wrapText(fortunes.FORTUNES[i], 70).split('\n');
             this.page('FORTUNE', 'Y: another   any other key: back');
-            const rule = `  +${'-'.repeat(66)}+`;
-            this.out(`\n\n${rule}\n  |${' '.repeat(66)}|\n${text.map(l => `  |  ${l.padEnd(62)}  |`).join('\n')}\n  |${' '.repeat(66)}|\n${rule}\n\n   ${DIM}fortune ${i + 1} of ${fortunes.FORTUNES.length}${OFF}\n`);
+            // a bar above and below, drawn by erase-to-end-of-line, the cookie between: a few dozen bytes
+            const last = 6 + text.length;
+            this.out(vt.rule(4, [[3, `FORTUNE ${i + 1} OF ${fortunes.FORTUNES.length}`]]) + text.map((l, j) => `${vt.at(6 + j, 5)}${l}`).join('') +
+                vt.rule(last + 1, []) + vt.at(last + 3, 3));
             this.ask('key', k => { if (k === 'Y') this.fortune(); else this.menu(); });
         }
 

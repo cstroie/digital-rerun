@@ -960,7 +960,8 @@
         probe.remove();
         if (!at100) return;
         let px = width * 100 / at100;
-        if (!phone.matches) px = Math.min(px, (wrap.clientHeight - padY) / (term.rows * LINE));
+        // a few pixels of slack under the screen: with the rounding of fractional sizes, fonts and zoom the bottom border must still show
+        if (!phone.matches) px = Math.min(px, (wrap.clientHeight - padY - 8) / (term.rows * LINE));
         px = Math.max(MIN_PX, Math.min(MAX_PX, Math.floor(px * 100) / 100));
         screen.style.fontSize = `${px}px`;
     }

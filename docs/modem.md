@@ -197,3 +197,18 @@ program, by the next call: "you have mail from the sysop"), **D** the dial direc
 
 The board is one line, so now and then it is **busy** (8% of calls to `5550100`: dial again). Its sign-on follows
 the line's speed (SETUP → MODEM): short at 300 baud, the usual at 1200, with a banner from 2400.
+
+## The console (VT100 furniture)
+
+The board draws like a console, in ASCII (`js/vt.js`; no line-drawing set, no colour; it assumes a VT100): a **title bar** on
+row 1 (`DIGITAL RERUN BBS > GAMES > WOPR`, the line speed and the caller number on the right), a **status bar** on row 24 (a hint,
+the progress of a transfer, `MAIL` and the clock on the right), and rows 2 to 23 as a **scroll region**, so that what scrolls never
+touches the bars. Every screen is a page (`Session.page(crumb, hint)`: clear, bars, region); a door or a game is handed `page`,
+`pause` (a key, then on) and `more` (a long text, a page at a time) beside `out` and `ask`.
+
+The **main page** is a vertical menu with a one-line description of each key, a **system** panel (the line, the date, the moon, your
+caller number and the last call, mail, the games), a small picture of the day, and a **log** of what has happened this call
+(carrier, your uploads, a bulletin posted). The prompt is `bbs>`. Drawing the whole page takes 1.5 KB, ten seconds at 1200 baud: it
+is drawn whole the first time and on a line of 2400 baud or more; coming back on a slow line only the menu is redrawn, and at
+300 baud it is always the menu alone. Nothing is written to the screen while an XMODEM block is on the wire. Leaving the board (`Q`)
+resets the terminal (no region, plain, cursor shown); so does `TERM`'s `Ctrl-] Q` and `H`.

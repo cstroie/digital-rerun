@@ -109,11 +109,15 @@ hang:	xra	a		;DTR down and up again
 	out	mctl
 	mvi	a,1
 	out	mctl
+	lxi	d,rstr		;a board may have set a scroll region: set the terminal right
+	call	pr
 	lxi	d,hungup
 	mvi	c,print
 	call	bdos
 	jmp	loop
-quit:	lxi	d,crlf
+quit:	lxi	d,rstr
+	call	pr
+	lxi	d,crlf
 	mvi	c,print
 	call	bdos
 	ret
@@ -550,6 +554,7 @@ purge:	lxi	h,300
 
 
 pend:	db	0		;a key waiting for the transmitter
+rstr:	db	27,'[r',27,'[0m',27,'[?25h$'	;no scroll region, plain, the cursor shown
 nomsg:	db	'No modem on this machine.',cr,lf,'$'
 hello:	db	'TERM: Ctrl-] for commands. Try ATDT5550100.',cr,lf,'$'
 prompt:	db	cr,lf,'[R receive, S send, Q quit, H hang up, ? help] $'

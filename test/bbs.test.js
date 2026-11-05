@@ -5,7 +5,9 @@ const { bbs, moon, moonArt, weatherPage, MemoryBoard, StoredBoard } = require('.
 const { wopr } = require('../js/wopr.js');
 const fortunes = require('../js/fortune.js');
 
-const NOW = new Date(2026, 10, 5, 14, 3);          // Thursday 5 November 2026, 14:03 local
+const NOW = new Date(2026, 10, 5, 14, 3);
+/** The text of a screen: the sequences gone, a cursor move a line break. */
+const plain = t => t.replace(/\x1b\[\d+;\d+H/g, '\n').replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b[78]/g, '');          // Thursday 5 November 2026, 14:03 local
 
 function caller(extra = {}) {
     const memory = new Map();
@@ -54,7 +56,7 @@ test('the moon drawn: new is dark, full is lit, a waxing quarter is lit on the r
 test('it greets, shows the menu, and answers a bare RETURN with nothing', () => {
     const c = caller();
     assert.match(c.out, /DIGITAL RERUN BBS/);
-    assert.match(c.out, /ime .*oon .*ulletins .*iles .*hat .*eather .*ames .*rtune .*uit/s);
+    for (const key of ['[T] time', '[M] moon', '[B] bulletins', '[F] files', '[C] chat', '[W] weather', '[G] games', '[O] fortune', '[S] services', '[Q] quit']) assert.ok(plain(c.out).includes(key), key);
     c.take();
     c.type('\r\n');
     assert.equal(c.out, '');
@@ -64,7 +66,8 @@ test('T: the date and time, from the host clock', () => {
     const c = caller();
     c.take();
     c.type('t');
-    assert.match(c.out, /It is Thursday 5 November 2026, 14:03/);
+    assert.match(c.out, /Thursday 5 November 2026/);
+    assert.match(c.out, /###/, 'the clock in big digits');
 });
 
 test('M: the moon page', () => {
@@ -72,7 +75,7 @@ test('M: the moon page', () => {
     c.take();
     c.type('M');
     assert.match(c.out, /% lit/);
-    assert.match(c.out, /Full moon in \d+ days/);
+    assert.match(c.out, /full moon in \d+ days/);
 });
 
 test('B: an empty board; posting; reading it back; backspace and limits', async () => {
@@ -91,7 +94,7 @@ test('B: an empty board; posting; reading it back; backspace and limits', async 
     c.type('\r');
     c.type('Anyone on the night shift? \x01\x1b[2J<script>' + 'x'.repeat(100) + '\r');
     await c.settle();
-    assert.match(c.out, /Posted\. Thank you\./);
+    assert.match(c.out, /bulletin posted/);
     const posts = await c.services.board.list();
     assert.equal(posts.length, 1);
     assert.equal(posts[0].name, 'Rosa');
@@ -118,13 +121,13 @@ test('B: a post with no name is ANON, one with no text is not posted, Q goes bac
     await c.settle();
     c.type('p\r\r');
     await c.settle();
-    assert.match(c.out, /Nothing posted/);
+    assert.match(c.out, /nothing posted/);
     assert.equal((await c.services.board.list()).length, 1);
     c.take();
     c.type('b');
     await c.settle();
     c.type('q');
-    assert.match(c.out, /ime .*oon/s);
+    assert.match(plain(c.out), /\[T\] time/);
 });
 
 test('the board keeps the last 50 and shows the last 8', async () => {
@@ -157,7 +160,7 @@ test('W: off by default: the desk does not answer, and nothing is asked', () => 
     assert.match(c.out, /weather desk is not answering/);
     assert.match(c.out, /Online services/);
     assert.equal(asked, 0);
-    assert.match(c.out, /ime .*oon/s, 'the menu is back');
+    assert.match(plain(c.out), /\[T\] time/, 'the menu is back');
 });
 
 const GEO = { results: [{ name: 'Cluj-Napoca', country_code: 'RO', latitude: 46.77, longitude: 23.6 }] };
@@ -181,10 +184,11 @@ test('W: online: asks only for the city, shows the forecast, remembers the city'
     assert.equal(urls.length, 2);
     assert.match(urls[0], /^https:\/\/geocoding-api\.open-meteo\.com\/v1\/search\?name=Cluj&count=1$/);
     assert.match(urls[1], /^https:\/\/api\.open-meteo\.com\/v1\/forecast\?latitude=46\.77&longitude=23\.6&/);
-    assert.match(c.out, /WEATHER DESK.*Cluj-Napoca, RO/);
+    assert.match(c.out, /WEATHER DESK.*Cluj-Napoca, RO/s);
     assert.match(c.out, /Now {2}3\.2 C, Overcast, wind 2 km\/h, humidity 71%/);
     assert.match(c.out, /Sat 11-07 +-1 +8 +1\.2 .*Rain/);
     assert.equal(c.services.store.get('city'), 'Cluj-Napoca');
+    c.type(' ');                                              // a key leaves the forecast
     c.take();
     c.type('w');
     assert.match(c.out, /RETURN for Cluj-Napoca/);
@@ -198,12 +202,12 @@ test('W: an unknown place, and a desk that does not answer', async () => {
     let c = caller({ online: () => true, fetchJson: () => Promise.resolve({}) });
     c.type('wNowhereville\r');
     await c.settle(); await c.settle();
-    assert.match(c.out, /No such place: Nowhereville/);
+    assert.match(c.out, /no such place, Nowhereville/);
     c = caller({ online: () => true, fetchJson: () => Promise.reject(new Error('offline')) });
     c.type('wCluj\r');
     await c.settle(); await c.settle();
-    assert.match(c.out, /The weather desk is not answering\./);
-    assert.match(c.out, /ime .*oon/s);
+    assert.match(c.out, /weather desk is not answering/);
+    assert.match(plain(c.out), /\[T\] time/);
 });
 
 test('weather page: the temperature range bars line up', () => {
@@ -272,8 +276,8 @@ test('F: lists the built-in files', async () => {
     c.take();
     c.type('f');
     await c.settle();
-    assert.match(c.out, /ABOUT\.TXT .* bytes/);
-    assert.match(c.out, /HELLO\.COM +\d+ bytes +1 blocks/);
+    assert.match(c.out, /ABOUT\.TXT +\d+ +\d+/);
+    assert.match(c.out, /HELLO\.COM +\d+ +1\r\n/);
 });
 
 test('download: waits for NAK, sends blocks, ACK moves on, EOT ends it (checksum)', async () => {
@@ -297,8 +301,8 @@ test('download: waits for NAK, sends blocks, ACK moves on, EOT ends it (checksum
     assert.deepEqual(wire(c), [4]);                           // EOT
     c.take();
     c.session.send(6);
-    assert.match(c.out, /Transfer complete/);
-    assert.match(c.out, /ime .*oon/s);
+    assert.match(c.out, /HELLO\.COM: sent/);
+    assert.match(plain(c.out), /\[T\] time/);
 });
 
 test('download: a CRC receiver asking with C gets a CRC block; a NAK repeats the block; CAN stops it', async () => {
@@ -315,7 +319,7 @@ test('download: a CRC receiver asking with C gets a CRC block; a NAK repeats the
     assert.deepEqual(wire(c), b, 'resent');
     c.take();
     c.session.send(24);
-    assert.match(c.out, /Cancelled/);
+    assert.match(c.out, /cancelled/);
     assert.deepEqual(wire(c), [24, 24]);
 });
 
@@ -338,7 +342,7 @@ test('download: a file of three blocks; the receiver that never answers is given
     await c.settle();
     c.take();
     assert.ok(c.fire());                                      // nobody answered
-    assert.match(c.out, /Nobody answered/);
+    assert.match(c.out, /nobody answered/);
 });
 
 test('download: no such file', async () => {
@@ -348,7 +352,7 @@ test('download: no such file', async () => {
     c.take();
     c.type('dnothing\r');
     await c.settle();
-    assert.match(c.out, /No such file/);
+    assert.match(c.out, /no such file/);
 });
 
 /** What a checksum XMODEM sender puts on the wire for `data`. */
@@ -374,7 +378,7 @@ test('upload: NAK asks, blocks are ACKed, EOT stores the file', async () => {
     assert.equal(got.length, 256);
     assert.deepEqual([...got.slice(0, 200)], data);
     assert.equal(got[200], 26);
-    assert.match(c.out, /MINE\.TXT received, 256 bytes/);
+    assert.match(c.out, /MINE\.TXT: received, 256 bytes/);
 });
 
 test('upload: a bad checksum is NAKed, a repeated block is ACKed and kept once, a gap aborts', async () => {
@@ -400,7 +404,7 @@ test('upload: a bad checksum is NAKed, a repeated block is ACKed and kept once, 
     const d = timed();
     d.type('f'); await d.settle(); d.type('u'); d.type('y\r'); await d.settle(); wire(d);
     for (const b of xmodemBlock(Uint8Array.from([1]), 3, false)) d.session.send(b);
-    assert.match(d.out, /Out of step/);
+    assert.match(d.out, /out of step/);
 });
 
 test('upload: nothing comes: it asks again, then gives up; a silence mid-block asks again; built-ins cannot be replaced', async () => {
@@ -410,7 +414,7 @@ test('upload: nothing comes: it asks again, then gives up; a silence mid-block a
     for (let i = 0; i < 5; i++) { c.fire(); assert.deepEqual(wire(c), [21]); }
     c.take();
     c.fire();
-    assert.match(c.out, /Nothing came/);
+    assert.match(c.out, /nothing came/);
 
     c = timed();
     c.type('f'); await c.settle(); c.type('u'); c.type('z\r'); await c.settle(); wire(c);
@@ -420,7 +424,7 @@ test('upload: nothing comes: it asks again, then gives up; a silence mid-block a
 
     c = timed();
     c.type('f'); await c.settle(); c.take(); c.type('u'); c.type('hello.com\r'); await c.settle();
-    assert.match(c.out, /Not a name I can use/);
+    assert.match(c.out, /not a name I can use/);
 });
 
 test('the file area keeps uploads small: a file over the limit is refused', async () => {
@@ -436,7 +440,7 @@ test('C: without a sysop service he is away', () => {
     c.take();
     c.type('c');
     assert.match(c.out, /stepped away/);
-    assert.match(c.out, /ime .*oon/s);
+    assert.match(plain(c.out), /\[T\] time/);
 });
 
 test('C: a chat, with the history passed on, and /BYE back to the menu', async () => {
@@ -451,15 +455,15 @@ test('C: a chat, with the history passed on, and /BYE back to the menu', async (
     assert.match(c.out, /sysop>\x1b\[0m \(typing\)/);
     await c.settle();
     assert.match(c.out, /\r\x1b\[K\x1b\[1msysop>\x1b\[0m Heard: hello there\./);
-    assert.match(c.out, /Heard: hello there\.\r\n {7}Second line\./, 'a second line is indented under the first');
+    assert.match(c.out, /Heard: hello there\. Second line\./, 'the reply is set in lines of its own');
     assert.match(c.out, /you>\x1b\[0m $/);
     c.type('and again\r');
     await c.settle();
     assert.deepEqual(asked, [[0, 'hello there'], [2, 'and again']]);
     c.take();
     c.type('/bye\r');
-    assert.match(c.out, /Take care/);
-    assert.match(c.out, /ime .*oon/s);
+    assert.match(plain(c.out), /chat with the sysop ended/);
+    assert.match(plain(c.out), /\[T\] time/);
 });
 
 test('C: an empty line asks again, control characters are not sent, a failing sysop does not break the chat', async () => {
@@ -510,10 +514,10 @@ test('G: the games room is WOPR; leaving it comes back to the menu', () => {
     c.take();
     c.type('logoff\r');
     assert.match(c.out, /CONNECTION TERMINATED/);
-    assert.match(c.out, /ime .*oon .*ames/s);
+    assert.match(plain(c.out), /\[G\] games/);
     c.take();
     c.type('t');
-    assert.match(c.out, /It is Thursday/, 'the menu works again');
+    assert.match(c.out, /Thursday 5 November/, 'the menu works again');
 });
 
 test('G: a game of tic-tac-toe through the BBS', () => {
@@ -537,21 +541,22 @@ test('O: a fortune, numbered; Y another, a different one; anything else back to 
     const c = caller({ random: () => 0 });
     c.take();
     c.type('o');
-    assert.match(c.out, /FORTUNE.*1 of \d+/);
+    assert.match(c.out, /fortune 1 of \d+/);
     const first = c.take();
     c.type('y');
-    assert.match(c.out, /FORTUNE.*2 of \d+/, 'not the same one again');
-    assert.notEqual(c.out.split('\n').find(l => /^ {2}\S/.test(l)), first.split('\n').find(l => /^ {2}\S/.test(first.split('\n')[0]) ? false : /^ {2}\S/.test(l)));
+    assert.match(c.out, /fortune 2 of \d+/, 'not the same one again');
+    assert.notEqual(plain(c.out), plain(first), 'a different fortune');
     c.take();
     c.type('n');
-    assert.match(c.out, /ime .*oon/s);
+    assert.match(plain(c.out), /\[T\] time/);
 });
 
 test('O: a fortune is wrapped to the screen', () => {
     const c = caller({ fortunes: { FORTUNES: ['word '.repeat(40).trim()], pick: () => 0 } });
     c.take();
     c.type('o');
-    for (const line of c.out.split('\r\n')) assert.ok(line.replace(/\x1b\[[0-9;]*m/g, '').length <= 80);
+    for (const line of plain(c.out).split(/\r?\n/)) assert.ok(line.length <= 80, line);
+    assert.match(plain(c.out), /\|  word word/, 'in a box');
 });
 
 test('O: without the cookie jar it says so', () => {
@@ -577,6 +582,7 @@ test('G: the games of js/games.js join WOPR\'s list, and a game plays through th
     assert.match(c.out, /CODEBREAKER\. I HOLD A CODE/);
     c.type('q\r');
     assert.match(c.out, /THE CODE WAS/);
+    c.type(' ');                                              // a key, then WOPR's page again
     assert.match(c.out, /SHALL WE PLAY ANOTHER GAME/);
 });
 
@@ -588,19 +594,22 @@ test('S: the services menu runs a door and comes back to it; Q returns to the ma
     const memory = new Map();
     const store = { get: k => memory.get(k) ?? null, set: (k, v) => memory.set(k, v) };
     const c = caller({ doors: D.DOORS, wall: new Wall(store), callers: new Callers(store), mail: new Mail(store), poll: new Poll(store), store });
-    const plain = t => t.replace(/\x1b\[[0-9;]*m/g, '');
     c.take();
     c.type('s');
     assert.match(plain(c.out), /SERVICES/);
-    assert.match(plain(c.out), /R {2}Reference desk/);
-    assert.match(plain(c.out), /D {2}Dial directory/);
+    assert.match(plain(c.out), /\[R\] Reference desk/);
+    assert.match(plain(c.out), /\[D\] Dial directory/);
     c.take();
     c.type('d');
-    assert.match(c.out, /DIAL DIRECTORY/);
-    assert.match(c.out, /SERVICES/, 'back at the services menu');
+    assert.match(plain(c.out), /DIAL DIRECTORY/);
+    assert.match(plain(c.out), /ATDT telehack\.com/);
+    c.take();
+    c.type(' ');                                              // a key at the end of the directory...
+    c.type(' ');                                              // ...and one at the end of its page
+    assert.match(plain(c.out), /\[R\] Reference desk/, 'back at the services menu');
     c.take();
     c.type('q');
-    assert.match(c.out, /ime .*oon .*ervices/s);
+    assert.match(plain(c.out), /\[T\] time/);
 });
 
 test('S: without the doors module the desk is closed', () => {
@@ -616,14 +625,15 @@ test('sign-on: the caller number and the last call; mail from the sysop is annou
     const store = { get: k => memory.get(k) ?? null, set: (k, v) => memory.set(k, v) };
     const callers = new Callers(store), mail = new Mail(store);
     const first = caller({ callers, mail });
-    assert.match(first.out, /You are caller #1\./);
-    assert.doesNotMatch(first.out, /last call was/);
+    assert.match(plain(first.out), /caller #1, welcome/);
+    assert.doesNotMatch(plain(first.out), /last call was/);
     first.type('q');
     assert.equal(callers.list()[0].minutes, 1);
     const id = mail.send('hi'); mail.setReply(id, 'hello');
     const second = caller({ callers, mail });
-    assert.match(second.out, /You are caller #2\. The last call was \d+ \w{3} at \d\d:\d\d\./);
-    assert.match(second.out, /You have mail from the sysop/);
+    assert.match(plain(second.out), /caller #2, the last call was \d+ \w{3} \d\d:\d\d/);
+    assert.match(plain(second.out), /mail: a reply from the sysop/);
+    assert.match(plain(second.out), /MAIL/.source ? /new reply/ : /x/, 'the main page tells of it too');
 });
 
 test('a dropped call still counts: closing the session ends it', () => {
@@ -652,7 +662,7 @@ test('F, L: the software library lists the shelf, names a disk\'s files, and sen
     c.take();
     c.type('l');
     await c.settle();
-    assert.match(plain(c.out), /SOFTWARE LIBRARY/);
+    assert.match(plain(c.out), /FILES {2}> {2}LIBRARY/);
     assert.match(plain(c.out), / 1 {2}A GAME +2 files/);
     c.take();
     c.type('1\r');
@@ -679,23 +689,62 @@ test('F, L: no library service, no L; a missing file or an unreachable shelf is 
     c.type('f'); await c.settle(); c.type('l'); await c.settle(); c.type('1\r'); await c.settle();
     c.take();
     c.type('nope\r'); await c.settle();
-    assert.match(c.out, /No such file/);
+    assert.match(plain(c.out), /no such file/);
     c = caller({ files: new MemoryFiles(), library: { list: async () => [{ id: 'z', name: 'D', files: ['A.COM'] }], get: async () => { throw new Error('offline'); } } });
     c.type('f'); await c.settle(); c.type('l'); await c.settle(); c.type('1\r'); await c.settle(); c.take();
     c.type('a.com\r'); await c.settle();
-    assert.match(c.out, /would not give it up/);
+    assert.match(plain(c.out), /would not give it up/);
 });
 
-test('the sign-on follows the line: short at 300 baud, the usual at 1200, a banner from 2400', () => {
+test('the main page follows the line: lean at 300 baud, the whole console the first time at 1200, always on a fast line', () => {
     const slow = caller({ baud: () => 300 });
-    assert.doesNotMatch(slow.out, /Welcome, caller/);
-    assert.match(slow.out, /DIGITAL RERUN BBS/);
-    assert.match(slow.out, /ime .*oon/s, 'the menu is there');
+    assert.doesNotMatch(plain(slow.out), /SYSTEM/);
+    assert.match(plain(slow.out), /\[T\] time/, 'the menu is there');
     const mid = caller({ baud: () => 1200 });
-    assert.match(mid.out, /1200 baud, 24 hours/);
-    assert.doesNotMatch(mid.out, /\|___\//);
+    assert.match(plain(mid.out), /SYSTEM/);
+    assert.match(plain(mid.out), /line +1200 baud, 8N1/);
+    assert.match(plain(mid.out), /LOG/);
+    mid.take();
+    mid.session.menu();
+    assert.doesNotMatch(plain(mid.out), /SYSTEM/, 'coming back on a slow line: only the menu');
+    assert.ok(mid.out.length < 700, `a lean menu: ${mid.out.length} characters`);
     const fast = caller({ baud: () => 9600 });
-    assert.match(fast.out, /9600 baud, 24 hours/);
-    assert.match(fast.out, /\|___\/___/);
-    for (const line of fast.out.split('\r\n')) assert.ok(line.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').length <= 80);
+    fast.take();
+    fast.session.menu();
+    assert.match(plain(fast.out), /SYSTEM/);
+    assert.match(plain(fast.out), /9600 baud/);
+});
+
+test('the main page: a title bar, a status bar, a region between, nothing wider than 79 columns', () => {
+    const c = caller();
+    assert.match(c.out, /^\x1b\[r.*\x1b\[1;1H.*DIGITAL RERUN BBS {2}> {2}MAIN/s);
+    assert.match(c.out, /\x1b\[2;23r/);
+    for (const part of c.out.split(/\x1b\[\d+;\d+H/).slice(3)) assert.ok(plain(part).length <= 79, plain(part));
+    c.take();
+    c.type('t');
+    assert.match(plain(c.out), /TIME/);
+    assert.match(c.out, /\x1b\[24;1H.*press any key/);
+});
+
+test('every page has its bars; goodbye puts the terminal right again', () => {
+    const c = caller();
+    for (const key of ['t', ' ', 'm', ' ']) { c.take(); c.type(key); assert.match(c.out, /\x1b\[2;23r/, key); }
+    c.take();
+    c.type('q');
+    assert.ok(c.out.includes('\x1b[r\x1b[0m\x1b[?25h'), 'the scroll region is reset');
+    assert.equal(c.hung, true);
+});
+
+test('C: a long reply never runs past column 79: the lines are set after the "sysop> " prompt, a continuation indented under it', async () => {
+    const long = 'Kettle-7 is the relay station. Signals drift, I tune them, the letters get delivered. Pixel sits on the keyboard. ' + 'Words and more words. '.repeat(6);
+    const c = caller({ sysop: { reply: async () => long } });
+    c.type('c');
+    c.take();
+    c.type('how is your cat doing?\r');
+    await c.settle();
+    const lines = plain(c.out).split(/\r?\n/).filter(l => l.trim());
+    assert.ok(lines.length >= 4, 'wrapped to several lines');
+    for (const line of lines) assert.ok(line.length <= 79, `${line.length}: ${line}`);
+    assert.ok(lines.some(l => /^ {7}\S/.test(l)), 'a continuation is indented under the first line');
+    assert.ok(!lines.some(l => /^\S{1,3}$/.test(l)), 'no stray one-word line like a word broken at the margin');
 });

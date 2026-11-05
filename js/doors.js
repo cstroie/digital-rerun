@@ -28,28 +28,39 @@
         lines.push(indent + line);
         return lines.join('\n');
     };
-    const title = (name, extra = '') => `\n\n${REV} ${name} ${OFF}${extra ? '  ' + extra : ''}\n\n`;
+    /** A new page for a door (the bars, the crumb), or, with no screen to draw on, a plain heading. */
+    const begin = (h, name, extra = '') => {
+        if (h.page) { h.page(`SERVICES  >  ${name}`, extra); return '\n'; }
+        return `\n\n${REV} ${name} ${OFF}${extra ? '  ' + extra : ''}\n\n`;
+    };
+    /** The door is done: a key first, if there is a screen to keep, then back to the services. */
+    const finish = h => (h.pause ? h.pause(h.leave) : h.leave());
+    /** A key, then `next` (no screen: straight on). */
+    const finish2 = (h, next) => (h.pause ? h.pause(next) : next());
+    /** A long text, a page at a time when there is a screen. */
+    const show = (h, text, next) => (h.more ? h.more(text, next) : (h.out(text.endsWith('\n') ? text : text + '\n'), next()));
 
     /* ============================ reference ============================ */
 
     function reference(h) {
         const menu = () => {
-            h.out(`${title('REFERENCE DESK')}${BOLD}A${OFF}SCII chart  ${BOLD}C${OFF}onvert a number  ${BOLD}B${OFF}DOS  b${BOLD}I${OFF}OS  ${BOLD}T${OFF} AT commands  ${BOLD}O${OFF}pcodes  ${BOLD}V${OFF}T100  ${BOLD}Q${OFF}uit  ? `);
+            h.out(`${begin(h, 'REFERENCE DESK', 'press a key')}${BOLD}[A]${OFF} ASCII chart     ${BOLD}[C]${OFF} convert a number   ${BOLD}[B]${OFF} BDOS functions\n${BOLD}[I]${OFF} BIOS table      ${BOLD}[T]${OFF} AT commands       ${BOLD}[O]${OFF} opcodes\n${BOLD}[V]${OFF} VT100 codes     ${BOLD}[Q]${OFF} back\n\n${BOLD}bbs>${OFF} `);
             h.ask('key', k => {
-                h.out('\n\n');
-                if (k === 'A') h.out(ref.asciiChart().join('\n') + '\n');
-                else if (k === 'B') h.out(`${'FN'.padEnd(4)}${'NAME'.padEnd(22)}IN / OUT\n` + ref.BDOS.map(([n, name, io]) => `${String(n).padEnd(4)}${name.padEnd(22)}${io}`).join('\n') + '\n\nCALL 0005h with C=function. The answer is in A (or HL).\n');
-                else if (k === 'I') h.out(`CP/M 2.2 BIOS jump table (from the warm-boot address minus 3):\n` + ref.BIOS.map(([n, d], i) => `+${String(i * 3).padStart(2, '0')}  ${n.padEnd(8)}${d}`).join('\n') + '\n');
-                else if (k === 'T') h.out(ref.AT.map(([c, d]) => `${c.padEnd(14)}${d}`).join('\n') + '\n');
-                else if (k === 'O') h.out(`${'BYTES'.padEnd(11)}${'8080'.padEnd(11)}Z80\n` + ref.OPCODES.map(([b, a, z]) => `${b.padEnd(11)}${a.padEnd(11)}${z}`).join('\n') + '\n');
-                else if (k === 'V') h.out(ref.VT100.map(([c, d]) => `${c.padEnd(16)}${d}`).join('\n') + '\n');
-                else if (k === 'C') return convert();
-                else if (k === 'Q') return h.leave();
+                const again = () => (h.pause ? h.pause(menu) : menu());
+                const out = text => show(h, `\n${text}`, again);
+                if (k === 'A') return out(ref.asciiChart().join('\n'));
+                if (k === 'B') return out(`${'FN'.padEnd(4)}${'NAME'.padEnd(22)}IN / OUT\n` + ref.BDOS.map(([n, name, io]) => `${String(n).padEnd(4)}${name.padEnd(22)}${io}`).join('\n') + '\n\nCALL 0005h with C=function. The answer is in A (or HL).');
+                if (k === 'I') return out(`CP/M 2.2 BIOS jump table (from the warm-boot address minus 3):\n` + ref.BIOS.map(([n, d], i) => `+${String(i * 3).padStart(2, '0')}  ${n.padEnd(8)}${d}`).join('\n'));
+                if (k === 'T') return out(ref.AT.map(([c, d]) => `${c.padEnd(14)}${d}`).join('\n'));
+                if (k === 'O') return out(`${'BYTES'.padEnd(11)}${'8080'.padEnd(11)}Z80\n` + ref.OPCODES.map(([b, a, z]) => `${b.padEnd(11)}${a.padEnd(11)}${z}`).join('\n'));
+                if (k === 'V') return out(ref.VT100.map(([c, d]) => `${c.padEnd(16)}${d}`).join('\n'));
+                if (k === 'C') return convert();
+                if (k === 'Q') return h.leave();
                 menu();
             });
         };
         const convert = () => {
-            h.out('NUMBER (255, $FF, 0FFh, 0b1010, \'A\') OR "TEXT"? ');
+            h.out('\nNUMBER (255, $FF, 0FFh, 0b1010, \'A\') OR "TEXT"? ');
             h.ask('line', text => {
                 text = text.trim();
                 if (!text) return menu();
@@ -70,7 +81,7 @@
     function wall(h) {
         const list = () => {
             const entries = h.s.wall.list();
-            h.out(title('THE WALL', `${entries.length} one-liner${entries.length === 1 ? '' : 's'}`));
+            h.out(begin(h, 'THE WALL', `${entries.length} one-liner${entries.length === 1 ? '' : 's'}`));
             if (!entries.length) h.out('Blank brick. Be the first to write on it.\n');
             for (const e of entries.slice(-10)) h.out(`${BOLD}${e.name}${OFF}  ${when(e.when)}\n  ${e.text}\n`);
             h.out(`\n${BOLD}W${OFF}rite on the wall, ${BOLD}Q${OFF}uit? `);
@@ -95,23 +106,23 @@
 
     function callers(h) {
         const all = h.s.callers.list().slice(-10).reverse();
-        h.out(title('LAST CALLERS'));
+        h.out(begin(h, 'LAST CALLERS'));
         for (const c of all) h.out(`#${String(c.n).padEnd(5)} ${when(c.when).padEnd(13)} ${c.minutes ? c.minutes + ' min' : 'on the line'}\n`);
         if (!all.length) h.out('No one yet.\n');
-        h.leave();
+        finish(h);
     }
 
     /* ============================== scores ============================ */
 
     function scores(h) {
         const games = h.s.scores.games();
-        h.out(title('HIGH SCORES'));
+        h.out(begin(h, 'HIGH SCORES'));
         if (!games.length) h.out('The tables are empty. WOPR is waiting.\n');
         for (const g of games.sort()) {
             h.out(`${BOLD}${g}${OFF}\n`);
             h.s.scores.top(g, 3).forEach((e, i) => h.out(`  ${i + 1}. ${e.name.padEnd(13)}${String(e.score).padStart(6)}  ${when(e.when)}\n`));
         }
-        h.leave();
+        finish(h);
     }
 
     /* =============================== poll ============================= */
@@ -122,9 +133,9 @@
             const counts = p.tally(), total = counts.reduce((a, b) => a + b, 0), max = Math.max(...counts);
             h.out('\nTHE REGULARS (MADE UP) AND YOU:\n');
             options.forEach((o, i) => h.out(` ${i + 1}  ${o.padEnd(26).slice(0, 26)} ${'#'.repeat(Math.round(counts[i] / max * 20)).padEnd(20)} ${String(Math.round(counts[i] / total * 100)).padStart(3)}%${p.mine() === i ? '  <- you' : ''}\n`));
-            h.leave();
+            finish(h);
         };
-        h.out(title('THIS WEEK\'S VOTE', q));
+        h.out(begin(h, 'THIS WEEK\'S VOTE', q));
         options.forEach((o, i) => h.out(` ${i + 1}  ${o}\n`));
         if (p.mine() !== undefined) return results();
         h.out('\nYour vote (1-4, Q to look)? ');
@@ -147,14 +158,14 @@
     ];
 
     function art(h) {
-        h.out(title('ART GALLERY'));
+        h.out(begin(h, 'ART GALLERY', 'press a number'));
         ART.forEach(([name], i) => h.out(` ${i + 1}  ${name}\n`));
         h.out('\nWhich (1-6, Q to leave)? ');
         h.ask('key', k => {
             const i = Number(k) - 1;
             if (!(i >= 0 && i < ART.length)) return h.leave();
-            h.out(`\n\n${ART[i][1].join('\n')}\n`);
-            art(h);
+            h.out(`${begin(h, `ART GALLERY  >  ${ART[i][0]}`, 'press any key')}\n${ART[i][1].map(l => '    ' + l).join('\n')}\n`);
+            finish2(h, () => art(h));
         });
     }
 
@@ -163,7 +174,7 @@
     function mail(h) {
         const menu = () => {
             const unread = h.s.mail.unread();
-            h.out(title('MAIL TO THE SYSOP', unread ? `${unread} new repl${unread === 1 ? 'y' : 'ies'}` : ''));
+            h.out(begin(h, 'MAIL TO THE SYSOP', unread ? `${unread} new repl${unread === 1 ? 'y' : 'ies'}` : ''));
             h.out(`${BOLD}W${OFF}rite a note, ${BOLD}R${OFF}ead the replies, ${BOLD}Q${OFF}uit? `);
             h.ask('key', k => {
                 if (k === 'W') return write();
@@ -209,20 +220,19 @@
     ];
 
     function directory(h) {
-        h.out(title('DIAL DIRECTORY', 'checked 5 Nov 2026'));
-        for (const [host, port, text] of DIRECTORY) h.out(`${BOLD}ATDT ${host}${port === 23 ? '' : ':' + port}${OFF}\n${wrap(text, 76, '   ')}\n`);
-        h.out('\nThese are other people\'s machines, over the internet. They need the bridge (SETUP,\nMODEM) with --allow naming the host. Boards come and go; be kind to them.\n');
-        h.leave();
+        h.out(begin(h, 'DIAL DIRECTORY', 'checked 5 Nov 2026'));
+        const lines = DIRECTORY.map(([host, port, text]) => `${BOLD}ATDT ${host}${port === 23 ? '' : ':' + port}${OFF}\n${wrap(text, 76, '   ')}`).join('\n');
+        show(h, `${lines}\n\nThese are other people's machines, over the internet. They need the bridge (SETUP,\nMODEM) with --allow naming the host. Boards come and go; be kind to them.`, () => finish(h));
     }
 
     /* ============================ online desks ======================== */
 
-    const offline = h => { h.out('\nThat desk needs the internet: SETUP, Online services.\n'); h.leave(); };
-    const notAnswering = h => { h.out('\nThe desk is not answering.\n'); h.leave(); };
+    const offline = h => { h.out('\nThat desk needs the internet: SETUP, Online services.\n'); finish(h); };
+    const notAnswering = h => { h.out('\nThe desk is not answering.\n'); finish(h); };
 
     function news(h) {
         if (!h.s.online()) return offline(h);
-        h.out(title('NEWS DESK'));
+        h.out(begin(h, 'NEWS DESK'));
         h.out(`${BOLD}H${OFF}acker News front page, ${BOLD}W${OFF}ikipedia: on this day, ${BOLD}Q${OFF}uit? `);
         h.ask('key', async k => {
             try {
@@ -246,13 +256,13 @@
                     if (!chosen.length) h.out('Nothing on the wire today.\n');
                 } else { h.out('\n'); return h.leave(); }
             } catch (e) { return notAnswering(h); }
-            h.leave();
+            finish(h);
         });
     }
 
     function sky(h) {
         if (!h.s.online()) return offline(h);
-        h.out(title('SKY DESK'));
+        h.out(begin(h, 'SKY DESK'));
         const run = async city => {
             h.out('\nCalling the sky ...\n\n');
             try {
@@ -269,7 +279,7 @@
                     } else h.out(`\nNo such place: ${ascii(city)}.\n`);
                 }
             } catch (e) { return notAnswering(h); }
-            h.leave();
+            finish(h);
         };
         const last = h.s.store.get('city') || '';
         h.out(`A city for sunrise and sunset${last ? ` (RETURN for ${last})` : ' (RETURN to skip)'}?\nThe name is sent to open-meteo.com, nothing else.\n? `);
@@ -279,16 +289,16 @@
     /* ============================== the list ========================== */
 
     const DOORS = [
-        { key: 'R', title: 'Reference desk', run: reference },
-        { key: 'N', title: 'News desk (online)', run: news },
-        { key: 'K', title: 'Sky desk (online)', run: sky },
-        { key: 'L', title: 'The wall', run: wall },
-        { key: 'U', title: 'Last callers', run: callers },
-        { key: 'H', title: 'High scores', run: scores },
-        { key: 'V', title: 'This week\'s vote', run: poll },
-        { key: 'A', title: 'Art gallery', run: art },
-        { key: 'E', title: 'Mail to the sysop', run: mail },
-        { key: 'D', title: 'Dial directory', run: directory }
+        { key: 'R', title: 'Reference desk', desc: 'ASCII, hex, BDOS, opcodes', run: reference },
+        { key: 'N', title: 'News desk (online)', desc: 'Hacker News, on this day', run: news },
+        { key: 'K', title: 'Sky desk (online)', desc: 'the station, sunrise, sunset', run: sky },
+        { key: 'L', title: 'The wall', desc: 'one-liners from callers', run: wall },
+        { key: 'U', title: 'Last callers', desc: 'who called, and when', run: callers },
+        { key: 'H', title: 'High scores', desc: 'the best of the games', run: scores },
+        { key: 'V', title: 'This week\'s vote', desc: 'one question a week', run: poll },
+        { key: 'A', title: 'Art gallery', desc: 'small pictures', run: art },
+        { key: 'E', title: 'Mail to the sysop', desc: 'a note, and a reply', run: mail },
+        { key: 'D', title: 'Dial directory', desc: 'telnet hosts to dial', run: directory }
     ];
 
     const api = { DOORS, DIRECTORY, ART, reference, wall, callers, scores, poll, art, mail, directory, news, sky, ascii, wrap };

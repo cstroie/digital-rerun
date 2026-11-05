@@ -86,8 +86,14 @@
 
         /* ---- the session ---- */
 
+        /** The WOPR page: the bars when there is a screen to draw on, else a clear screen. */
+        const home = () => { if (host.page) host.page('GAMES  >  WOPR', 'type LIST GAMES, a name or a number'); else out(CLEAR); };
+        /** A game is over: a key first (the result stays on the screen), then WOPR's page again. */
+        const back = () => { if (host.pause) host.pause(() => { home(); menu(false); }); else menu(false); };
+
         function start() {
-            out(`${CLEAR}${REV} W.O.P.R. ${OFF}  WAR OPERATION PLAN RESPONSE\n\nLOGON: `);
+            home();
+            out(`\n${REV} W.O.P.R. ${OFF}  WAR OPERATION PLAN RESPONSE\n\nLOGON: `);
             ask('line', name => {
                 name = name.replace(/[^\x20-\x7e]/g, '').trim().toUpperCase();
                 player = name || 'GUEST';
@@ -107,7 +113,7 @@
         };
         const games = [
             { name: 'TIC-TAC-TOE', run: ticTacToe },
-            ...(host.games || []).map(g => ({ name: g.name, run: () => g.play(gameHost, () => menu(false)) })),
+            ...(host.games || []).map(g => ({ name: g.name, run: () => g.play(gameHost, back) })),
             { name: 'GLOBAL THERMONUCLEAR WAR', run: thermonuclear },
             ...UNLOADED.map(name => ({ name }))
         ];
@@ -129,6 +135,7 @@
             if (!game && t.length >= 3) game = games.find(g => g.name.includes(t));
             if (!game) { out('\nUNKNOWN COMMAND. TYPE LIST GAMES.\n'); return menu(false); }
             if (!game.run) { out(`\n${game.name}: NOT LOADED ON THIS LINE.\n`); return menu(false); }
+            if (host.page) host.page(`GAMES  >  ${game.name}`, 'Q gives up in most games');
             return game.run();
         }
 
@@ -153,7 +160,7 @@
         function turn(b) {
             out('YOUR MOVE (1-9)? ');
             ask('key', k => {
-                if (k === 'Q') { out('\nGAME ABANDONED.\n'); return menu(false); }
+                if (k === 'Q') { out('\nGAME ABANDONED.\n'); return back(); }
                 const i = Number(k) - 1;
                 if (!(i >= 0 && i < 9) || b[i]) { out('\nNOT A FREE SQUARE.\n'); return turn(b); }
                 b[i] = 'X';
@@ -169,7 +176,7 @@
 
         function again(next) {
             out('\nPLAY AGAIN (Y/N)? ');
-            ask('key', k => { out('\n'); if (k === 'Y') next(); else menu(false); });
+            ask('key', k => { out('\n'); if (k === 'Y') next(); else back(); });
         }
 
         /** Zero players: WOPR against WOPR, a game after another. */
@@ -184,7 +191,7 @@
             }
             out('\nALL GAMES DRAWN. NO WINNER.\n');
             lesson(false);
-            menu(false);
+            back();
         }
 
         /* ---- global thermonuclear war ---- */
@@ -221,7 +228,7 @@
             });
             out('\nWINNER: NONE\n');
             lesson(true);
-            menu(false);
+            back();
         }
 
         function lesson(chess) {

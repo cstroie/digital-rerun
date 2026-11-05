@@ -25,6 +25,7 @@ const SHELL = [
     'js/devices/webserial.js',
     'js/devices/telnet.js',
     'js/devices/gateway.js',
+    'js/vt.js',
     'js/sysop.js',
     'js/fortune.js',
     'js/wopr.js',

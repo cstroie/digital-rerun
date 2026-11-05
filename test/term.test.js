@@ -110,7 +110,9 @@ test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodby
     await until(m, 'DIGITAL RERUN BBS', at);
     await until(m, 'uit', at);
     at = say(m, 't');
-    await until(m, 'It is Thursday 5 November 2026, 14:03', at);
+    await until(m, 'Thursday 5 November 2026', at);
+    await until(m, 'press any key', at);
+    at = say(m, ' ');
     await until(m, 'uit', at);
     at = say(m, 'b');
     await until(m, 'P', at + 5);
@@ -120,11 +122,12 @@ test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodby
     at = say(m, 'Ana\r');
     await until(m, 'Your message', at);
     at = say(m, 'hello\r');
-    await until(m, 'Posted. Thank you.', at);
+    await until(m, 'bulletin posted', at);
     assert.deepEqual((await board.list()).map(p => [p.name, p.text]), [['Ana', 'hello']]);
     at = say(m, 'q');
     await until(m, 'NO CARRIER', at);
     assert.equal(m.modem.carrier, false);
+    assert.ok(m.out.includes('\x1b[r\x1b[0m\x1b[?25h'), 'the BBS put the terminal right again');
 });
 
 /** A machine on the BBS, its timers ours (a list to fire by hand). */
@@ -159,7 +162,7 @@ test('TERM: XMODEM download from the BBS (Ctrl-] R), and the program runs', asyn
     at = say(m, 'got.com\r');
     await until(m, 'Receiving', at);
     await until(m, 'Done.', at);
-    await until(m, 'Transfer complete', at);
+    await until(m, 'HELLO.COM: sent', at);
     at = say(m, '\x1dq');
     await until(m, 'A>', at);
     const file = new CpmFs(m.fdc.drives[0]).read('GOT.COM');
@@ -262,4 +265,14 @@ test('TERM: ATDT a telnet host through the bridge: negotiation answered, text bo
         await new Promise(r => bridge.close(r));
         tcp.close();
     }
+});
+
+test('TERM: leaving it (Ctrl-] Q, or H) sets the terminal right: no scroll region, plain, cursor shown', async () => {
+    const m = boot();
+    await until(m, 'A>');
+    let at = say(m, 'TERM\r');
+    await until(m, 'Try ATDT', at);
+    at = say(m, '\x1dq');
+    await until(m, 'A>', at);
+    assert.ok(m.out.slice(at).includes('\x1b[r\x1b[0m\x1b[?25h'));
 });

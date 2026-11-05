@@ -39,7 +39,10 @@
 (function (root) {
     'use strict';
 
-    const CLEAR = '\x1b[2J\x1b[H', BOLD = '\x1b[1m', REV = '\x1b[7m', OFF = '\x1b[0m';
+    const node = typeof module !== 'undefined' && module.exports;
+    const vt = node ? require('./vt.js') : root.DigitalRerun.vt;
+
+    const CLEAR = '\x1b[2J\x1b[H', DIM = '\x1b[2m', BOLD = '\x1b[1m', REV = '\x1b[7m', OFF = '\x1b[0m';
     const NAME_MAX = 12, TEXT_MAX = 70, CITY_MAX = 40, SHOWN = 8, KEPT = 50;
     const SYNODIC = 29.530588853, NEW_MOON = Date.UTC(2000, 0, 6, 18, 14);
     const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -122,8 +125,13 @@
         return lines;
     }
 
-    /** What a fast line affords: a banner at 2400 baud and above (at 300 the sign-on is short). */
-    const BANNER = [' ___ ___ ___ ___ _____ _   _   ___ ___ ___ _   _ _  _', '|   \\_ _/ __|_ _|_   _/_\\ | | | _ \\ __| _ \\ | | | \\| |', '| |) | | (_ | | |  | |/ _ \\| |_|   / _||   / |_| | .` |', '|___/___\\___|___| |_/_/ \\_\\____|_|_\\___|_|_\\\\___/|_|\\_|'].join('\n');
+    /** Small pictures for the main page's corner, a different one each day. */
+    const MENU_ART = [
+        ['      /\\_/\\', '     ( o.o )   PIXEL', '      > ^ <', '     /|   |\\'],
+        ['        *', '       /|\\', '      / | \\', '     /--+--\\     KETTLE-7', '       |_|'],
+        ['    .--------.', '    | A> _  |', '    |        |   PHOSPHOR', "    '--------'"],
+        ['      _', '     [_]', '     /_\\    LIGHTHOUSE', '    |   |', '    | O |']
+    ];
 
     /** Words wrapped to `width`. */
     function wrapText(text, width) {
@@ -261,19 +269,24 @@
         /* --- screens --- */
 
         sign() {
-            let extra = '';
             if (this.s.callers) {
                 const last = this.s.callers.list().at(-1);
                 this.callerN = this.s.callers.start();
                 const d = last && new Date(last.when);
-                extra = `You are caller #${this.callerN}.${d ? ` The last call was ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} at ${pad2(d.getHours())}:${pad2(d.getMinutes())}.` : ''}\n`;
-            }
-            if (this.s.mail && this.s.mail.unread()) extra += `${BOLD}You have mail from the sysop${OFF}: S for services, then E.\n`;
-            const baud = this.s.baud ? this.s.baud() : 1200;
-            if (baud <= 300) this.out(`${CLEAR}DIGITAL RERUN BBS\n${extra.replace(/\x1b\[[0-9;]*m/g, '').split('\n')[0]}\n`);
-            else this.out(`${CLEAR}${baud >= 2400 ? `${BOLD}${BANNER}${OFF}\n` : ''}${REV}  DIGITAL RERUN BBS  ${OFF}  ${baud} baud, 24 hours a day, one line\n\n` +
-                `Welcome, caller. The sysop is asleep; the board is not.\n${extra}`);
+                this.logs = [];
+                this.log(`carrier detected, ${this.baud()} baud, 8N1`);
+                this.log(`caller #${this.callerN}${d ? `, the last call was ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}` : ', welcome'}`);
+            } else this.logs = [];
+            if (this.s.mail && this.s.mail.unread()) this.log('mail: a reply from the sysop (S, then E)');
             this.menu();
+        }
+
+        baud() { return this.s.baud ? this.s.baud() : 1200; }
+
+        /** One line for the console log of the main page: the time and what happened. */
+        log(text) {
+            const d = this.s.now();
+            this.logs = [...(this.logs || []), `${pad2(d.getHours())}:${pad2(d.getMinutes())}  ${text}`].slice(-5);
         }
 
         /** The call is over: how long it was. */
@@ -282,28 +295,121 @@
             this.callerN = null;
         }
 
-        menu() {
-            this.out(`\n${BOLD}T${OFF}ime  ${BOLD}M${OFF}oon  ${BOLD}B${OFF}ulletins  ${BOLD}F${OFF}iles  ${BOLD}C${OFF}hat  ${BOLD}W${OFF}eather  ${BOLD}G${OFF}ames  f${BOLD}O${OFF}rtune  ${BOLD}S${OFF}ervices  ${BOLD}Q${OFF}uit   ? `);
+        /* --- the screen: a title bar, a status bar, a region between --- */
+
+        clockText() {
+            const d = this.s.now();
+            const mail = this.s.mail && this.s.mail.unread() ? 'MAIL  ' : '';
+            return `${mail}${pad2(d.getHours())}:${pad2(d.getMinutes())} `;
+        }
+
+        /** A new page: where we are (`crumb`) and what the status bar says (`hint`). */
+        page(crumb = '', hint = '') {
+            this.crumb = crumb;
+            this.out(vt.frame({
+                title: ` DIGITAL RERUN BBS${crumb ? '  >  ' + crumb : ''}`,
+                titleRight: `${this.baud()} BAUD${this.callerN ? `  CALLER #${this.callerN}` : ''} `,
+                status: hint ? ` ${hint}` : '', statusRight: this.clockText()
+            }));
+        }
+
+        /** The status bar alone, with the cursor left where it is. */
+        status(hint) { this.out(vt.statusBar(hint ? ` ${hint}` : '', this.clockText())); }
+
+        /** Show a hint and wait for a key. */
+        pause(fn, hint = 'press any key') { this.status(hint); this.ask('key', fn); }
+
+        /** `text` a page at a time (20 lines), a key between. */
+        more(text, fn) {
+            const lines = String(text).replace(/\n$/, '').split('\n');
+            let at = 0;
+            const next = () => {
+                this.out(lines.slice(at, at + 20).join('\n') + '\n');
+                at += 20;
+                if (at >= lines.length) return fn();
+                this.status('-- more --   SPACE or RETURN: the next page   Q: stop');
+                this.ask('key', k => (k === 'Q' ? fn() : next()));
+            };
+            next();
+        }
+
+        /** What a door or a game is handed to draw on. */
+        host(leave, extra = {}) {
+            return {
+                out: t => this.out(t), ask: (mode, fn, max) => this.ask(mode, fn, max), leave, random: this.s.random || Math.random, s: this.s,
+                page: (crumb, hint) => this.page(crumb, hint), status: hint => this.status(hint), pause: (fn, hint) => this.pause(fn, hint), more: (text, fn) => this.more(text, fn),
+                ...extra
+            };
+        }
+
+        /* --- the main page: a vertical menu, the system, a log --- */
+
+        menu(note) {
+            if (note) this.log(note);
+            this.page('MAIN', 'press a key');
+            const d = this.s.now();
+            const items = [['T', 'time', 'the clock, big'], ['M', 'moon', 'phase, age, a drawing'], ['B', 'bulletins', 'read and post'], ['F', 'files', 'XMODEM, the shelf'],
+                ['C', 'chat', 'the night-shift sysop'], ['W', 'weather', 'needs the internet'], ['G', 'games', 'WOPR and friends'], ['O', 'fortune', 'a cookie from the jar'],
+                ['S', 'services', 'desks and doors'], ['Q', 'quit', 'hang up']];
+            // the whole console the first time and on a fast line; coming back on a slow one, only the menu
+            // (a full page is 1.5 KB: ten seconds at 1200 baud)
+            const full = this.baud() >= 2400 || (!this.shown && this.baud() > 300);
+            this.shown = true;
+            let o = `${vt.at(3, 3)}${BOLD}MAIN CONSOLE${OFF}`;
+            if (full) o += `${vt.at(4, 3)}${DIM}${'-'.repeat(42)}${OFF}`;
+            items.forEach(([k, name, desc], i) => { o += `${vt.at(5 + i, 3)}${BOLD}[${k}]${OFF} ${name.padEnd(11)}${full ? `${DIM}${desc}${OFF}` : ''}`; });
+            if (!full) {
+                const last = (this.logs || []).at(-1);
+                if (last && note) o += `${vt.at(21, 3)}${DIM}${last.slice(0, 74)}${OFF}`;
+                o += `${vt.at(23, 3)}${BOLD}bbs>${OFF} `;
+                this.out(o);
+                this.mode = 'menu';
+                return;
+            }
+
+            const m = moon(d);
+            const calls = this.s.callers ? this.s.callers.list() : [];
+            const prev = calls.length > 1 ? new Date(calls.at(-2).when) : null;
+            const unread = this.s.mail ? this.s.mail.unread() : 0;
+            const info = [['node', '1, one line'], ['line', `${this.baud()} baud, 8N1`], ['date', `${DAYS[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`],
+                ['moon', `${m.name.toLowerCase()}, ${Math.round(m.lit * 100)}%`],
+                ['caller', `#${this.callerN || '-'}${prev ? `, last ${prev.getDate()} ${MONTHS[prev.getMonth()].slice(0, 3)} ${pad2(prev.getHours())}:${pad2(prev.getMinutes())}` : ''}`],
+                ['mail', unread ? `${unread} new repl${unread === 1 ? 'y' : 'ies'}` : 'none'],
+                ['games', `${(this.s.games ? this.s.games.length : 0) + 2} on the list`]];
+            o += `${vt.at(3, 47)}${BOLD}SYSTEM${OFF}${vt.at(4, 47)}${DIM}${'-'.repeat(32)}${OFF}`;
+            info.forEach(([k, v], i) => { o += `${vt.at(5 + i, 47)}${DIM}${k.padEnd(8)}${OFF}${v.slice(0, 24)}`; });
+            const art = MENU_ART[Math.floor(d.getTime() / 86400000) % MENU_ART.length];
+            art.forEach((line, i) => { o += `${vt.at(13 + i, 49)}${DIM}${line}${OFF}`; });
+
+            o += `${vt.at(18, 3)}${BOLD}LOG${OFF}${vt.at(19, 3)}${DIM}${'-'.repeat(74)}${OFF}`;
+            (this.logs || []).slice(-3).forEach((line, i) => { o += `${vt.at(20 + i, 3)}${DIM}${line.slice(0, 74)}${OFF}`; });
+            o += `${vt.at(23, 3)}${BOLD}bbs>${OFF} `;
+            this.out(o);
             this.mode = 'menu';
         }
 
         time() {
             const d = this.s.now();
-            this.out(`\n\nIt is ${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${pad2(d.getHours())}:${pad2(d.getMinutes())} where you are.\n`);
-            this.menu();
+            this.page('TIME', 'press any key');
+            const digits = vt.big(`${pad2(d.getHours())}:${pad2(d.getMinutes())}`);
+            this.out('\n\n' + digits.map(l => `${BOLD}      ${l}${OFF}`).join('\n') +
+                `\n\n      ${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}\n      ${DIM}the clock of the computer you are calling from${OFF}\n`);
+            this.pause(() => this.menu());
         }
 
         moonPage() {
             const m = moon(this.s.now());
+            this.page('MOON', 'press any key');
             const art = moonArt(m.phase);
-            this.out('\n\n' + art.map(l => '      ' + l).join('\n') +
-                `\n\n${BOLD}${m.name}${OFF}, ${Math.round(m.lit * 100)}% lit, ${m.age.toFixed(1)} days old.\n` +
-                `Full moon in ${m.toFull.toFixed(0)} days, new moon in ${m.toNew.toFixed(0)}.\n`);
-            this.menu();
+            const info = ['', '', `${BOLD}${m.name}${OFF}`, `${Math.round(m.lit * 100)}% lit`, `${m.age.toFixed(1)} days old`, '', `full moon in ${m.toFull.toFixed(0)} days`, `new moon in ${m.toNew.toFixed(0)} days`,
+                '', `${DIM}[${'#'.repeat(Math.round(m.phase * 20)).padEnd(20, '.')}]${OFF}`, `${DIM}new . . full . . new${OFF}`];
+            this.out('\n' + art.map((l, i) => `   ${l.padEnd(24)}${info[i] || ''}`).join('\n') + '\n');
+            this.pause(() => this.menu());
         }
 
         goodbye() {
-            this.out(`\n\nThank you for calling. Mind the gap between signals.\n`);
+            this.page('GOODBYE');
+            this.out(`\n\n   Thank you for calling.\n   Mind the gap between signals.\n\n   ${DIM}NO CARRIER follows.${OFF}\n${vt.RESET}`);
             this.mode = 'busy';
             this.endCall();
             this.link.hangup();
@@ -316,7 +422,8 @@
             let posts;
             try { posts = await this.s.board.list(); } catch (e) { posts = []; }
             const shown = posts.slice(-SHOWN);
-            this.out(`\n\n${REV} BULLETINS ${OFF}  ${posts.length} on the board\n\n`);
+            this.page('BULLETINS', `${posts.length} on the board`);
+            this.out('\n');
             if (!shown.length) this.out('Nothing yet. Be the first.\n');
             for (const p of shown) {
                 const d = new Date(p.when);
@@ -324,7 +431,7 @@
             }
             this.out(`\n${BOLD}P${OFF}ost a message, ${BOLD}Q${OFF}uit to the menu? `);
             this.ask('key', k => {
-                if (k === 'P') this.post(); else { this.out('\n'); this.menu(); }
+                if (k === 'P') this.post(); else this.menu();
             });
         }
 
@@ -335,11 +442,11 @@
                 this.out('Your message (one line)? ');
                 this.ask('line', async text => {
                     text = clean(text).slice(0, TEXT_MAX);
-                    if (!text) { this.out('Nothing posted.\n'); return this.menu(); }
+                    if (!text) return this.menu('nothing posted');
                     this.mode = 'busy';
-                    try { await this.s.board.add({ when: this.s.now().getTime(), name, text }); this.out('Posted. Thank you.\n'); }
-                    catch (e) { this.out('The board is full of static. Not posted.\n'); }
-                    this.menu();
+                    let note = 'bulletin posted';
+                    try { await this.s.board.add({ when: this.s.now().getTime(), name, text }); } catch (e) { note = 'the board is full of static: not posted'; }
+                    this.menu(note);
                 }, TEXT_MAX);
             }, NAME_MAX);
         }
@@ -350,15 +457,16 @@
             this.mode = 'busy';
             let list;
             try { list = await this.s.files.list(); } catch (e) { list = []; }
-            this.out(`\n\n${REV} FILES ${OFF}  XMODEM, checksum or CRC\n\n`);
-            for (const f of list) this.out(`${f.name.padEnd(13)}${String(f.size).padStart(7)} bytes  ${String(Math.ceil(f.size / BLOCK)).padStart(4)} blocks\n`);
+            this.page('FILES', 'XMODEM, checksum or CRC');
+            this.out(`\n${DIM}${'NAME'.padEnd(13)}${'BYTES'.padStart(7)}  ${'BLOCKS'.padStart(6)}${OFF}\n`);
+            for (const f of list) this.out(`${f.name.padEnd(13)}${String(f.size).padStart(7)}  ${String(Math.ceil(f.size / BLOCK)).padStart(6)}\n`);
             if (!list.length) this.out('Nothing here.\n');
             this.out(`\n${BOLD}D${OFF}ownload, ${BOLD}U${OFF}pload, ${this.s.library ? `${BOLD}L${OFF}ibrary, ` : ''}${BOLD}Q${OFF}uit to the menu? `);
             this.ask('key', k => {
                 if (k === 'D') this.download(list);
                 else if (k === 'U') this.upload();
                 else if (k === 'L' && this.s.library) this.library();
-                else { this.out('\n'); this.menu(); }
+                else this.menu();
             });
         }
 
@@ -367,7 +475,7 @@
             this.ask('line', async text => {
                 const name = cpmName(text);
                 const data = name && await this.s.files.get(name);
-                if (!data) { this.out('No such file.\n'); return this.menu(); }
+                if (!data) return this.menu('no such file');
                 this.beginSend(name, data);
             }, 12);
         }
@@ -376,7 +484,8 @@
         beginSend(name, data) {
             this.out(`${name}: ${Math.ceil(data.length / BLOCK)} blocks, about ${Math.ceil(data.length * 10 / 120)} seconds.\n` +
                 'Start your XMODEM receive now. Ctrl-X cancels.\n');
-            this.xsend = { data, blocks: Math.ceil(data.length / BLOCK), n: 1, crc: false, state: 'wait', tries: 0 };
+            this.xsend = { name, data, blocks: Math.ceil(data.length / BLOCK), n: 1, crc: false, state: 'wait', tries: 0 };
+            this.status(`XMODEM SEND ${name}: waiting for the receiver`);
             this.mode = 'xsend';
             this.timeout(60000, () => this.xabort('Nobody answered. Back to the menu.'));
         }
@@ -386,22 +495,23 @@
             this.mode = 'busy';
             let disks = [];
             try { disks = await this.s.library.list(); } catch (e) { /* none */ }
-            this.out(`\n\n${REV} SOFTWARE LIBRARY ${OFF}\n\n`);
-            if (!disks.length) { this.out('The shelves are bare (or not reachable from here).\n'); return this.menu(); }
+            this.page('FILES  >  LIBRARY', 'the shelf, by XMODEM');
+            this.out('\n');
+            if (!disks.length) return this.menu('the shelves are bare (or not reachable from here)');
             disks.forEach((d, i) => this.out(`${String(i + 1).padStart(3)}  ${clean(d.name).padEnd(30).slice(0, 30)} ${d.files.length} files\n`));
             this.out('\nWhich disk (number, RETURN to leave)? ');
             this.ask('line', async text => {
                 const d = disks[Number.parseInt(text, 10) - 1];
-                if (!d) { this.out('\n'); return this.menu(); }
+                if (!d) return this.menu();
                 this.out(`\n${BOLD}${clean(d.name)}${OFF}\n`);
                 const cols = d.files.map(f => f.padEnd(13)).join('').match(/.{1,78}/g) || [];
                 this.out(cols.join('\n') + '\n\nFile name? ');
                 this.ask('line', async f => {
                     const name = d.files.find(x => x.toUpperCase() === f.trim().toUpperCase());
-                    if (!name) { this.out('No such file.\n'); return this.menu(); }
+                    if (!name) return this.menu('no such file');
                     let data = null;
                     try { data = await this.s.library.get(d.id, name); } catch (e) { /* not reachable */ }
-                    if (!data) { this.out('The shelf would not give it up (offline?).\n'); return this.menu(); }
+                    if (!data) return this.menu('the shelf would not give it up (offline?)');
                     this.beginSend(cpmName(name) || name.toUpperCase(), data);
                 }, 12);
             }, 3);
@@ -418,7 +528,7 @@
             }
             if (b === ACK) {
                 x.tries = 0;
-                if (x.state === 'eot') { this.clear(); this.mode = 'busy'; this.out('\n\nTransfer complete.\n'); return this.menu(); }
+                if (x.state === 'eot') { this.clear(); this.mode = 'busy'; return this.menu(`${x.name}: sent`); }
                 if (x.n >= x.blocks) { x.state = 'eot'; return this.xeot(); }
                 x.n++;
                 return this.xblock();
@@ -445,17 +555,18 @@
             this.clear();
             this.link.receive([CAN, CAN]);
             this.mode = 'busy';
-            this.out(`\n\n${why}\n`);
-            this.menu();
+            this.menu(why.replace(/\.$/, '').toLowerCase());
         }
 
         upload() {
-            this.out('\n\nName for the file (8.3)? ');
+            this.page('FILES  >  UPLOAD', 'XMODEM, 32K at most');
+            this.out('\nName for the file (8.3)? ');
             this.ask('line', text => {
                 const name = cpmName(text);
-                if (!name || name in BUILTIN_FILES) { this.out('Not a name I can use.\n'); return this.menu(); }
+                if (!name || name in BUILTIN_FILES) return this.menu('not a name I can use');
                 this.out(`Start your XMODEM send now. Ctrl-X cancels.\n`);
                 this.xrecv = { name, data: [], n: 1, step: 'soh', block: [], tries: 0, started: false };
+                this.status(`XMODEM RECEIVE ${name}: send when ready`);
                 this.mode = 'xrecv';
                 this.xnak();
             }, 12);
@@ -502,8 +613,9 @@
             this.link.receive([ACK]);
             this.mode = 'busy';
             const bytes = x.data;
-            try { await this.s.files.put(x.name, Uint8Array.from(bytes)); this.out(`\n\n${x.name} received, ${bytes.length} bytes. Thank you.\n`); } catch (e) { this.out(`\n\nThe file area could not keep ${x.name}.\n`); }
-            this.menu();
+            let note = `${x.name}: received, ${bytes.length} bytes`;
+            try { await this.s.files.put(x.name, Uint8Array.from(bytes)); } catch (e) { note = `the file area could not keep ${x.name}`; }
+            this.menu(note);
         }
 
         timeout(ms, fn) {
@@ -519,13 +631,10 @@
         /* --- the sysop --- */
 
         chat() {
-            if (!this.s.sysop) {
-                this.out('\n\nThe sysop has stepped away from the keyboard.\n');
-                return this.menu();
-            }
+            if (!this.s.sysop) return this.menu('the sysop has stepped away from the keyboard');
             this.history = [];
-            this.out(`\n\n${REV} SYSOP ${OFF}  You are talking to the sysop, a program. /BYE leaves.\n` +
-                'Please do not type names, numbers or medical details here.\n\n');
+            this.page('CHAT', '/BYE leaves');
+            this.out(`\nYou are talking to the sysop, a program. /BYE leaves.\n${DIM}Please do not type names, numbers or medical details here.${OFF}\n\n`);
             this.chatPrompt();
         }
 
@@ -533,13 +642,13 @@
             this.out(`${BOLD}you>${OFF} `);
             this.ask('line', async text => {
                 text = clean(text);
-                if (/^\/?(bye|quit|exit|q)$/i.test(text)) { this.out(`${BOLD}sysop>${OFF} Take care. Mind the gap between signals.\n`); return this.menu(); }
+                if (/^\/?(bye|quit|exit|q)$/i.test(text)) return this.menu('chat with the sysop ended');
                 if (!text) return this.chatPrompt();
                 this.out(`${BOLD}sysop>${OFF} (typing)`);
                 let answer;
                 try { answer = await this.s.sysop.reply(this.history, text); } catch (e) { answer = ''; }
                 answer = clean(String(answer || '')).length ? String(answer) : 'The line crackled. Say that again?';
-                this.out('\r\x1b[K' + `${BOLD}sysop>${OFF} ` + answer.replace(/\n/g, '\n       ') + '\n\n');
+                this.out('\r\x1b[K' + `${BOLD}sysop>${OFF} ` + wrapText(String(answer).replace(/\s*\n\s*/g, ' '), 70).replace(/\n/g, '\n       ') + '\n\n');   // 7 columns of prompt, then 70: inside 80
                 this.history.push({ role: 'user', content: text }, { role: 'assistant', content: answer });
                 this.history = this.history.slice(-20);
                 this.chatPrompt();
@@ -550,19 +659,16 @@
 
         services() {
             const doors = this.s.doors;
-            if (!doors) { this.out('\n\nThe services desk is closed.\n'); return this.menu(); }
-            this.out(`\n\n${REV} SERVICES ${OFF}\n\n`);
-            const half = Math.ceil(doors.length / 2);
-            for (let i = 0; i < half; i++) {
-                const left = doors[i], right = doors[i + half];
-                this.out(` ${BOLD}${left.key}${OFF}  ${left.title.padEnd(26)}${right ? `${BOLD}${right.key}${OFF}  ${right.title}` : ''}\n`);
-            }
-            this.out(`\n ${BOLD}Q${OFF}  back to the menu   ? `);
+            if (!doors) return this.menu('the services desk is closed');
+            this.page('SERVICES', 'press a key');
+            this.out('\n');
+            doors.forEach(d => this.out(`  ${BOLD}[${d.key}]${OFF} ${d.title.padEnd(22)}${DIM}${d.desc || ''}${OFF}\n`));
+            this.out(`  ${BOLD}[Q]${OFF} ${'back'.padEnd(22)}${DIM}to the main menu${OFF}\n\n${BOLD}bbs>${OFF} `);
             this.ask('key', k => {
                 const door = doors.find(d => d.key === k);
-                if (!door) { this.out('\n'); return this.menu(); }
+                if (!door) return this.menu();
                 this.mode = 'busy';
-                door.run({ out: t => this.out(t), ask: (mode, fn, max) => this.ask(mode, fn, max), leave: () => this.services(), random: this.s.random || Math.random, s: this.s });
+                door.run(this.host(() => this.services()));
             });
         }
 
@@ -571,49 +677,41 @@
         game() {
             this.mode = 'busy';
             const wopr = this.s.wopr;
-            if (!wopr) { this.out('\n\nThe games room is locked.\n'); return this.menu(); }
-            wopr({
-                out: t => this.out(t),
-                ask: (mode, fn, max) => this.ask(mode, fn, max),
-                leave: () => { this.out('\n'); this.menu(); },
-                random: this.s.random || Math.random,
-                games: this.s.games, scores: this.s.scores, sysop: this.s.sysop, store: this.s.store, now: this.s.now
-            });
+            if (!wopr) return this.menu('the games room is locked');
+            wopr(this.host(() => this.menu('left WOPR'), { games: this.s.games, scores: this.s.scores, sysop: this.s.sysop, store: this.s.store, now: this.s.now }));
         }
 
         /* --- a fortune --- */
 
         fortune() {
             const fortunes = this.s.fortunes;
-            if (!fortunes) { this.out('\n\nThe cookie jar is empty.\n'); return this.menu(); }
+            if (!fortunes) return this.menu('the cookie jar is empty');
             this.seen = this.seen || [];
             const i = fortunes.pick(this.s.random || Math.random, this.seen);
             this.seen = [...this.seen, i].slice(-20);
-            const text = wrapText(fortunes.FORTUNES[i], 66).split('\n');
-            this.out(`\n\n${REV} FORTUNE ${OFF}  ${i + 1} of ${fortunes.FORTUNES.length}\n\n${text.map(l => '  ' + l).join('\n')}\n\n` +
-                `Another (${BOLD}Y${OFF}/N)? `);
-            this.ask('key', k => { if (k === 'Y') this.fortune(); else { this.out('\n'); this.menu(); } });
+            const text = wrapText(fortunes.FORTUNES[i], 62).split('\n');
+            this.page('FORTUNE', 'Y: another   any other key: back');
+            const rule = `  +${'-'.repeat(66)}+`;
+            this.out(`\n\n${rule}\n  |${' '.repeat(66)}|\n${text.map(l => `  |  ${l.padEnd(62)}  |`).join('\n')}\n  |${' '.repeat(66)}|\n${rule}\n\n   ${DIM}fortune ${i + 1} of ${fortunes.FORTUNES.length}${OFF}\n`);
+            this.ask('key', k => { if (k === 'Y') this.fortune(); else this.menu(); });
         }
 
         /* --- the weather desk --- */
 
         weather() {
-            if (!this.s.online()) {
-                this.out(`\n\nThe weather desk is not answering.\n(It needs the internet: SETUP, Online services.)\n`);
-                return this.menu();
-            }
+            if (!this.s.online()) return this.menu('the weather desk is not answering (SETUP, Online services)');
             const last = this.s.store.get('city') || '';
-            this.out(`\n\nWEATHER DESK. Which city${last ? ` (RETURN for ${last})` : ''}?\n` +
-                `The name is sent to open-meteo.com, nothing else.\n? `);
+            this.page('WEATHER', 'RETURN with no city: back');
+            this.out(`\nWhich city${last ? ` (RETURN for ${last})` : ''}?\n${DIM}The name is sent to open-meteo.com, nothing else.${OFF}\n\n? `);
             this.ask('line', async city => {
                 city = clean(city) || last;
                 if (!city) return this.menu();
                 this.mode = 'busy';
-                this.out('\nCalling the desk...\n');
+                this.out('Calling the desk...\n');
                 try {
                     const geo = await this.s.fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`);
                     const place = geo && geo.results && geo.results[0];
-                    if (!place) { this.out(`No such place: ${city}.\n`); return this.menu(); }
+                    if (!place) return this.menu(`weather: no such place, ${city}`);
                     const w = await this.s.fetchJson('https://api.open-meteo.com/v1/forecast' +
                         `?latitude=${place.latitude}&longitude=${place.longitude}` +
                         '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code' +
@@ -621,9 +719,9 @@
                     this.s.store.set('city', place.name);
                     this.out('\n' + weatherPage(place, w).join('\n') + '\n');
                 } catch (e) {
-                    this.out('The weather desk is not answering.\n');
+                    return this.menu('the weather desk is not answering');
                 }
-                this.menu();
+                this.pause(() => this.menu());
             }, CITY_MAX);
         }
 
@@ -661,7 +759,7 @@
                 case 'O': return this.fortune();
                 case 'S': return this.services();
                 case 'Q': return this.goodbye();
-                case '?': case 'H': this.out('\n'); return this.menu();
+                case '?': case 'H': return this.menu();
                 default: /* RETURN, line feed, noise: nothing */
             }
         }

@@ -26,6 +26,7 @@
  *   fetchJson(url) -> Promise<object>
  *   files        { list() -> Promise<[{ name, size }]>, get(name) -> Promise<Uint8Array|null>,
  *                  put(name, bytes) -> Promise }
+ *   baud()       the line's speed: a short sign-on at 300, a banner from 2400 (default 1200)
  *   library      { list() -> Promise<[{ id, name, files: [name] }]>, get(id, name) -> Promise<Uint8Array> }: the shelf's programs
  *   doors, wall, callers, mail, poll   the services (js/doors.js, js/records.js); callers and mail also
  *                    count a call and tell of replies at sign-on
@@ -120,6 +121,9 @@
         lines.push('', `Temperatures in C, rain in mm. Source: open-meteo.com`);
         return lines;
     }
+
+    /** What a fast line affords: a banner at 2400 baud and above (at 300 the sign-on is short). */
+    const BANNER = [' ___ ___ ___ ___ _____ _   _   ___ ___ ___ _   _ _  _', '|   \\_ _/ __|_ _|_   _/_\\ | | | _ \\ __| _ \\ | | | \\| |', '| |) | | (_ | | |  | |/ _ \\| |_|   / _||   / |_| | .` |', '|___/___\\___|___| |_/_/ \\_\\____|_|_\\___|_|_\\\\___/|_|\\_|'].join('\n');
 
     /** Words wrapped to `width`. */
     function wrapText(text, width) {
@@ -265,7 +269,9 @@
                 extra = `You are caller #${this.callerN}.${d ? ` The last call was ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} at ${pad2(d.getHours())}:${pad2(d.getMinutes())}.` : ''}\n`;
             }
             if (this.s.mail && this.s.mail.unread()) extra += `${BOLD}You have mail from the sysop${OFF}: S for services, then E.\n`;
-            this.out(`${CLEAR}${REV}  DIGITAL RERUN BBS  ${OFF}  1200 baud, 24 hours a day, one line\n\n` +
+            const baud = this.s.baud ? this.s.baud() : 1200;
+            if (baud <= 300) this.out(`${CLEAR}DIGITAL RERUN BBS\n${extra.replace(/\x1b\[[0-9;]*m/g, '').split('\n')[0]}\n`);
+            else this.out(`${CLEAR}${baud >= 2400 ? `${BOLD}${BANNER}${OFF}\n` : ''}${REV}  DIGITAL RERUN BBS  ${OFF}  ${baud} baud, 24 hours a day, one line\n\n` +
                 `Welcome, caller. The sysop is asleep; the board is not.\n${extra}`);
             this.menu();
         }

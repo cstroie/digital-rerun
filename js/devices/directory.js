@@ -19,6 +19,11 @@
         };
     }
 
+    /** An entry that is busy now and then (another caller has the one line): `make` is the real answer. */
+    function sometimesBusy(make, chance = 0.1, random = Math.random) {
+        return link => (random() < chance ? 'BUSY' : make(link));
+    }
+
     class Directory {
         constructor() {
             this.entries = new Map();
@@ -40,7 +45,7 @@
         }
     }
 
-    const api = { Directory, echoService };
+    const api = { Directory, echoService, sometimesBusy };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

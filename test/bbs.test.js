@@ -685,3 +685,17 @@ test('F, L: no library service, no L; a missing file or an unreachable shelf is 
     c.type('a.com\r'); await c.settle();
     assert.match(c.out, /would not give it up/);
 });
+
+test('the sign-on follows the line: short at 300 baud, the usual at 1200, a banner from 2400', () => {
+    const slow = caller({ baud: () => 300 });
+    assert.doesNotMatch(slow.out, /Welcome, caller/);
+    assert.match(slow.out, /DIGITAL RERUN BBS/);
+    assert.match(slow.out, /ime .*oon/s, 'the menu is there');
+    const mid = caller({ baud: () => 1200 });
+    assert.match(mid.out, /1200 baud, 24 hours/);
+    assert.doesNotMatch(mid.out, /\|___\//);
+    const fast = caller({ baud: () => 9600 });
+    assert.match(fast.out, /9600 baud, 24 hours/);
+    assert.match(fast.out, /\|___\/___/);
+    for (const line of fast.out.split('\r\n')) assert.ok(line.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').length <= 80);
+});

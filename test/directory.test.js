@@ -35,3 +35,11 @@ test('an entry of the directory wins over the gateway', async () => {
     d.add('5550100', () => ({ send() {}, close() {} }));
     assert.equal(typeof (await d.dial('5550100', link, '5550100')).send, 'function');
 });
+
+test('sometimesBusy: busy when the dice say so, the real answer otherwise', async () => {
+    const { sometimesBusy } = require('../js/devices/directory.js');
+    const make = () => ({ send() {}, close() {} });
+    assert.equal(sometimesBusy(make, 0.1, () => 0.05)(link), 'BUSY');
+    assert.equal(typeof sometimesBusy(make, 0.1, () => 0.5)(link).send, 'function');
+    assert.equal(typeof sometimesBusy(make, 0, () => 0)(link).send, 'function', 'never busy at 0');
+});

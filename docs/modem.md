@@ -192,3 +192,8 @@ program, by the next call: "you have mail from the sysop"), **D** the dial direc
 
 **F, L** in the file area is the software library: the shelf's programs (disks made of files), sent by XMODEM
 (text files as CP/M text); at 1200 baud a big one takes minutes, as it should.
+
+## Line manners
+
+The board is one line, so now and then it is **busy** (8% of calls to `5550100`: dial again). Its sign-on follows
+the line's speed (SETUP → MODEM): short at 300 baud, the usual at 1200, with a banner from 2400.

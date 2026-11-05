@@ -5,6 +5,7 @@
  *   T  the time and date          M  the moon
  *   B  the bulletin board         W  the weather desk (online, off by default)
  *   F  the file area: download and upload by XMODEM (checksum or CRC)
+ *   C  chat with the sysop (services.sysop: the page's, not the emulated machine's)
  *   G  goodbye
  *
  * Output is plain 7-bit text with VT100 bold and reverse; the caller's
@@ -22,6 +23,7 @@
  *   fetchJson(url) -> Promise<object>
  *   files        { list() -> Promise<[{ name, size }]>, get(name) -> Promise<Uint8Array|null>,
  *                  put(name, bytes) -> Promise }
+ *   sysop        { reply(history, text) -> Promise<string> }; without one the sysop is away
  *   after(fn, ms) -> handle, cancel(handle): timers (default setTimeout, clearTimeout)
  */
 (function (root) {
@@ -241,7 +243,7 @@
         }
 
         menu() {
-            this.out(`\n${BOLD}T${OFF}ime  ${BOLD}M${OFF}oon  ${BOLD}B${OFF}ulletins  ${BOLD}F${OFF}iles  ${BOLD}W${OFF}eather  ${BOLD}G${OFF}oodbye   ? `);
+            this.out(`\n${BOLD}T${OFF}ime  ${BOLD}M${OFF}oon  ${BOLD}B${OFF}ulletins  ${BOLD}F${OFF}iles  ${BOLD}C${OFF}hat  ${BOLD}W${OFF}eather  ${BOLD}G${OFF}oodbye   ? `);
             this.mode = 'menu';
         }
 
@@ -441,6 +443,36 @@
             this.timer = null;
         }
 
+        /* --- the sysop --- */
+
+        chat() {
+            if (!this.s.sysop) {
+                this.out('\n\nThe sysop has stepped away from the keyboard.\n');
+                return this.menu();
+            }
+            this.history = [];
+            this.out(`\n\n${REV} SYSOP ${OFF}  You are talking to the sysop, a program. /BYE leaves.\n` +
+                'Please do not type names, numbers or medical details here.\n\n');
+            this.chatPrompt();
+        }
+
+        chatPrompt() {
+            this.out(`${BOLD}you>${OFF} `);
+            this.ask('line', async text => {
+                text = clean(text);
+                if (/^\/?(bye|quit|exit|q)$/i.test(text)) { this.out(`${BOLD}sysop>${OFF} Take care. Mind the gap between signals.\n`); return this.menu(); }
+                if (!text) return this.chatPrompt();
+                this.out(`${BOLD}sysop>${OFF} (typing)`);
+                let answer;
+                try { answer = await this.s.sysop.reply(this.history, text); } catch (e) { answer = ''; }
+                answer = clean(String(answer || '')).length ? String(answer) : 'The line crackled. Say that again?';
+                this.out('\r\x1b[K' + `${BOLD}sysop>${OFF} ` + answer.replace(/\n/g, '\n       ') + '\n\n');
+                this.history.push({ role: 'user', content: text }, { role: 'assistant', content: answer });
+                this.history = this.history.slice(-20);
+                this.chatPrompt();
+            }, TEXT_MAX);
+        }
+
         /* --- the weather desk --- */
 
         weather() {
@@ -502,6 +534,7 @@
                 case 'B': return this.bulletins();
                 case 'W': return this.weather();
                 case 'F': return this.files();
+                case 'C': return this.chat();
                 case 'G': return this.goodbye();
                 case '?': case 'H': this.out('\n'); return this.menu();
                 default: /* RETURN, line feed, noise: nothing */

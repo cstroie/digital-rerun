@@ -85,10 +85,10 @@ flow control: a byte nobody reads before the next arrives is lost (overrun), as 
   TERM times out through the machine's clock (port 20), so a transfer that gets no answer stops on its own.
 - **W** the weather desk, needs SETUP → *Online services* (off by default): the city name goes to open-meteo.com
   (geocoding, then a 4-day forecast), nothing else. Off or unreachable: "the weather desk is not answering".
+- **C** chat with the sysop (below).
 - **G** goodbye (hangs up).
 
-The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: the SYSOP chat (Z80-μLM, which
-lives on its own shelf disk), a built-in terminal for CP/M 3's own `TERM`.
+The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: a built-in terminal for CP/M 3's own `TERM`.
 
 ## A real modem (Web Serial, step 6)
 
@@ -128,3 +128,21 @@ Anything that is not a number of the built-in directory (letters or dots) goes t
 - The line is the UART's: 1200 baud (or what SETUP says) however fast the host is, and the same XMODEM in TERM.
   Colour BBSes send ANSI colour and CP437 line drawing, which the VT100 screen does not draw (ASCII only, by
   decision); most say VT100 and send plain text.
+
+## The sysop (chat)
+
+`C` at the BBS menu talks to the sysop, a night-shift program of the board (dry, warm, a little tired; Relay Station
+Kettle-7 is his day job, with a cat named Pixel). He runs on the host, in the page (`js/sysop.js`), not on the
+emulated machine, and says he is a program when sincerely asked.
+
+- **Built in:** a small rule-based sysop (the old ELIZA trick in the board's voice: reflects "I am ...", knows
+  the menu, TERM, XMODEM, AT commands, CP/M). It needs nothing and answers whenever the endpoint cannot.
+- **A language model:** SETUP → SYSOP CHAT: *Endpoint* (an OpenAI-compatible base URL such as
+  `http://localhost:11434/v1` for Ollama, or llama.cpp, LM Studio, a hosted API), *Model*, *API key*. Used only when
+  *Online services* is on and an endpoint and a model are named. It is sent `POST {endpoint}/chat/completions`
+  with the sysop's instructions, the last ten exchanges of that chat and the line just typed: nothing else leaves
+  the page. A local server must allow the page's origin (CORS; for Ollama, `OLLAMA_ORIGINS`). The key stays in this
+  browser (settings). A failing endpoint falls back to the built-in sysop.
+- **What the caller sees:** plain ASCII, a few lines of at most 74 characters (replies are cut down to that:
+  smart quotes straightened, markdown and non-ASCII dropped, at most 480 characters), an indented second line,
+  `/BYE` to leave. The chat starts with a request not to type names, numbers or medical details.

@@ -424,3 +424,68 @@ test('the file area keeps uploads small: a file over the limit is refused', asyn
     await assert.rejects(files.put('BIG', new Uint8Array(40000)));
     await assert.rejects(files.put('HELLO.COM', new Uint8Array(1)));
 });
+
+/* ---------- the sysop ---------- */
+
+test('C: without a sysop service he is away', () => {
+    const c = caller();
+    c.take();
+    c.type('c');
+    assert.match(c.out, /stepped away/);
+    assert.match(c.out, /ime .*oon/s);
+});
+
+test('C: a chat, with the history passed on, and /BYE back to the menu', async () => {
+    const asked = [];
+    const c = caller({ sysop: { reply: async (history, text) => { asked.push([history.length, text]); return `Heard: ${text}.\nSecond line.`; } } });
+    c.take();
+    c.type('c');
+    assert.match(c.out, /talking to the sysop, a program/);
+    assert.match(c.out, /you>\x1b\[0m /);
+    c.take();
+    c.type('hello there\r');
+    assert.match(c.out, /sysop>\x1b\[0m \(typing\)/);
+    await c.settle();
+    assert.match(c.out, /\r\x1b\[K\x1b\[1msysop>\x1b\[0m Heard: hello there\./);
+    assert.match(c.out, /Heard: hello there\.\r\n {7}Second line\./, 'a second line is indented under the first');
+    assert.match(c.out, /you>\x1b\[0m $/);
+    c.type('and again\r');
+    await c.settle();
+    assert.deepEqual(asked, [[0, 'hello there'], [2, 'and again']]);
+    c.take();
+    c.type('/bye\r');
+    assert.match(c.out, /Take care/);
+    assert.match(c.out, /ime .*oon/s);
+});
+
+test('C: an empty line asks again, control characters are not sent, a failing sysop does not break the chat', async () => {
+    const asked = [];
+    const c = caller({ sysop: { reply: async (h, text) => { asked.push(text); if (text === 'boom') throw new Error('x'); return text === 'blank' ? '' : 'ok'; } } });
+    c.type('c');
+    c.take();
+    c.type('\r');
+    assert.match(c.out, /you>\x1b\[0m $/);
+    c.type('a\x01b\x1b[2J\r');
+    await c.settle();
+    assert.equal(asked[0], 'ab[2J');
+    c.take();
+    c.type('boom\r');
+    await c.settle();
+    assert.match(c.out, /The line crackled/);
+    c.take();
+    c.type('blank\r');
+    await c.settle();
+    assert.match(c.out, /The line crackled/);
+});
+
+test('C: a reply that comes after the caller has gone is dropped', async () => {
+    let release;
+    const c = caller({ sysop: { reply: () => new Promise(r => { release = r; }) } });
+    c.type('c');
+    c.type('hello\r');
+    c.session.close();
+    c.take();
+    release('late');
+    await c.settle();
+    assert.equal(c.out, '');
+});

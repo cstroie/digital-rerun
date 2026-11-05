@@ -7,7 +7,7 @@
     'use strict';
 
     const { Machine, Disk, CpmFs, FORMATS, diskFromImage, ALTAIR_SIZE, altairFiles, Terminal, TerminalView, FX80, PaperView, Storage,
-        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard, StoredFiles, SerialLine, Gateway } = window.DigitalRerun;
+        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard, StoredFiles, SerialLine, Gateway, Sysop } = window.DigitalRerun;
 
     const $ = id => document.getElementById(id);
     const DRIVES = [0, 1, 2, 3, 8];                 // A: B: C: D: I:
@@ -30,6 +30,7 @@
         files: new StoredFiles(localStorage),
         store: { get: k => localStorage.getItem('digitalrerun.bbs.' + k), set: (k, v) => localStorage.setItem('digitalrerun.bbs.' + k, v) },
         online: () => settings.online,
+        sysop: new Sysop({ online: () => settings.online, config: () => ({ url: settings.sysopUrl, model: settings.sysopModel, key: settings.sysopKey }) }),
         fetchJson: url => fetch(url, { signal: AbortSignal.timeout(8000), referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
     }));
     const hayes = new Hayes({ dial: directory.dial });
@@ -51,7 +52,7 @@
 
     /* ---------- settings ---------- */
 
-    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, baud: 1200, serialSignals: false, gateway: '', gatewayToken: '' };
+    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, baud: 1200, serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
 
     function applySettings() {
         $('speed').value = String(settings.speed);
@@ -67,6 +68,9 @@
         $('serialSignals').checked = settings.serialSignals;
         $('gateway').value = settings.gateway;
         $('gatewayToken').value = settings.gatewayToken;
+        $('sysopUrl').value = settings.sysopUrl;
+        $('sysopModel').value = settings.sysopModel;
+        $('sysopKey').value = settings.sysopKey;
         directory.gateway = settings.gateway ? new Gateway({ url: settings.gateway, token: settings.gatewayToken }) : null;
         sound.enabled = settings.sound;
         machine.clock.hz = (settings.speed || 4) * 1000000;      // the machine's seconds follow its speed
@@ -1210,6 +1214,12 @@
             try { await line.close(); await openSerial(port); } catch (e) { showSerial(); PWA.toast(`Could not reopen the modem port: ${e.message}`); }
         } else showSerial();
     });
+    for (const key of ['sysopUrl', 'sysopModel', 'sysopKey']) {
+        $(key).addEventListener('change', () => {
+            settings[key] = $(key).value.trim();
+            Storage.set('settings', settings).catch(() => {});
+        });
+    }
     for (const key of ['gateway', 'gatewayToken']) {
         $(key).addEventListener('change', () => {
             settings[key] = $(key).value.trim();

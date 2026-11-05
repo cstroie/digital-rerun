@@ -483,10 +483,6 @@ m_arkeys: db    ',. turn the page   A close',0
 
 dfcb:   db      0,'SIGSEEK DAT'
         ds      24
-pkkind: db      0
-pkwho:  db      0
-pkch:   db      0
-pkfrag: db      0
 arsel:  db      0
 arcnt:  db      0
 chap:   ds      NCALL           ; each caller's next chapter

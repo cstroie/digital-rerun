@@ -140,7 +140,11 @@ pv2:    dec     a
         ret
 
 ; ---------------------------------------------------------------- the keys
-clean:  ld      a,(havepk)
+clean:  ld      a,(second)      ; the second one coming in: wait
+        or      a
+        ld      hl,m_wait2
+        jr      nz,ck9
+        ld      a,(havepk)
         or      a
         ld      hl,m_nopk
         jr      z,ck9
@@ -301,7 +305,58 @@ dl1:    inc     b
         call    drawpk
         call    story           ; the letter, or the fragment
         call    st100           ; (100 tokens tonight?)
+        call    move2           ; the second buffer's packet moves up
         jp      nokey
+
+; ---------------------------------------------------------------- the second buffer
+; sv2: the packet into the second buffer; ld2: back out of it; swap2:
+; the two exchanged
+sv2:    ld      hl,pkblk
+        ld      de,p2blk
+        ld      bc,PKBSZ
+        ldir
+        ret
+ld2:    ld      hl,p2blk
+        ld      de,pkblk
+        ld      bc,PKBSZ
+        ldir
+        ret
+swap2:  ld      hl,pkblk
+        ld      de,p2blk
+        ld      b,PKBSZ
+sw2_1:  ld      a,(de)
+        ld      c,(hl)
+        ld      (hl),a
+        ld      a,c
+        ld      (de),a
+        inc     hl
+        inc     de
+        djnz    sw2_1
+        ret
+
+; move2: after a delivery: a packet waiting behind moves up
+move2:  ld      a,(hold2)
+        or      a
+        ret     z
+        xor     a
+        ld      (hold2),a
+        call    ld2
+        ld      a,1
+        ld      (havepk),a
+        call    first
+        ld      hl,m_move2
+        call    logmsg
+        ld      a,(mode)
+        or      a
+        ret     nz
+        jp      drawpk
+
+m_wait2: db     'A second packet is coming in. Hold the dial: clean after.',0
+m_move2: db     3
+        dw      m_mv0, m_mv1, m_mv2
+m_mv0:  db      'The second buffer',27h,'s packet moves up. Press C.',0
+m_mv1:  db      'Next in line: the packet from the second buffer. C to clean it.',0
+m_mv2:  db      'One more waiting: it slides up from the second buffer. Press C.',0
 
 ; strcpy: HL (0-terminated) to DE, DE left on the end
 strcpy: ld      a,(hl)
@@ -562,6 +617,11 @@ m_deliv2: db    '): ',0
 
 mode:   db      0               ; 1: cleaning
 havepk: db      0
+tokens: dw      0
+lead:   db      0
+dknz:   db      0
+; the packet, all of it in one block (a second buffer swaps it whole)
+pkblk:
 pklen:  db      0
 pksel:  db      0
 pkleft: db      0
@@ -569,10 +629,16 @@ pkbad:  db      0
 pkgain: db      0
 pkfrq:  dw      0
 rtmade: db      0
-tokens: dw      0
-lead:   db      0
-dknz:   db      0
 pkorig: ds      PK_MAX+1
 pkcur:  ds      PK_MAX+1
 pknoisy: ds     PK_MAX
+pkkind: db      0
+pkwho:  db      0
+pkch:   db      0
+pkfrag: db      0
+pkend:
+PKBSZ   equ     pkend-pkblk
+p2blk:  ds      PKBSZ           ; the second buffer
+hold2:  db      0               ; 1: a packet waits in it
+second: db      0               ; 1: one is coming in to it
 logbuf: ds      64

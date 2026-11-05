@@ -467,11 +467,25 @@ gfaded: db      0
 ; While the lock holds the buffer fills, and the packet comes in letter
 ; by letter, in no order: its noise is decided at the start, by the
 ; signal's strength. If the buffer drains to nothing, it is lost.
-rxbegin: ld     a,(havepk)
-        ld      b,a
-        ld      a,(rcv)
-        or      b
+rxbegin: ld     a,(rcv)         ; coming in already
+        or      a
         ret     nz
+        ld      a,(havepk)
+        or      a
+        jr      z,rb_new
+        ld      a,(upg2)        ; one waits: with a second buffer free,
+        and     2               ; at the dial, another can come in
+        ret     z
+        ld      a,(hold2)
+        or      a
+        ret     nz
+        ld      a,(mode)
+        or      a
+        ret     nz
+        call    sv2             ; (the waiting one set aside meanwhile)
+        ld      a,1
+        ld      (second),a
+rb_new:
         call    newpk           ; the message and its noise
         xor     a
         ld      (gfaded),a
@@ -535,6 +549,13 @@ rxlost: ld      a,(rcv)
         ret     z
         xor     a
         ld      (rcv),a
+        ld      a,(second)      ; the second one lost: the first comes back
+        or      a
+        jr      z,rl1
+        xor     a
+        ld      (second),a
+        call    ld2
+rl1:
         ld      hl,m_rxlost
         call    logmsg
         ld      a,(mode)
@@ -1292,7 +1313,28 @@ lk6:    ld      (buf),a
         call    rxshow          ; the letters, as they come
         jp      meters
 
-captur: ld      a,(havepk)      ; one packet at a time
+captur: ld      a,(second)      ; the second one in: it waits behind
+        or      a
+        jr      z,cap0
+        xor     a
+        ld      (second),a
+        ld      (rcv),a
+        ld      (buf),a
+        inc     a
+        ld      (hold2),a
+        call    swap2           ; the first back in front
+        ld      ix,(lockix)
+        call    heardit
+        xor     a
+        ld      (ix+S_LIFE),a
+        ld      (ix+S_LIFE+1),a
+        ld      a,BEL
+        call    putc
+        ld      hl,m_got2nd
+        call    logmsg
+        call    drawpk
+        jp      meters
+cap0:   ld      a,(havepk)      ; one packet at a time
         or      a
         jr      z,cap1
         ld      a,99
@@ -2038,6 +2080,7 @@ m_rxin_0: db      'Locked on. A packet is coming in...',0
 m_rxin_1: db      'LOCK. Letters start to land in the buffer...',0
 m_rxin_2: db      'Holding the peak. Something is coming through...',0
 m_rxin_3: db      'Locked. Keep the dial still, it is arriving...',0
+m_got2nd: db      'A second packet, safe in the second buffer. It waits behind.',0
 m_rxlost: db      3
         dw      m_rxlost_0, m_rxlost_1, m_rxlost_2
 m_rxlost_0: db      'The signal slipped. The letters scatter back into the hiss.',0

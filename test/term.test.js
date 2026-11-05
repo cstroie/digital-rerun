@@ -9,6 +9,9 @@ const { Hayes } = require('../js/devices/hayes.js');
 const { Directory } = require('../js/devices/directory.js');
 const { bbs, MemoryBoard, MemoryFiles } = require('../js/bbs.js');
 const { CpmFs } = require('../js/cpmfs.js');
+const net = require('node:net');
+const { createBridge } = require('../tools/modem-bridge.js');
+const { Gateway } = require('../js/devices/gateway.js');
 
 function boot({ modem = true } = {}) {
     const m = new Machine();
@@ -86,6 +89,9 @@ test('TERM: Ctrl-] Q leaves the call up; Ctrl-] H hangs it up', async () => {
 
 test('TERM is on the system disk', () => {
     const { CpmFs } = require('../js/cpmfs.js');
+const net = require('node:net');
+const { createBridge } = require('../tools/modem-bridge.js');
+const { Gateway } = require('../js/devices/gateway.js');
     const files = new CpmFs(Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/cpm22.dsk'))))).list().map(f => f.name);
     assert.ok(files.includes('TERM.COM'));
 });
@@ -204,4 +210,56 @@ test('TERM: Ctrl-X stops a transfer', async () => {
     at = say(m, '\x18');
     await until(m, 'Transfer stopped.', at);
     assert.equal(new CpmFs(m.fdc.drives[0]).list().some(f => f.name === 'NONE.DAT'), true, 'the empty file made for it is still there');
+});
+
+/** Like until(), but waiting in real time too: for a test with sockets. */
+async function untilReal(m, text, from = 0) {
+    for (let i = 0; i < 3000; i++) {
+        m.run(100000);
+        if (m.out.indexOf(text, from) >= 0) return;
+        await new Promise(r => setTimeout(r, 2));
+    }
+    throw new Error(`never saw ${JSON.stringify(text)} in ${JSON.stringify(m.out.slice(from))}`);
+}
+
+test('TERM: ATDT a telnet host through the bridge: negotiation answered, text both ways, hang up', async () => {
+    const IAC = 255;
+    const got = [];
+    let theirs;
+    const tcp = net.createServer(s => {
+        theirs = s;
+        s.write(Buffer.from([IAC, 251, 1, IAC, 253, 24]));                 // WILL ECHO, DO TERMINAL-TYPE
+        s.write('Welcome to the test board.\r\n? ');
+        s.on('data', d => { got.push(...d); });
+        s.on('error', () => {});
+    });
+    await new Promise(r => tcp.listen(0, '127.0.0.1', r));
+    const tport = tcp.address().port;
+    const bridge = createBridge({ allow: [`127.0.0.1:${tport}`], token: 't0k' });
+    await new Promise(r => bridge.listen(0, '127.0.0.1', r));
+    try {
+        const m = boot();
+        const dir = new Directory();
+        dir.gateway = new Gateway({ url: `ws://127.0.0.1:${bridge.address().port}`, token: 't0k' });
+        m.modem.attach(new Hayes({ dial: dir.dial, dialTime: 0.1 }));
+        await until(m, 'A>');
+        let at = say(m, 'TERM\r');
+        await untilReal(m, 'Try ATDT', at);
+        at = say(m, `ATDT127.0.0.1:${tport}\r`);
+        await untilReal(m, 'CONNECT 1200', at);
+        await untilReal(m, 'Welcome to the test board.', at);
+        assert.equal(m.out.slice(at).includes('\xff'), false, 'no telnet commands on the screen');
+        assert.deepEqual(got.slice(0, 3), [IAC, 253, 1]);                    // DO ECHO, answering the server's WILL ECHO
+        at = say(m, 'hi\r');
+        for (let i = 0; i < 200 && got.length < 9; i++) { m.run(200000); await new Promise(r => setTimeout(r, 5)); }
+        assert.deepEqual(got.slice(-4), [104, 105, 13, 0], 'hi, and CR as CR NUL');
+        theirs.write('Bye.\r\n');
+        theirs.end();
+        await untilReal(m, 'NO CARRIER', at);
+        assert.equal(m.modem.carrier, false);
+    } finally {
+        bridge.closeAllConnections?.();
+        await new Promise(r => bridge.close(r));
+        tcp.close();
+    }
 });

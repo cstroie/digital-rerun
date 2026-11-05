@@ -23,15 +23,20 @@
         constructor() {
             this.entries = new Map();
             this.add('0', echoService);
+            /** A host dialed that is no number here goes to `gateway` (js/devices/gateway.js), when there is one. */
+            this.gateway = null;
             this.dial = this.dial.bind(this);
         }
 
         /** `make(link)` returns the other end, or a promise of it, or a reason it did not answer ('BUSY'...). */
         add(number, make) { this.entries.set(String(number), make); return this; }
 
-        dial(number, link) {
+        dial(number, link, typed = number) {
             const make = this.entries.get(number);
-            return make ? make(link) : 'NO CARRIER';
+            if (make) return make(link);
+            const host = /^([A-Za-z0-9._-]+)(?::(\d{1,5}))?$/.exec(typed);
+            if (this.gateway && host && /[A-Za-z.]/.test(host[1])) return this.gateway.dial(host[1], host[2] ? Number(host[2]) : 23, link);
+            return 'NO CARRIER';
         }
     }
 

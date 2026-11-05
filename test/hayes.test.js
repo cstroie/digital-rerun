@@ -244,3 +244,15 @@ test('a snapshot restore hangs up', async () => {
     assert.equal(closed, 1);
     assert.equal(m.input(6) & 4, 0);
 });
+
+test('the dial function is given the host as typed too: its case and dashes kept', async () => {
+    const seen = [];
+    const m = rig();
+    m.hayes.dial = (number, link, typed) => { seen.push([number, typed]); return Promise.resolve('NO CARRIER'); };
+    type(m, 'ATE0\r');
+    type(m, 'ATDT Bbs.Example-One.org:2323\r', 0);
+    await flush();
+    type(m, 'atd555-0100\r', 0);
+    await flush();
+    assert.deepEqual(seen, [['BBS.EXAMPLEONE.ORG:2323', 'Bbs.Example-One.org:2323'], ['5550100', '555-0100']]);
+});

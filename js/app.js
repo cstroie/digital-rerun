@@ -7,7 +7,7 @@
     'use strict';
 
     const { Machine, Disk, CpmFs, FORMATS, diskFromImage, ALTAIR_SIZE, altairFiles, Terminal, TerminalView, FX80, PaperView, Storage,
-        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard, StoredFiles, SerialLine } = window.DigitalRerun;
+        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard, StoredFiles, SerialLine, Gateway } = window.DigitalRerun;
 
     const $ = id => document.getElementById(id);
     const DRIVES = [0, 1, 2, 3, 8];                 // A: B: C: D: I:
@@ -51,7 +51,7 @@
 
     /* ---------- settings ---------- */
 
-    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, baud: 1200, serialSignals: false };
+    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, baud: 1200, serialSignals: false, gateway: '', gatewayToken: '' };
 
     function applySettings() {
         $('speed').value = String(settings.speed);
@@ -65,6 +65,9 @@
         $('baud').value = String(settings.baud);
         machine.modem.baud = settings.baud;
         $('serialSignals').checked = settings.serialSignals;
+        $('gateway').value = settings.gateway;
+        $('gatewayToken').value = settings.gatewayToken;
+        directory.gateway = settings.gateway ? new Gateway({ url: settings.gateway, token: settings.gatewayToken }) : null;
         sound.enabled = settings.sound;
         machine.clock.hz = (settings.speed || 4) * 1000000;      // the machine's seconds follow its speed
         $('crt').classList.toggle('amber', settings.phosphor === 'amber');
@@ -1207,6 +1210,13 @@
             try { await line.close(); await openSerial(port); } catch (e) { showSerial(); PWA.toast(`Could not reopen the modem port: ${e.message}`); }
         } else showSerial();
     });
+    for (const key of ['gateway', 'gatewayToken']) {
+        $(key).addEventListener('change', () => {
+            settings[key] = $(key).value.trim();
+            directory.gateway = settings.gateway ? new Gateway({ url: settings.gateway, token: settings.gatewayToken }) : null;
+            Storage.set('settings', settings).catch(() => {});
+        });
+    }
     $('serialSignals').addEventListener('change', () => {
         settings.serialSignals = $('serialSignals').checked;
         Storage.set('settings', settings).catch(() => {});

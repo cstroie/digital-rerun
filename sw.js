@@ -23,6 +23,8 @@ const SHELL = [
     'js/devices/hayes.js',
     'js/devices/directory.js',
     'js/devices/webserial.js',
+    'js/devices/telnet.js',
+    'js/devices/gateway.js',
     'js/bbs.js',
     'js/machine.js',
     'js/cpmfs.js',

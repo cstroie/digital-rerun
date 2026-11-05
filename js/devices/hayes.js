@@ -8,11 +8,12 @@
  * "+++" (a second of silence before and after), "ATH", a drop of DTR or the
  * other end hanging up ("NO CARRIER").
  *
- *   dial(number, link)  returns a Promise of the other end, or of the reason
+ *   dial(number, link, typed)  returns a Promise of the other end, or of the reason
  *                       it did not answer: 'BUSY', 'NO ANSWER', 'NO CARRIER'
  *                       or 'NO DIALTONE'. The other end has send(byte) and
  *                       close(); it speaks to the program through
- *                       link.receive(bytes) and link.hangup().
+ *                       link.receive(bytes) and link.hangup(). `number` is the
+ *                       dial string in capitals without dashes, `typed` as typed.
  *
  * Commands: A (answers: no ring here), D (T P , ; numbers), E, H, I, O, Q,
  * S (Sr=n, Sr?), V, X, Z, &F, and &C &D &K &W &Y accepted and ignored. A
@@ -141,16 +142,17 @@
         /* ---------- the commands ---------- */
 
         run(line) {
-            let s = line.replace(/\s+/g, '').toUpperCase();
-            if (s === 'A/') s = this.recall; else if (s.startsWith('AT')) this.recall = s; else if (s === '') return; else return this.result('ERROR');
-            s = s.slice(2);
+            let o = line.replace(/\s+/g, '');                  // as typed: a dialed host keeps its case
+            if (o.toUpperCase() === 'A/') o = this.recall; else if (o.toUpperCase().startsWith('AT')) this.recall = o; else if (o === '') return; else return this.result('ERROR');
+            o = o.slice(2);
+            const s = o.toUpperCase();
             let i = 0;
             const num = () => { let n = ''; while (i < s.length && s[i] >= '0' && s[i] <= '9') n += s[i++]; return n === '' ? 0 : Number(n); };
             while (i < s.length) {
                 let c = s[i++];
                 if (c === '&') c = '&' + (s[i++] || '');
                 switch (c) {
-                    case 'D': return this.call(s.slice(i));
+                    case 'D': return this.call(s.slice(i), o.slice(i));
                     case 'A': return this.result('NO CARRIER');
                     case 'E': this.echo = num() !== 0; break;
                     case 'H': { const n = num(); if (n > 1) return this.result('ERROR'); this.hangup(false); break; }
@@ -182,8 +184,9 @@
 
         /* ---------- dialing and carrier ---------- */
 
-        call(rest) {
+        call(rest, typed = rest) {
             const number = rest.replace(/^[TP]/, '').replace(/[^0-9A-Z#*@:.+]/g, '');
+            const raw = typed.replace(/^[TPtp]/, '').replace(/[^A-Za-z0-9.:_\-#*@+]/g, '');      // the host as typed, for a gateway
             if (this.remote) return this.result('ERROR');
             if (!number) return this.result('ERROR');
             const ticket = ++this.ticket;
@@ -198,7 +201,7 @@
                 },
                 hangup: () => { if (this.ticket === ticket && this.remote) this.hangup(true); }
             };
-            Promise.resolve().then(() => this.dial(number, link)).catch(() => 'NO CARRIER').then(answer => {
+            Promise.resolve().then(() => this.dial(number, link, raw)).catch(() => 'NO CARRIER').then(answer => {
                 if (this.ticket !== ticket) { if (answer && typeof answer === 'object') answer.close(); return; }
                 const finish = () => {
                     if (this.ticket !== ticket) { if (answer && typeof answer === 'object') answer.close(); return; }

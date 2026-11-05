@@ -100,3 +100,31 @@ the port). The UART still spaces what comes in at that speed, so a fast modem is
 Carrier is read from the modem's `CONNECT` and `NO CARRIER` lines; *Use the DTR and DCD lines* reads DCD and drives
 DTR instead (off by default: a USB board with an ESP chip resets when DTR changes). Unplugging the port, or
 *BUILT-IN MODEM*, goes back to the BBS. The BBS and the echo service are not reachable while a real modem is on.
+
+## A telnet host (the bridge, step 5)
+
+A browser cannot open a TCP connection, so `ATDT host:port` goes through a small program you run yourself:
+
+```
+node tools/modem-bridge.js --allow=bbs.example.org            # prints its address and a token
+```
+
+then SETUP → MODEM: *Bridge* `ws://localhost:8765` and *Bridge token*, and in TERM `ATDT bbs.example.org` (port
+23) or `ATDT bbs.example.org:2323` (use `ATDT`: Hayes takes a lone `T` or `P` after `D` as a dial modifier).
+Anything that is not a number of the built-in directory (letters or dots) goes to the bridge.
+
+- **The bridge** (`tools/modem-bridge.js`, no dependencies) is a WebSocket to TCP pipe. `--allow` is required and
+  names what may be dialed (`host`, `host:port`, `*.domain`, `*` for any public host; `--allow-private` lets `*`
+  reach private and loopback addresses, which can always be named). A token (made up and printed, or `--token`)
+  must come with every connection; `--origin` limits the pages; `--max` connections at once. It logs the host
+  dialed and nothing of what is said. It speaks `ws:`: an https page reaches it only on localhost, or through a
+  TLS reverse proxy (`wss:`).
+- **Telnet** is the page's (`js/devices/telnet.js`): it agrees to ECHO and SUPPRESS-GO-AHEAD, announces itself
+  as a VT100 (TERMINAL-TYPE) of 80x24 (NAWS), refuses the rest, doubles 255 and sends CR as CR NUL. The bridge
+  passes bytes untouched, so a raw TCP service works too if it never sends 255.
+- **The modem answers as a phone would** (`js/devices/gateway.js`): no bridge at the URL `NO DIALTONE`, not
+  allowed or unreachable `NO CARRIER`, connection refused `BUSY`, no answer in time `NO ANSWER`; the far end
+  hanging up `NO CARRIER`.
+- The line is the UART's: 1200 baud (or what SETUP says) however fast the host is, and the same XMODEM in TERM.
+  Colour BBSes send ANSI colour and CP437 line drawing, which the VT100 screen does not draw (ASCII only, by
+  decision); most say VT100 and send plain text.

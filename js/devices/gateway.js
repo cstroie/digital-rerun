@@ -14,6 +14,10 @@
  *   4003 no answer in time      NO ANSWER
  *   4004 anything else          NO CARRIER
  * An https page can reach only wss:// or ws://localhost.
+ *
+ * Ports 6660-6669 are IRC's: there the bytes go through raw, with no telnet in
+ * between (no CR NUL, no doubled 255, no negotiation) and no local echo, since
+ * an IRC server is no telnet host and never offers to echo.
  */
 (function (root) {
     'use strict';
@@ -22,11 +26,13 @@
     const { Telnet } = node ? require('./telnet.js') : root.DigitalRerun;
 
     const REASONS = { 4002: 'BUSY', 4003: 'NO ANSWER' };
+    const RAW_PORTS = [6660, 6661, 6662, 6663, 6664, 6665, 6666, 6667, 6668, 6669];
 
     class Gateway {
-        /** `url`: the bridge, e.g. ws://localhost:1984; `token`: its secret. */
-        constructor({ url, token = '', WebSocketClass = root.WebSocket } = {}) {
+        /** `url`: the bridge, e.g. ws://localhost:1984; `token`: its secret; `rawPorts`: the ports whose bytes go through untouched (IRC's). */
+        constructor({ url, token = '', WebSocketClass = root.WebSocket, rawPorts = RAW_PORTS } = {}) {
             this.url = url;
+            this.rawPorts = rawPorts;
             this.token = token;
             this.WebSocketClass = WebSocketClass;
         }
@@ -42,11 +48,13 @@
                     ws = new this.WebSocketClass(u.href);
                 } catch (e) { return resolve('NO DIALTONE'); }
                 ws.binaryType = 'arraybuffer';
+                const raw = this.rawPorts.includes(Number(port));
                 const telnet = new Telnet({ send: bytes => { if (ws.readyState === 1) ws.send(Uint8Array.from(bytes)); } });
                 let reached = false, up = false;
                 const remote = {
                     send: byte => {
                         if (ws.readyState !== 1) return;
+                        if (raw) { ws.send(Uint8Array.of(byte)); return; }
                         ws.send(Uint8Array.from(telnet.encode(byte)));
                         // a server that has not taken over the echo (a MUD such as Aardwolf) leaves it to us
                         if (!telnet.serverEchoes()) link.receive(byte === 13 ? [13, 10] : [byte]);
@@ -56,7 +64,7 @@
                 ws.onopen = () => { reached = true; };
                 ws.onmessage = ev => {
                     if (typeof ev.data === 'string') { if (ev.data === 'connected' && !up) { up = true; resolve(remote); } return; }
-                    const data = telnet.feed(new Uint8Array(ev.data));
+                    const data = raw ? new Uint8Array(ev.data) : telnet.feed(new Uint8Array(ev.data));
                     if (data.length) link.receive(data);
                 };
                 ws.onclose = ev => {

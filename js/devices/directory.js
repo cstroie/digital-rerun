@@ -38,6 +38,17 @@
         { n: '0110', host: 'sdf.org', port: 23, text: 'SDF Public Access Unix System' }
     ];
 
+    /** The IRC servers IRC.DIR offers (IRC.COM): plain TCP on a port of 6660-6669, which the gateway passes through raw. */
+    const IRCBOOK = [
+        { host: 'irc.libera.chat', port: 6667, text: 'Libera.Chat: free and open source projects' },
+        { host: 'irc.oftc.net', port: 6667, text: 'OFTC: the Open and Free Technology Community' },
+        { host: 'irc.rizon.net', port: 6667, text: 'Rizon' },
+        { host: 'irc.efnet.org', port: 6667, text: 'EFnet: the oldest network, still going' },
+        { host: 'irc.dal.net', port: 6667, text: 'DALnet' },
+        { host: 'us.undernet.org', port: 6667, text: 'Undernet' },
+        { host: 'irc.quakenet.org', port: 6667, text: 'QuakeNet: games' }
+    ];
+
     /** An entry that is busy now and then (another caller has the one line): `make` is the real answer. */
     function sometimesBusy(make, chance = 0.1, random = Math.random) {
         return link => (random() < chance ? 'BUSY' : make(link));
@@ -67,7 +78,7 @@
         }
     }
 
-    const api = { Directory, echoService, sometimesBusy, PHONEBOOK };
+    const api = { Directory, echoService, sometimesBusy, PHONEBOOK, IRCBOOK };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

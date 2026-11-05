@@ -245,3 +245,33 @@ test('tools/bridge.sh starts a bridge on the default port that the gateway can d
         assert.equal(await new Gateway({ url: `ws://127.0.0.1:${port}`, token: 'wrong' }).dial('example.org', 23, link), 'NO DIALTONE');
     } finally { child.kill(); }
 });
+
+/** A WebSocket that records what is sent and lets the test say what comes. */
+function fakeSocket() {
+    class FakeWS {
+        constructor(url) { FakeWS.last = this; this.url = url; this.sent = []; this.readyState = 1; setImmediate(() => { this.onopen && this.onopen(); this.onmessage({ data: 'connected' }); }); }
+        send(d) { this.sent.push(...d); }
+        close() { this.readyState = 3; }
+    }
+    return FakeWS;
+}
+
+test('the gateway: the IRC ports (6660-6669) are raw: no telnet, no CR NUL, no local echo', async () => {
+    const WS = fakeSocket();
+    const got = [];
+    const link = { receive: b => got.push(...b), hangup() {} };
+    const remote = await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS }).dial('irc.example.org', 6667, link);
+    assert.equal(typeof remote, 'object');
+    for (const b of [78, 255, 13, 10]) remote.send(b);
+    assert.deepEqual(WS.last.sent, [78, 255, 13, 10], 'untouched');
+    assert.deepEqual(got, [], 'no echo');
+    WS.last.onmessage({ data: Uint8Array.from([255, 253, 24, 58, 0, 13, 10]).buffer });
+    assert.deepEqual(got, [255, 253, 24, 58, 0, 13, 10], 'nothing taken out');
+    // a telnet port still gets its CR NUL and its local echo
+    const WS2 = fakeSocket();
+    const got2 = [];
+    const remote2 = await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS2 }).dial('mud.example.org', 4000, { receive: b => got2.push(...b), hangup() {} });
+    remote2.send(13);
+    assert.deepEqual(WS2.last.sent, [13, 0]);
+    assert.deepEqual(got2, [13, 10]);
+});

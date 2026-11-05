@@ -104,6 +104,44 @@ flow control: a byte nobody reads before the next arrives is lost (overrun), as 
 
 The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: a built-in terminal for CP/M 3's own `TERM`.
 
+## IRC (`IRC.COM`)
+
+`IRC` is an IRC client for the modem, a program of its own (`system/irc.asm`, 8080 code like TERM). It is on the **Online** shelf
+disk (SHELF, category Communications) with `IRC.DIR`, and `TERM.COM` and `TERM.DIR` are there too: put the disk in B:, then `B:` and `IRC`.
+(The boot disk has no room for it: it keeps its space for rebuilding the BIOS inside CP/M. `tools/build.js` writes the four files
+into `disks/shelf/online` beside its `disk.json`.) It does not speak to a BBS: it dials a server, registers (`NICK`, `USER`) and talks IRC. The screen is a VT100:
+a status bar on row 1 (your nick, the server, who you are talking to), the messages scrolling in rows 2–23, and your line on
+row 24 (76 characters; backspace edits, Ctrl-U clears it).
+
+A line that does not begin with a slash is said to the current channel or person; `//text` says a line that begins with a slash.
+
+| Command | |
+|---|---|
+| `/connect [host[:port] \| n]` | dial a server (`ATDT`); a name with no port gets 6667; a number of one or two digits is a line of `IRC.DIR`; with no argument the lines of `IRC.DIR` are listed, numbered |
+| `/nick name` | before a connection it sets the nick, after it asks the server |
+| `/join #chan [key]`, `/part [#chan]` | the channel you join is where you talk (the `#` is added if you leave it off) |
+| `/msg nick text`, `/query nick [text]`, `/me action` | `/query` makes a person the current target |
+| `/list [args]`, `/names [#chan]`, `/whois nick`, `/who mask`, `/topic [text]`, `/mode [+x]`, `/away [text]` | the rest of the line goes to the server |
+| `/raw line` | a line to the server as it is |
+| `/quit [text]` | says goodbye and hangs up (DTR), IRC stays; `/bye [text]` hangs up and leaves |
+| `/help`, `/clear` | |
+
+The messages show as `<nick> text` (`#chan <nick> text` for a channel that is not the current one), `*nick* text` for a private
+message, `-nick- text` for a notice, `* nick does something`, `--> nick joined #chan`, `<-- nick left`, quit, kicked, and the
+server's numeric replies as `-- text` (the list, the names, the topic, the message of the day). PING is answered, CTCP VERSION
+too, a taken nick gets an underscore before registration, colour and bold codes are removed, and a UTF-8 character shows as `?`.
+Leaving with `/bye` puts the modem's echo back (`ATE1`; IRC turns it off with `ATE0`).
+
+`IRC.DIR` is a CP/M text file (listed in the disk's `text`, so the page makes it one), a server per line (`host[:port] name`, up to 16), written by `tools/build.js` from `IRCBOOK` in
+`js/devices/directory.js`, and yours to edit. **Plain TCP only**: the bridge does no TLS, so a server must accept it (6667 does on
+Libera.Chat, OFTC, Rizon, EFnet, DALnet, Undernet and QuakeNet). The gateway passes ports **6660–6669 raw**: no telnet in between
+(no CR NUL, no negotiation) and no local echo, which a telnet host's connection would otherwise get (`rawPorts` of the `Gateway`). `tools/bridge.sh` allows the
+`IRC.DIR` hosts by default. **Only ports 6660–6669 work for IRC**: on any other port the gateway speaks telnet, which sends CR NUL and echoes
+your lines back into IRC's input (`/connect host:7000` would not work). A real WiFi modem takes `ATDT host:port` itself, on any port.
+
+The receiver is polled between every character the program prints and inside the loops that walk a line, and a 256-byte ring
+takes what comes meanwhile: nothing is lost up to 19200 baud (test/irc.test.js).
+
 ## A real modem (Web Serial, step 6)
 
 SETUP → MODEM → *CONNECT REAL MODEM…* opens the browser's port chooser (Chrome, Edge or another browser with Web Serial;

@@ -824,6 +824,43 @@
   "free": 201728
  },
  {
+  "id": "online",
+  "name": "Online",
+  "format": "sssd8",
+  "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM), and IRC, an IRC client (/connect, /join, /msg, /query ...), each with its directory of numbers and servers (TERM.DIR, IRC.DIR). Put it in B:, then B: and IRC or TERM.",
+  "credit": "Costin Stroie; MIT licence. Source in system/term.asm and system/irc.asm.",
+  "licence": "MIT",
+  "category": "Communications",
+  "text": [
+   "TERM.DIR",
+   "IRC.DIR"
+  ],
+  "files": [
+   {
+    "name": "IRC.COM",
+    "path": "disks/shelf/online/IRC.COM"
+   },
+   {
+    "name": "IRC.DIR",
+    "path": "disks/shelf/online/IRC.DIR"
+   },
+   {
+    "name": "README.TXT",
+    "path": "disks/shelf/online/README.TXT"
+   },
+   {
+    "name": "TERM.COM",
+    "path": "disks/shelf/online/TERM.COM"
+   },
+   {
+    "name": "TERM.DIR",
+    "path": "disks/shelf/online/TERM.DIR"
+   }
+  ],
+  "size": 11119,
+  "free": 233472
+ },
+ {
   "id": "photopia",
   "name": "Photopia",
   "format": "dsdd5",

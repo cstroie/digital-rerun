@@ -12,6 +12,8 @@
  *   - system/cpm22/bdos.asm → BDOS at EC00h
  *   - system/bios.asm → BIOS at FA00h
  *   - system/sysgen.asm and prtdemo.asm → SYSGEN.COM and PRTDEMO.COM
+ *   - system/term.asm → TERM.COM (with TERM.DIR) on the boot disk; with system/irc.asm → IRC.COM (and IRC.DIR)
+ *     it is also written to the shelf disk disks/shelf/online (the boot disk has no room for IRC)
  *
  * The system tracks (two 8" tracks, 256 sectors total) are written to:
  *   system/cpm22.bin (for the boot ROM) and disks/cpm22.dsk (the boot disk)
@@ -34,7 +36,7 @@ const path = require('path');
 const { assemble, formatListing } = require('../js/asm8080.js');
 const { Disk } = require('../js/devices/fdc.js');
 const { CpmFs, toCpmText } = require('../js/cpmfs.js');
-const { PHONEBOOK } = require('../js/devices/directory.js');
+const { PHONEBOOK, IRCBOOK } = require('../js/devices/directory.js');
 const { playCom } = require('./play.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -73,6 +75,7 @@ function main() {
     const sysgenCom = com('sysgen.asm');
     const prtdemoCom = com('prtdemo.asm');
     const termCom = com('term.asm');
+    const ircCom = com('irc.asm');
     fs.writeFileSync(path.join(ROOT, 'system/boot.bin'), boot.image);
     fs.writeFileSync(path.join(ROOT, 'system/cpm22.bin'), system);
 
@@ -90,6 +93,14 @@ function main() {
     fsys.write('TERM.DIR', toCpmText(Buffer.from(termDir)));
     for (const f of ['bios.asm', 'boot.asm', 'sysgen.asm', 'prtdemo.asm']) fsys.write(f.toUpperCase(), toCpmText(fs.readFileSync(path.join(ROOT, 'system', f))));
     fs.writeFileSync(path.join(ROOT, 'disks/cpm22.dsk'), disk.data);
+
+    // the shelf disk of the modem programs: TERM and IRC, with their directories (the boot disk has no room for IRC)
+    const onlineDir = path.join(ROOT, 'disks/shelf/online');
+    const ircDir = IRCBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n';   // IRC.DIR: what /connect offers, host[:port] and a name per line
+    fs.writeFileSync(path.join(onlineDir, 'TERM.COM'), termCom);
+    fs.writeFileSync(path.join(onlineDir, 'IRC.COM'), ircCom);
+    fs.writeFileSync(path.join(onlineDir, 'TERM.DIR'), termDir);        // text: the page makes it CP/M text (disk.json lists it)
+    fs.writeFileSync(path.join(onlineDir, 'IRC.DIR'), ircDir);
 
     buildShelf();
 

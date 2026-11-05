@@ -23,11 +23,11 @@ does as she pleases. The station keeps running when you step away.
 | `cards.asm` | Postcards from the callers, the postcard wall |
 | `echo.asm`, `reply.asm`, `upkeep.asm`, `stamps.asm`, `print.asm` | Echoes, replies, the power register, the stamp book, the printer |
 | `title.asm` | The title screen, timing by the clock device, the night's tally, dawn |
-| `sigseek.txt` | The content: messages, callers' letters, Archive fragments |
+| `sigseek.txt` | The content: messages, callers' letters, Archive fragments, postcards |
 | `mkdat.js` | Packs `sigseek.txt` into `SIGSEEK.DAT`, checking every length against the screen |
 | `build.sh` | pasmo, then mkdat, then copies both onto the shelf disk |
 
-Shipped: `SIGSEEK.COM` (about 16K) and `SIGSEEK.DAT` (about 8K, read whole into
+Shipped: `SIGSEEK.COM` (about 34K) and `SIGSEEK.DAT` (about 10K, read whole into
 memory after the program) on the **Signal Seeker** shelf disk
 (`disks/shelf/sigseek/`, with `README.TXT` and `PLAY.COM`). Progress is kept in
 `SIGSEEK.SAV` beside them.
@@ -125,7 +125,8 @@ park the cursor, wait
 ```
 
 Modes: 0 the dial, 1 cleaning, 2 the shop, 3 the Archive, 4 routing, 5 the
-Archive's end, 6 the postcard wall, 7 dawn, 9 a reply, 10 the power register.
+Archive's end, 6 the postcard wall, 7 dawn, 9 a reply, 10 the power register,
+11 the stamp book. `?` at the dial shows a page of help (time stands still).
 
 ## A shift
 
@@ -151,8 +152,9 @@ shift, saved, back to CP/M; the next run is the next shift. `Q` ends it early. `
 3. **Receive.** From the first moment of the lock, the packet comes in letter by
    letter, in no order, noise and all: hex over the text, `..` and `_` for what has
    not come yet. If the buffer drains to nothing, the letters scatter and the
-   packet is lost. A full buffer is a captured packet (and a bell). One packet at a
-   time: the buffer waits, full, until it is dealt with.
+   packet is lost. A full buffer is a captured packet (and a bell). The buffer then
+   waits, full, until it is dealt with; with the second buffer another packet can
+   come in meanwhile, and moves up when the first is delivered.
 4. **Clean.** `C`. A packet is up to 20 characters with 0-3 noisy bytes, each with
    one of bits 0-6 flipped. The noise: 0-1 bytes, one more for a weak signal (4 or
    less), one less for the strongest (6), one more when PIXEL is not purring, one
@@ -295,6 +297,13 @@ three at 32 + 16*i* + 1 + 3*j*; fragment *k*'s two at 160 + 2*k*; postcard *c*'s
   fragment packet brings one not yet kept while there is one. When whole, the title
   says COMPLETE, and (read to PIXEL) after the end.
 
+## Stamps
+
+`K` (at the dial or in the Archive) shows the stamp book: sixteen milestones, each
+set once, with a line in the log: first catch, came clean, routed, a letter, all
+eight, a story told, shopping, a fragment, the Archive, the lantern, a ghost, an
+echo, dawn, a good gift, fixed it, 100 tonight.
+
 ## Ghosts
 
 One signal in eight is a ghost: a peak that wavers all over, and locks like any
@@ -403,7 +412,8 @@ by search, and check the screens in all three terminal modes.
 
 In the repository's tests: `test/sigseek.test.js` (the `.DAT` is current, the shelf
 copies match, an overlong line is refused) and a shelf test (`PLAY` starts a shift,
-`Q` saves it, the next run is shift 02).
+`Q` saves it, the next run is shift 02; it waits only for what it wants to see,
+so it takes a fraction of a second).
 
 ## Ideas not built
 
@@ -414,10 +424,5 @@ From the design notes:
 
 New:
 
-- **A help screen (`?`):** the rules and the keys, in the game.
-- **Stamps:** a small page of milestones (the first clean packet, all eight callers
-  met, the lantern found).
-- **A faster shelf test:** the game never goes idle, so the test's wait runs to its
-  limit (about 35 s).
 - **Another program in `apps/`:** a cozy companion (a tide-table toy, a calm card
   game) or a tool (a VT100 screen designer).

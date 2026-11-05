@@ -2,12 +2,14 @@
 ;
 ;	What is typed goes out of the modem (ports 6 and 7), what comes in goes
 ;	to the screen. Talk to the modem in AT commands: ATDT then a number.
-;	Ctrl-] opens a menu: D dials a number from TERM.DIR, L redials, Z and F
-;	reset the modem, E escapes to command mode (+++) and O goes back on line,
-;	M K A toggle speaker, echo and auto-answer, I asks the modem who it is.
-;	R receives a file and S sends one (XMODEM, checksum), Q quits (the call
-;	stays up, run TERM again to come back), H hangs up, ^] sends a Ctrl-].
-;	A>TERM
+;	Ctrl-] opens a full-screen menu (a VT100 terminal): the keys on top, the
+;	state of the line and the modem's answers below. D dials a number from
+;	TERM.DIR, L redials, Z and F reset the modem, E escapes to command mode
+;	(+++) and O goes back on line, M K A toggle speaker, echo and
+;	auto-answer, I asks the modem who it is. R receives a file and S sends
+;	one (XMODEM, checksum), Q quits (the call stays up, run TERM again to
+;	come back), H hangs up, Esc or Space is back to the terminal, and Ctrl-]
+;	in the menu sends a Ctrl-]. A>TERM
 ;
 ;	Copyright (c) 2026 Costin Stroie, MIT licence.
 
@@ -62,7 +64,17 @@ loop:	in	mst
 	mvi	c,conio
 	call	bdos
 	jmp	loop		;more may be waiting
-nokey:	lda	pend
+nokey:	lda	inmenu
+	ora	a
+	jz	nk1
+	mov	a,b		;the menu is up: show when the carrier comes or goes
+	ani	4
+	lxi	h,dcd
+	cmp	m
+	jz	nk1
+	call	drawstat
+	jmp	loop
+nk1:	lda	pend
 	ora	a
 	jnz	tosend
 	lhld	outq		;text for the modem (a menu command) goes first, a byte a time
@@ -87,6 +99,11 @@ getkey:	mvi	e,0ffh
 	call	bdos
 	ora	a
 	jz	loop
+	mov	b,a
+	lda	inmenu
+	ora	a
+	mov	a,b
+	jnz	mkey		;the menu is up: the key is its
 	cpi	esc
 	jz	command
 	sta	pend
@@ -99,24 +116,41 @@ tosend:	in	mst
 	sta	pend
 	jmp	loop
 
-;	Ctrl-] and a letter
+;	Ctrl-]: the menu, a screen of its own. The loop goes on while it is up (the
+;	modem's answers scroll in the lower half), and the keys are the menu's.
 command:
-	lxi	d,menu
-	mvi	c,print
-	call	bdos
-cmd1:	mvi	c,1		;a key, with echo
-	call	bdos
+	mvi	a,1
+	sta	inmenu
+	call	drawmenu
+	jmp	loop
+
+drawmenu:
+	lxi	d,scr
+	call	pr
+	call	drawstat
+	lxi	d,home
+	jmp	pr
+
+;	a key (in A) while the menu is up
+mkey:	cpi	esc
+	jnz	mk1
+	call	leave
+	jmp	sendesc		;Ctrl-] in the menu sends one
+mk1:	cpi	1bh
+	jz	mleave
+	cpi	' '
+	jz	mleave
+	cpi	cr
+	jz	mleave
 	ani	5fh		;upper case
 	cpi	'Q'
 	jz	quit
 	cpi	'H'
 	jz	hang
 	cpi	'R'
-	jz	receive
+	jz	mxrecv
 	cpi	'S'
-	jz	send
-	cpi	esc & 5fh
-	jz	sendesc
+	jz	mxsend
 	cpi	'D'
 	jz	dial
 	cpi	'L'
@@ -137,11 +171,122 @@ cmd1:	mvi	c,1		;a key, with echo
 	jz	echoer
 	cpi	'A'
 	jz	autoans
-	jmp	command		;anything else: the menu again
+	jmp	loop		;anything else: nothing
+mleave:	call	leave
+	jmp	loop
+mxrecv:	call	leave
+	jmp	receive
+mxsend:	call	leave
+	jmp	send
 sendesc:
 	mvi	a,esc
 	sta	pend
 	jmp	loop
+
+;	the menu is done: the terminal right, the screen clear
+leave:	xra	a
+	sta	inmenu
+	lxi	d,clrs
+	jmp	pr
+
+hang:	xra	a		;DTR down and up again
+	sta	cm
+	out	mctl
+	mvi	a,1
+	out	mctl
+	call	drawstat
+	lxi	d,hungup
+	call	pr
+	jmp	loop
+quit:	call	leave
+	ret
+
+;	the state rows of the menu (the cursor is kept where it was)
+drawstat:
+	lda	inmenu
+	ora	a
+	rz
+	in	mst
+	ani	4
+	sta	dcd
+	lxi	d,st1
+	call	pr
+	lda	cm
+	ora	a
+	lxi	d,lcmd
+	jnz	ds1
+	in	mst
+	ani	4
+	lxi	d,lon
+	jnz	ds1
+	lxi	d,loff
+ds1:	call	pr
+	lxi	d,st2
+	call	pr
+	lda	havenum
+	ora	a
+	jz	ds3
+	lxi	h,dialbuf+4
+ds2:	mov	a,m
+	cpi	cr
+	jz	ds3
+	push	h
+	mov	e,a
+	mvi	c,conio
+	call	bdos
+	pop	h
+	inx	h
+	jmp	ds2
+ds3:	lxi	d,st3
+	call	pr
+	lda	spk
+	call	onoff
+	lxi	d,st4
+	call	pr
+	lda	ech
+	call	onoff
+	lxi	d,st5
+	call	pr
+	lda	aa
+	call	onoff
+	lxi	d,st6
+	jmp	pr
+onoff:	ora	a
+	lxi	d,sof
+	jz	oo1
+	lxi	d,son
+oo1:	jmp	pr
+
+;	the cursor to row CROW, column CCOL; one character (A) to the console; A in decimal
+gotoxy:	mvi	a,27
+	call	putc
+	mvi	a,'['
+	call	putc
+	lda	crow
+	call	pdec
+	mvi	a,';'
+	call	putc
+	lda	ccol
+	call	pdec
+	mvi	a,'H'
+putc:	mov	e,a
+	mvi	c,conio
+	jmp	bdos
+pdec:	mvi	b,0
+pd1:	cpi	10
+	jc	pd2
+	sui	10
+	inr	b
+	jmp	pd1
+pd2:	push	psw
+	mov	a,b
+	ora	a
+	jz	pd3
+	adi	'0'
+	call	putc
+pd3:	pop	psw
+	adi	'0'
+	jmp	putc
 
 ;	---- the modem commands (the modem must be in command mode) ----
 
@@ -191,7 +336,10 @@ dl2:	call	now
 	ret
 
 ;	a plain AT command: DE has it
-atcmd:	call	sendat
+atcmd:	push	d
+	call	drawstat
+	pop	d
+	call	sendat
 	jmp	loop
 reset:	call	chkoff
 	lxi	d,atz
@@ -217,6 +365,7 @@ redial:	call	chkoff
 	jmp	loop
 rd1:	xra	a
 	sta	cm
+	call	leave
 	lxi	d,dialbuf
 	jmp	atcmd
 
@@ -263,6 +412,7 @@ es1:	lxi	d,mesc
 	call	txb		;the second of silence after it is the modem's to measure: its OK comes then
 	mvi	a,1
 	sta	cm
+	call	drawstat
 	jmp	loop
 goon:	lda	cm
 	ora	a
@@ -272,6 +422,7 @@ goon:	lda	cm
 	jmp	loop
 go1:	xra	a
 	sta	cm
+	call	leave
 	lxi	d,ato
 	jmp	atcmd
 
@@ -282,7 +433,7 @@ dial:	call	chkoff
 	lxi	d,mnodir
 	call	pr
 	jmp	manual
-dr0:	lxi	d,mdial
+dr0:	lxi	d,clrreg
 	call	pr
 	xra	a
 	sta	nent
@@ -309,30 +460,33 @@ dr1:	mov	a,m
 	mov	m,d
 	xchg			;HL = the line
 	push	h
+	lda	nent		;entries 0-7 down the left, 8-15 down the right
+	mov	b,a
+	ani	7
+	adi	15
+	sta	crow
+	mov	a,b
+	ani	8
+	mvi	a,1
+	jz	dr1a
+	mvi	a,41
+dr1a:	sta	ccol
+	call	gotoxy
 	lda	nent
 	call	keych
-	mov	e,a
-	mvi	c,2
-	call	bdos
-	mvi	e,' '
-	mvi	c,2
-	call	bdos
+	call	putc
+	mvi	a,' '
+	call	putc
 	pop	h
 dr2:	mov	a,m
 	cpi	' '
 	jc	dr3
 	push	h
-	mov	e,a
-	mvi	c,2
-	call	bdos
+	call	putc
 	pop	h
 	inx	h
 	jmp	dr2
-dr3:	push	h
-	lxi	d,crlf
-	call	pr
-	pop	h
-	lda	nent
+dr3:	lda	nent
 	inr	a
 	sta	nent
 	jmp	dr1
@@ -340,10 +494,15 @@ dr8:	inx	h
 	jmp	dr1
 dr9:	lxi	d,mwhich
 	call	pr
-	mvi	c,1
+dk0:	mvi	e,0ffh		;a key, with no echo
+	mvi	c,conio
 	call	bdos
+	ora	a
+	jz	dk0
 	cpi	'#'
-	jz	manual0
+	jz	manual
+	cpi	1bh
+	jz	cancel
 	call	upper
 	cpi	'A'
 	jnc	dk1
@@ -383,21 +542,15 @@ dk4:	mvi	a,cr
 	inx	d
 	xra	a
 	stax	d
-	lxi	d,crlf
-	call	pr
 	jmp	dodial
-manual0:lxi	d,crlf
-	call	pr
 manual:	lxi	d,pnum
 	call	pr
 	lxi	d,numbuf
 	mvi	c,rdbuf
 	call	bdos
-	lxi	d,crlf
-	call	pr
 	lda	numbuf+1
 	ora	a
-	jz	loop
+	jz	cancel
 	mov	c,a
 	lxi	h,numbuf+2
 	lxi	d,dialbuf+4
@@ -408,13 +561,13 @@ mn1:	mov	a,m
 	dcr	c
 	jnz	mn1
 	jmp	dk4
-cancel:	lxi	d,crlf
-	call	pr
+cancel:	call	drawmenu
 	jmp	loop
 dodial:	mvi	a,1
 	sta	havenum
 	xra	a
 	sta	cm
+	call	leave
 	lxi	d,dialbuf
 	jmp	atcmd
 
@@ -476,28 +629,20 @@ ld4:	mvi	m,1ah
 	xra	a
 	ret
 
-hang:	xra	a		;DTR down and up again
-	sta	cm
-	out	mctl
-	mvi	a,1
-	out	mctl
-	lxi	d,rstr		;a board may have set a scroll region: set the terminal right
-	call	pr
-	lxi	d,hungup
-	mvi	c,print
-	call	bdos
-	jmp	loop
-quit:	lxi	d,rstr
-	call	pr
-	lxi	d,crlf
-	mvi	c,print
-	call	bdos
-	ret
-
 ;	---- XMODEM (checksum, 128 byte blocks) ----
 
-pr:	mvi	c,print		;print the $ string at DE
-	jmp	bdos
+;	print the $ string at DE through the direct console call (BDOS 6): the other output calls
+;	look at the keyboard and keep a key for themselves, which the menu's reads would miss
+pr:	ldax	d
+	cpi	'$'
+	rz
+	push	d
+	mov	e,a
+	mvi	c,conio
+	call	bdos
+	pop	d
+	inx	d
+	jmp	pr
 
 ;	R: receive a file
 receive:
@@ -927,16 +1072,38 @@ purge:	lxi	h,300
 
 pend:	db	0		;a key waiting for the transmitter
 outq:	dw	0		;the menu's text for the modem, when there is some
-rstr:	db	27,'[r',27,'[0m',27,'[?25h$'	;no scroll region, plain, the cursor shown
 nomsg:	db	'No modem on this machine.',cr,lf,'$'
 hello:	db	'TERM: Ctrl-] for the menu. Try ATDT0100.',cr,lf,'$'
-menu:	db	cr,lf,'D dial from TERM.DIR  L redial  Z reset  F factory reset  I modem info',cr,lf
-	db	'E escape (+++)  O back on line  M speaker  K echo  A auto-answer',cr,lf
-	db	'R receive  S send (XMODEM)  H hang up  Q quit  ^] sends a ^]   Key? $'
-mdial:	db	cr,lf,'$'
-mwhich:	db	'Which (# types a number)? $'
-pnum:	db	'Number or host? $'
-mnodir:	db	'No TERM.DIR on this disk.',cr,lf,'$'
+scr:	db	27,'[r',27,'[0m',27,'[2J'
+	db	27,'[1;1H',27,'[7m',27,'[K',27,'[1;2HTERM: the modem menu',27,'[1;52HEsc or Space: the terminal',27,'[0m'
+	db	27,'[3;3H',27,'[1mCALL',27,'[3;29HMODEM',27,'[3;55HFILES AND EXIT',27,'[0m'
+	db	27,'[4;3HD  Dial from directory',27,'[4;29HZ  Reset (ATZ)',27,'[4;55HR  Receive a file'
+	db	27,'[5;3HL  Redial last number',27,'[5;29HF  Factory settings',27,'[5;55HS  Send a file'
+	db	27,'[6;3HE  Escape (+++)',27,'[6;29HI  Who are you? (ATI3)',27,'[6;55HQ  Quit TERM'
+	db	27,'[7;3HO  Back on line (ATO)',27,'[7;29HM  Speaker on/off',27,'[7;55HEsc  Back to the terminal'
+	db	27,'[8;3HH  Hang up (DTR)',27,'[8;29HK  Echo on/off',27,'[8;55H^]  Send a Ctrl-]'
+	db	27,'[9;29HA  Auto-answer on/off'
+	db	27,'[11;1H',27,'[7m',27,'[K',27,'[11;2HSTATUS',27,'[0m'
+	db	27,'[14;1H',27,'[7m',27,'[K',27,'[14;2HTHE MODEM SAYS',27,'[0m'
+	db	27,'[24;1H',27,'[7m',27,'[K',27,'[24;2HA key chooses. What the modem answers shows above.',27,'[0m'
+	db	27,'[15;22r$'
+home:	db	27,'[15;1H$'
+clrs:	db	27,'[r',27,'[0m',27,'[?25h',27,'[2J',27,'[H$'	;no region, plain, cursor shown, a clear screen
+clrreg:	db	27,'[22;1H',10,10,10,10,10,10,10,10,27,'[15;1H$'	;the lower half scrolled clean
+st1:	db	27,'7',27,'[12;3H',27,'[KLine: $'
+st2:	db	'     Last number: $'
+st3:	db	27,'[13;3H',27,'[KSpeaker: $'
+st4:	db	'   Echo: $'
+st5:	db	'   Auto-answer: $'
+st6:	db	27,'8$'
+lon:	db	'ON LINE (a call is up)$'
+lcmd:	db	'COMMAND MODE (escaped, the call is up)$'
+loff:	db	'off line$'
+son:	db	'on$'
+sof:	db	'off$'
+mwhich:	db	27,'[23;1H',27,'[KWhich? A key, # to type a number, Esc to cancel: $'
+pnum:	db	27,'[23;1H',27,'[KNumber or host? $'
+mnodir:	db	cr,lf,'No TERM.DIR on this disk.$'
 monl:	db	cr,lf,'On line: use E (escape) first.',cr,lf,'$'
 mnoon:	db	cr,lf,'Not on line.',cr,lf,'$'
 mesc:	db	cr,lf,'Escaping: a second of silence...',cr,lf,'$'
@@ -955,6 +1122,10 @@ spk:	db	1
 ech:	db	1
 aa:	db	0
 havenum:db	0
+inmenu:	db	0		;1: the menu is up
+dcd:	db	0		;the carrier bit as the menu last showed it
+crow:	db	0
+ccol:	db	0
 dialbuf:db	'ATDT'
 	ds	30
 numbuf:	db	24,0

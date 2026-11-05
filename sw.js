@@ -22,6 +22,7 @@ const SHELL = [
     'js/devices/modem.js',
     'js/devices/hayes.js',
     'js/devices/directory.js',
+    'js/devices/webserial.js',
     'js/bbs.js',
     'js/machine.js',
     'js/cpmfs.js',

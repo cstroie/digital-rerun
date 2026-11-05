@@ -89,3 +89,14 @@ flow control: a byte nobody reads before the next arrives is lost (overrun), as 
 
 The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: the SYSOP chat (Z80-μLM, which
 lives on its own shelf disk), a built-in terminal for CP/M 3's own `TERM`.
+
+## A real modem (Web Serial, step 6)
+
+SETUP → MODEM → *REAL MODEM…* opens the browser's port chooser (Chrome, Edge or another browser with Web Serial;
+https or localhost; a click is needed) and puts the chosen USB serial port in place of the built-in Hayes
+modem (`js/devices/webserial.js`). A WiFi modem (Zimodem, WiModem232 …) speaks Hayes itself, so bytes go
+through both ways: `TERM`, `ATDT host:port`. Set the speed in SETUP to the modem's (300–19200; changing it reopens
+the port). The UART still spaces what comes in at that speed, so a fast modem is heard at 1200 baud if you like.
+Carrier is read from the modem's `CONNECT` and `NO CARRIER` lines; *Use the DTR and DCD lines* reads DCD and drives
+DTR instead (off by default: a USB board with an ESP chip resets when DTR changes). Unplugging the port, or
+*BUILT-IN MODEM*, goes back to the BBS. The BBS and the echo service are not reachable while a real modem is on.

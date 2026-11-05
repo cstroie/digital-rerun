@@ -7,7 +7,7 @@
     'use strict';
 
     const { Machine, Disk, CpmFs, FORMATS, diskFromImage, ALTAIR_SIZE, altairFiles, Terminal, TerminalView, FX80, PaperView, Storage,
-        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard, StoredFiles } = window.DigitalRerun;
+        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard, StoredFiles, SerialLine } = window.DigitalRerun;
 
     const $ = id => document.getElementById(id);
     const DRIVES = [0, 1, 2, 3, 8];                 // A: B: C: D: I:
@@ -32,7 +32,9 @@
         online: () => settings.online,
         fetchJson: url => fetch(url, { signal: AbortSignal.timeout(8000), referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
     }));
-    machine.modem.attach(new Hayes({ dial: directory.dial }));
+    const hayes = new Hayes({ dial: directory.dial });
+    machine.modem.attach(hayes);
+    let serial = null;                       // a real modem on a serial port, when one is plugged in
     term.reply = bytes => machine.console.type(bytes);
     term.bell = () => { $('crt').animate([{ filter: 'brightness(1.8)' }, { filter: 'none' }], 120); sound.bell(); };
     let lineChars = 0;                       // characters struck since the last CR, for the sound
@@ -49,7 +51,7 @@
 
     /* ---------- settings ---------- */
 
-    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false };
+    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, baud: 1200, serialSignals: false };
 
     function applySettings() {
         $('speed').value = String(settings.speed);
@@ -60,6 +62,9 @@
         $('resume').checked = settings.resume;
         $('sound').checked = settings.sound;
         $('online').checked = settings.online;
+        $('baud').value = String(settings.baud);
+        machine.modem.baud = settings.baud;
+        $('serialSignals').checked = settings.serialSignals;
         sound.enabled = settings.sound;
         machine.clock.hz = (settings.speed || 4) * 1000000;      // the machine's seconds follow its speed
         $('crt').classList.toggle('amber', settings.phosphor === 'amber');
@@ -1151,6 +1156,64 @@
         if (settings.sound) sound.unlock();
         Storage.set('settings', settings).catch(() => {});
     });
+    /* ---------- the modem line: the built-in one, or a real modem on a serial port ---------- */
+
+    function showSerial() {
+        const on = !!serial;
+        $('serialBtn').textContent = on ? 'BUILT-IN MODEM' : 'REAL MODEM…';
+        $('serial-state').textContent = on ? 'REAL, ' + settings.baud + ' BAUD' : '';
+        $('serialBtn').disabled = !on && !SerialLine.supported();
+        $('serialBtn').title = SerialLine.supported() ? 'Use a real modem on a USB serial port instead of the built-in one' : 'This browser has no Web Serial (try Chrome or Edge)';
+        $('serialSignals').disabled = on;
+    }
+
+    /** Open `port` as the modem line (the call, if any, is dropped). */
+    async function openSerial(port) {
+        const line = new SerialLine(port, {
+            baud: settings.baud, signals: settings.serialSignals,
+            onClose: error => { if (serial === line) { leaveSerial(); PWA.toast(error ? `The modem port stopped: ${error.message}` : 'The modem port was unplugged.'); } }
+        });
+        await line.open();
+        serial = line;
+        machine.modem.attach(line);
+        showSerial();
+    }
+
+    function leaveSerial() {
+        const line = serial;
+        serial = null;
+        machine.modem.attach(hayes);
+        if (line) line.close();
+        showSerial();
+    }
+
+    $('serialBtn').addEventListener('click', async () => {
+        if (serial) { leaveSerial(); focusScreen(); return; }
+        try {
+            await openSerial(await SerialLine.request());
+            focusScreen();
+        } catch (e) {
+            if (e.name !== 'NotFoundError') PWA.toast(`Could not open the modem port: ${e.message}`);   // NotFoundError: the chooser was closed
+        }
+    });
+    $('baud').addEventListener('change', async () => {
+        settings.baud = Number($('baud').value);
+        machine.modem.baud = settings.baud;
+        Storage.set('settings', settings).catch(() => {});
+        if (serial) {                         // a port's speed is set when it is opened: open it again
+            const line = serial, port = line.port;
+            serial = null;
+            machine.modem.attach(hayes);
+            try { await line.close(); await openSerial(port); } catch (e) { showSerial(); PWA.toast(`Could not reopen the modem port: ${e.message}`); }
+        } else showSerial();
+    });
+    $('serialSignals').addEventListener('change', () => {
+        settings.serialSignals = $('serialSignals').checked;
+        Storage.set('settings', settings).catch(() => {});
+    });
+    if (SerialLine.supported()) navigator.serial.addEventListener('disconnect', e => { if (serial && serial.port === e.target) { leaveSerial(); PWA.toast('The modem port was unplugged.'); } });
+    showSerial();
+
     $('online').addEventListener('change', () => {
         settings.online = $('online').checked;
         Storage.set('settings', settings).catch(() => {});

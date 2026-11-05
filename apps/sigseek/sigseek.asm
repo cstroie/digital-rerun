@@ -51,6 +51,8 @@ start:  ld      (oldsp),sp
         call    loaddat         ; SIGSEEK.DAT, or a note and back to CP/M
         call    clkinit         ; DigitalRerun's clock, for the ticks
         call    title           ; the title screen, until a key
+        ld      hl,(rseed)      ; the second generator, from the first
+        ld      (seed2),hl
         ld      hl,(tokens)     ; (for the night's tally)
         ld      (tok0),hl
         call    wxnew           ; tonight's weather
@@ -349,6 +351,25 @@ sh8:    ld      b,(hl)
 sh9:    ld      a,b
         ret
 
+; rnd2: a second generator, for the choices of who sends what (the
+; first's low bits, which the band uses by the hundred, make poor dice):
+; s = 5s + 13849, 16 bits, a full period; A = its high byte. Keeps BC.
+rnd2:   push    hl
+        push    de
+        ld      hl,(seed2)
+        ld      d,h
+        ld      e,l
+        add     hl,hl
+        add     hl,hl
+        add     hl,de
+        ld      de,13849
+        add     hl,de
+        ld      (seed2),hl
+        ld      a,h
+        pop     de
+        pop     hl
+        ret
+
 ; sigkind: IX = a new signal: who it carries. A caller half the time
 ; (among those met: two at first, one more every four packets), the
 ; Archive a quarter, nobody a quarter.
@@ -357,11 +378,11 @@ sigkind: ld     a,(spec)        ; one in eight: a ghost (one in four on
         ld      b,7
         jr      nz,sk_0
         ld      b,3
-sk_0:   call    rnd
+sk_0:   call    rnd2
         and     b
         ld      c,K_GHOST
         jr      z,sk_9
-        call    rnd
+        call    rnd2
         and     3
         ld      c,K_FRAG
         jr      z,sk_9
@@ -369,11 +390,11 @@ sk_0:   call    rnd
         jr      nz,sk_1
         call    echoq           ; nobody: or, now and then, an echo
         jr      nz,sk_m
-        call    rnd
+        call    rnd2
         and     3
         ld      c,K_ECHO
         jr      z,sk_9
-sk_m:   call    rnd             ; nobody in particular: which message
+sk_m:   call    rnd2             ; nobody in particular: which message
         and     NMSG-1
         ld      (ix+S_WHO),a
         ld      c,K_MSG
@@ -386,7 +407,7 @@ sk_1:   ld      a,(npkt)        ; a caller: 2 + packets / 4, at most all
         jr      c,sk_2
         ld      a,NCALL
 sk_2:   ld      b,a
-        call    rnd
+        call    rnd2
 sk_3:   sub     b
         jr      nc,sk_3
         add     a,b
@@ -467,9 +488,16 @@ gfaded: db      0
 ; While the lock holds the buffer fills, and the packet comes in letter
 ; by letter, in no order: its noise is decided at the start, by the
 ; signal's strength. If the buffer drains to nothing, it is lost.
-rxbegin: ld     a,(rcv)         ; coming in already
+rxbegin: ld     a,(rcv)         ; coming in already: from this signal?
         or      a
-        ret     nz
+        jr      z,rb_a
+        ld      hl,(rxsig)
+        ld      de,(lockix)
+        or      a
+        sbc     hl,de
+        ret     z
+        call    rxdrop          ; another signal: what came is lost
+rb_a:
         ld      a,(havepk)
         or      a
         jr      z,rb_new
@@ -533,7 +561,9 @@ rb3:    sub     b               ; j = rnd mod (i + 1)
         ld      a,c
         dec     a
         jr      rb2
-rb4:    ld      a,1
+rb4:    ld      hl,(lockix)     ; (which signal it is coming from)
+        ld      (rxsig),hl
+        ld      a,1
         ld      (rcv),a
         ld      a,0ffh
         ld      (rxn),a
@@ -544,6 +574,10 @@ rb4:    ld      a,1
         ret     nz
         jp      drawpk
 
+; rxdrop: the lock moved to another signal: the letters so far scatter,
+; the buffer starts again, and the second buffer's wait is undone
+rxdrop: xor     a
+        ld      (buf),a
 rxlost: ld      a,(rcv)
         or      a
         ret     z
@@ -1009,16 +1043,23 @@ S_SIZE  equ     8
 NSIG    equ     3
 
 ; about one new signal every 26 s, while there are fewer than three
-spawn:  ld      a,(wx)          ; meteors: one about every 3 s
+; (a countdown, not rnd coming up 0: what follows a 0 from this
+; generator is far from random, and it chose every signal's sender)
+spawn:  ld      hl,spawnt
+        dec     (hl)
+        ret     nz
+        call    rnd             ; the next: 10-35 s, or 2-5 s in meteors
+        ld      b,a
+        ld      a,(wx)
         cp      WX_METEOR
+        ld      a,b
         jr      nz,spw1
-        call    rnd
         and     31
-        ret     nz
-        jr      spn0
-spw1:   call    rnd
-        or      a
-        ret     nz
+        add     a,20
+        jr      spw2
+spw1:   srl     a
+        add     a,100
+spw2:   ld      (spawnt),a
 spn0:   ld      ix,sigs
         ld      b,NSIG
         ld      de,S_SIZE
@@ -1356,9 +1397,9 @@ cap1:   push    af
         ld      (rcv),a
         inc     a
         ld      (havepk),a
-        ld      ix,(lockix)
-        ld      (ix+S_LIFE),a
-        ld      (ix+S_LIFE+1),a
+        ld      ix,(lockix)     ; caught: the signal is gone from the band
+        ld      (ix+S_LIFE),0
+        ld      (ix+S_LIFE+1),0
         ld      hl,n_pk         ; tonight's
         call    tl_inc
         ld      hl,npkt         ; (stops at 255)
@@ -2129,6 +2170,9 @@ term:   db      0ffh
 rseed:  dw      0ace1h
 freq:   dw      14204           ; 1420.4 MHz, the hydrogen line
 ticks:  dw      0
+seed2:  dw      0
+rxsig:  dw      0
+spawnt: db      200
 shp:    db      0
 rcv:    db      0               ; 1: a packet coming in
 rxn:    db      0

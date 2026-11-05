@@ -141,7 +141,7 @@ shift, saved, back to CP/M; the next run is the next shift. `Q` ends it early. `
 ## Playing
 
 1. **Tune.** Up to three signals at a time, 3..6 strong, drifting or still, living
-   30-80 s; a new one about every 26 s (the first one at once). `,` `.` or
+   30-80 s; a new one every 10-35 s, by a countdown (the first one at once). `,` `.` or
    left/right move the dial 0.1 MHz, `<` `>` or up/down 1 MHz. The band pans: the
    peak slides toward the `^` as you near it.
 2. **Lock.** LOCK is dim `lock` with nothing under the dial, bold `LOCK` one step off

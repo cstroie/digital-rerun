@@ -334,6 +334,11 @@ archive: ld     a,3
 
 akey:   cp      'K'             ; the stamp book, from here too
         jp      z,stpage
+        cp      'L'             ; the Archive, on the printer
+        jr      nz,ak0
+        call    parch
+        jp      nokey
+ak0:
         cp      'A'
         jr      z,akout
         cp      ESC

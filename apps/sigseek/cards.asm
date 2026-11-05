@@ -90,7 +90,11 @@ wall:   ld      a,(upg)
 wl9:    call    logmsg
         jp      nokey
 
-wkey:   cp      'W'
+wkey:   cp      'L'             ; this card, on the printer
+        jr      nz,wk0
+        call    pcard
+        jp      nokey
+wk0:    cp      'W'
         jr      z,wkout
         cp      ESC
         jr      z,wkout

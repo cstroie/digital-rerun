@@ -21,6 +21,7 @@ does as she pleases. The station keeps running when you step away.
 | `story.asm` | `SIGSEEK.DAT`: loading, the callers, the Archive |
 | `weather.asm` | Weather, the last lantern at 1420.0 MHz, the Archive's end |
 | `cards.asm` | Postcards from the callers, the postcard wall |
+| `echo.asm`, `reply.asm`, `upkeep.asm`, `stamps.asm`, `print.asm` | Echoes, replies, the power register, the stamp book, the printer |
 | `title.asm` | The title screen, timing by the clock device, the night's tally, dawn |
 | `sigseek.txt` | The content: messages, callers' letters, Archive fragments |
 | `mkdat.js` | Packs `sigseek.txt` into `SIGSEEK.DAT`, checking every length against the screen |
@@ -314,6 +315,13 @@ weather buoy past Io, Kettle-12, a mining tug, the Lighthouse Seven lamp-relay,
 somebody called Dot, an old probe) and what they added; 6 tokens more. Then the
 next message is kept in its place.
 
+## Printing
+
+`L` in the Archive prints every fragment kept, under a heading in emphasized type;
+`L` on the postcard wall prints the card shown, its caption, picture and sender.
+Through `LST:` (BDOS function 5), which in DigitalRerun is the FX-80, whose pages
+can be kept as PNG or PDF; each ends with a form feed.
+
 ## Weather
 
 At the start of each shift and every 90 s or so, a roll: often the same weather
@@ -406,8 +414,6 @@ From the design notes:
 
 New:
 
-- **Printing on the FX-80:** the Archive, a postcard or the night's log, on
-  DigitalRerun's printer, kept as PNG or PDF.
 - **A help screen (`?`):** the rules and the keys, in the game.
 - **Stamps:** a small page of milestones (the first clean packet, all eight callers
   met, the lantern found).

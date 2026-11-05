@@ -18,6 +18,10 @@ bright peak; < or > at an edge means one is off the band that way.
   S                        the shop
   A                        the Archive
   W                        the postcard wall
+  K                        the stamp book
+  F                        fix the power, when it sags
+  L                        (in the Archive, on the wall) print it
+  ?                        how the night works
   P                        pet PIXEL (or call her)
   Q                        quit (the station is saved)
 

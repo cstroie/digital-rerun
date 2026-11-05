@@ -888,12 +888,12 @@ k_dialf: db     ' [F]IX THE POWER  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]r
 k_dialc: db     ' [C]LEAN THE PACKET  [,.] tune  [<>] coarse  [T]auto  [S]hop  [A]rch  [W]all',0
 k_clean: db     ' [1]-[8] flip a bit  [,.] pick a byte  [C] later  [P]et PIXEL  [Q]uit',0
 k_shop: db      ' [1]-[9] [0] buy  [S] close the shop  [P]et PIXEL  [Q]uit',0
-k_arch: db      ' [,.] turn the page  [K] stamps  [A] close the Archive  [P]et PIXEL  [Q]uit',0
+k_arch: db      ' [,.] turn the page  [L] print it  [K] stamps  [A] close  [P]et  [Q]uit',0
 k_stamp: db     ' [K] close the stamp book  [P]et PIXEL  [Q]uit',0
 k_fix:  db      ' [1]-[8] flip a bit  [F] later  [P]et PIXEL  [Q]uit',0
 k_reply: db     ' REPLY?  [1] a warm reply  [2] a word from PIXEL  [3] no reply',0
 k_dawn: db      ' [any key] end the shift, once the sun is up (the station is saved)',0
-k_wall: db      ' [,.] the next card  [W] close the wall  [P]et PIXEL  [Q]uit',0
+k_wall: db      ' [,.] the next card  [L] print it  [W] close the wall  [P]et  [Q]uit',0
 k_scene: db     ' [any key] go on, once it has all been said',0
 k_route: db     ' [SPACE] turn a relay  [arrows] move  [C] later  [P]et PIXEL  [Q]uit',0
 lasthp: db      0ffh
@@ -2171,6 +2171,7 @@ stack:
         include reply.asm
         include upkeep.asm
         include stamps.asm
+        include print.asm
 
 ; SIGSEEK.DAT is read here, after everything else
 datbuf:

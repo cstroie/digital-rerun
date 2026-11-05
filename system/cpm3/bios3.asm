@@ -169,7 +169,7 @@ ctbla:	db	'CRT   ',mb$in$out,baud$none
 	db	'LPT   ',mb$output,baud$none
 	db	'PTR   ',mb$input,baud$none
 	db	'PTP   ',mb$output,baud$none
-	db	'MODEM ',mb$in$out+mb$serial,baud$1200
+	db	'MDM   ',mb$in$out+mb$serial,baud$1200
 	db	0
 
 conout:	lhld @covec

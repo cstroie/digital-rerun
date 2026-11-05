@@ -64,10 +64,19 @@ and sets `modem.carrier`. A snapshot does not keep a connection: restoring drops
 
 Steps 1–3 are built. `TERM.COM` is on the CP/M 2.2 disk (with its source, `TERM.ASM`): `TERM`, then `AT`,
 `ATDT0` (the echo service), `+++` and `ATH`; Ctrl-] Q leaves with the call up, Ctrl-] H hangs up. Under CP/M 3
-the modem is the character device `MODEM` (`DEVICE AUXOUT:=MODEM`, then `PIP AUX:=file`); copy `TERM.COM`
+the modem is the character device `MDM` (`DEVICE AUXOUT:=MDM`, then `PIP AUX:=file`); copy `TERM.COM`
 over from the 2.2 disk (the CP/M 3 disk has no room left to carry it). The numbers dialed are in
 `js/devices/directory.js`; the built-in BBS (step 4) adds its own.
 
 A program that polls the modem is "waiting": the run loop spends the T-states up to the next byte, answer or
 timer on the modem's clock (`Machine.skipIdle`), so 1200 baud is exact at an idle prompt too. The line has no
 flow control: a byte nobody reads before the next arrives is lost (overrun), as on a real serial port.
+
+## The BBS (step 4, in progress)
+
+`ATDT5550100` (dashes are ignored) reaches the Digital Rerun BBS (`js/bbs.js`): **T** time and date (the host
+clock), **M** the moon (phase, age, lit fraction, a drawing; computed, offline), **B** bulletins (the last 8 of
+50, kept in the browser's localStorage; a post is a name and one line), **W** the weather desk, **G** goodbye
+(hangs up). Weather needs SETUP → *Online services*, off by default: the city name goes to open-meteo.com
+(geocoding, then a 4-day forecast), nothing else; off or unreachable, "the weather desk is not answering".
+The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). To do: XMODEM file area, SYSOP chat.

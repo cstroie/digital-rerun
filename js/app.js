@@ -7,7 +7,7 @@
     'use strict';
 
     const { Machine, Disk, CpmFs, FORMATS, diskFromImage, ALTAIR_SIZE, altairFiles, Terminal, TerminalView, FX80, PaperView, Storage,
-        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory } = window.DigitalRerun;
+        isTextFile, looksText, toCpmText, fromCpmText, Hayes, Directory, bbs, StoredBoard } = window.DigitalRerun;
 
     const $ = id => document.getElementById(id);
     const DRIVES = [0, 1, 2, 3, 8];                 // A: B: C: D: I:
@@ -23,7 +23,15 @@
 
     const sound = new window.DigitalRerun.Sound();
     machine.console.output = b => term.write(b);
-    machine.modem.attach(new Hayes({ dial: new Directory().dial }));       // the modem on ports 6 and 7: TERM and ATDT
+    // the modem on ports 6 and 7 (TERM, ATDT): 0 is the echo service, 5550100 the bulletin board
+    const directory = new Directory().add('5550100', bbs({
+        now: () => new Date(),
+        board: new StoredBoard(localStorage),
+        store: { get: k => localStorage.getItem('digitalrerun.bbs.' + k), set: (k, v) => localStorage.setItem('digitalrerun.bbs.' + k, v) },
+        online: () => settings.online,
+        fetchJson: url => fetch(url, { signal: AbortSignal.timeout(8000), referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    }));
+    machine.modem.attach(new Hayes({ dial: directory.dial }));
     term.reply = bytes => machine.console.type(bytes);
     term.bell = () => { $('crt').animate([{ filter: 'brightness(1.8)' }, { filter: 'none' }], 120); sound.bell(); };
     let lineChars = 0;                       // characters struck since the last CR, for the sound
@@ -40,7 +48,7 @@
 
     /* ---------- settings ---------- */
 
-    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true };
+    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false };
 
     function applySettings() {
         $('speed').value = String(settings.speed);
@@ -50,6 +58,7 @@
         $('phosphor').value = settings.phosphor;
         $('resume').checked = settings.resume;
         $('sound').checked = settings.sound;
+        $('online').checked = settings.online;
         sound.enabled = settings.sound;
         machine.clock.hz = (settings.speed || 4) * 1000000;      // the machine's seconds follow its speed
         $('crt').classList.toggle('amber', settings.phosphor === 'amber');
@@ -1139,6 +1148,10 @@
         settings.sound = $('sound').checked;
         applySettings();
         if (settings.sound) sound.unlock();
+        Storage.set('settings', settings).catch(() => {});
+    });
+    $('online').addEventListener('change', () => {
+        settings.online = $('online').checked;
         Storage.set('settings', settings).catch(() => {});
     });
     // Audio may start only after a key or a tap.

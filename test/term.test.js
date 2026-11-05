@@ -7,6 +7,7 @@ const { Machine } = require('../js/machine.js');
 const { Disk } = require('../js/devices/fdc.js');
 const { Hayes } = require('../js/devices/hayes.js');
 const { Directory } = require('../js/devices/directory.js');
+const { bbs, MemoryBoard } = require('../js/bbs.js');
 
 function boot({ modem = true } = {}) {
     const m = new Machine();
@@ -87,4 +88,35 @@ test('TERM is on the system disk with its source', () => {
     const files = new CpmFs(Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/cpm22.dsk'))))).list().map(f => f.name);
     assert.ok(files.includes('TERM.COM'));
     assert.ok(files.includes('TERM.ASM'));
+});
+
+test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodbye', async () => {
+    const m = boot();
+    const board = new MemoryBoard();
+    const dir = new Directory().add('5550100', bbs({
+        now: () => new Date(2026, 10, 5, 14, 3), board, store: { get: () => null, set() {} }, online: () => false, fetchJson: () => Promise.reject(new Error('x'))
+    }));
+    m.modem.attach(new Hayes({ dial: dir.dial, dialTime: 1 }));
+    await until(m, 'A>');
+    let at = say(m, 'TERM\r');
+    await until(m, 'Try ATDT5550100', at);
+    at = say(m, 'ATDT555-0100\r');
+    await until(m, 'DIGITAL RERUN BBS', at);
+    await until(m, 'oodbye', at);
+    at = say(m, 't');
+    await until(m, 'It is Thursday 5 November 2026, 14:03', at);
+    await until(m, 'oodbye', at);
+    at = say(m, 'b');
+    await until(m, 'P', at + 5);
+    await until(m, 'ost a message', at);
+    at = say(m, 'p');
+    await until(m, 'Your name?', at);
+    at = say(m, 'Ana\r');
+    await until(m, 'Your message', at);
+    at = say(m, 'hello\r');
+    await until(m, 'Posted. Thank you.', at);
+    assert.deepEqual((await board.list()).map(p => [p.name, p.text]), [['Ana', 'hello']]);
+    at = say(m, 'g');
+    await until(m, 'NO CARRIER', at);
+    assert.equal(m.modem.carrier, false);
 });

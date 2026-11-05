@@ -101,7 +101,7 @@ quit:	lxi	d,crlf
 
 pend:	db	0		;a key waiting for the transmitter
 nomsg:	db	'No modem on this machine.',cr,lf,'$'
-hello:	db	'TERM: Ctrl-] for commands. Try ATDT and a number.',cr,lf,'$'
+hello:	db	'TERM: Ctrl-] for commands. Try ATDT5550100.',cr,lf,'$'
 prompt:	db	cr,lf,'[Q quit, H hang up, ? help] $'
 helpmsg:db	cr,lf,'Q quits (the call stays up), H hangs up, Ctrl-] twice sends one.',cr,lf,'$'
 hungup:	db	cr,lf,'Hung up.',cr,lf,'$'

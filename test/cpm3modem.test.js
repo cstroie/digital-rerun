@@ -28,10 +28,10 @@ test('CP/M 3: the modem is a character device, AUX: can be assigned to it, PIP r
     const slow = text => { cmd(text); for (let i = 0; i < 4000 && !/[A-D]>$/.test(m.out); i++) m.run(200000); return m.out; };
     settle();
 
-    assert.match(cmd('DEVICE'), /MODEM\s+1200\s+IOS/);
+    assert.match(cmd('DEVICE'), /MDM\s+1200\s+IOS/);
     cmd('');                                            // DEVICE alone waits for an assignment: RETURN leaves
-    cmd('DEVICE AUX:=MODEM');
-    assert.match(cmd('DEVICE AUX:'), /AUXIN:\s+= MODEM\s+AUXOUT: = MODEM/);
+    cmd('DEVICE AUX:=MDM');
+    assert.match(cmd('DEVICE AUX:'), /AUXIN:\s+= MDM\s+AUXOUT: = MDM/);
 
     // the line has no flow control: it speaks only once PIP is reading (bytes sent earlier would overrun)
     m.out = '';

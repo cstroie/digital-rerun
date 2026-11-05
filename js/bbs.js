@@ -6,7 +6,8 @@
  *   B  the bulletin board         W  the weather desk (online, off by default)
  *   F  the file area: download and upload by XMODEM (checksum or CRC)
  *   C  chat with the sysop (services.sysop: the page's, not the emulated machine's)
- *   G  goodbye
+ *   G  games: WOPR (js/wopr.js)   O  a fortune (js/fortune.js)
+ *   Q  quit (hangs up)
  *
  * Output is plain 7-bit text with VT100 bold and reverse; the caller's
  * terminal needs nothing else. Commands are single keys, as on the boards it
@@ -23,6 +24,8 @@
  *   fetchJson(url) -> Promise<object>
  *   files        { list() -> Promise<[{ name, size }]>, get(name) -> Promise<Uint8Array|null>,
  *                  put(name, bytes) -> Promise }
+ *   wopr, fortunes   the game (js/wopr.js) and the cookie jar (js/fortune.js); default: the page's
+ *   random()     0 <= r < 1 (default Math.random)
  *   sysop        { reply(history, text) -> Promise<string> }; without one the sysop is away
  *   after(fn, ms) -> handle, cancel(handle): timers (default setTimeout, clearTimeout)
  */
@@ -110,6 +113,17 @@
         }
         lines.push('', `Temperatures in C, rain in mm. Source: open-meteo.com`);
         return lines;
+    }
+
+    /** Words wrapped to `width`. */
+    function wrapText(text, width) {
+        const out = [];
+        let line = '';
+        for (const word of text.split(/\s+/)) {
+            if (line && line.length + 1 + word.length > width) { out.push(line); line = word; } else line = line ? line + ' ' + word : word;
+        }
+        out.push(line);
+        return out.join('\n');
     }
 
     /* ---------- a line of text, cleaned ---------- */
@@ -243,7 +257,7 @@
         }
 
         menu() {
-            this.out(`\n${BOLD}T${OFF}ime  ${BOLD}M${OFF}oon  ${BOLD}B${OFF}ulletins  ${BOLD}F${OFF}iles  ${BOLD}C${OFF}hat  ${BOLD}W${OFF}eather  ${BOLD}G${OFF}oodbye   ? `);
+            this.out(`\n${BOLD}T${OFF}ime  ${BOLD}M${OFF}oon  ${BOLD}B${OFF}ulletins  ${BOLD}F${OFF}iles  ${BOLD}C${OFF}hat  ${BOLD}W${OFF}eather  ${BOLD}G${OFF}ames  f${BOLD}O${OFF}rtune  ${BOLD}Q${OFF}uit   ? `);
             this.mode = 'menu';
         }
 
@@ -473,6 +487,34 @@
             }, TEXT_MAX);
         }
 
+        /* --- WOPR --- */
+
+        game() {
+            this.mode = 'busy';
+            const wopr = this.s.wopr;
+            if (!wopr) { this.out('\n\nThe games room is locked.\n'); return this.menu(); }
+            wopr({
+                out: t => this.out(t),
+                ask: (mode, fn, max) => this.ask(mode, fn, max),
+                leave: () => { this.out('\n'); this.menu(); },
+                random: this.s.random || Math.random
+            });
+        }
+
+        /* --- a fortune --- */
+
+        fortune() {
+            const fortunes = this.s.fortunes;
+            if (!fortunes) { this.out('\n\nThe cookie jar is empty.\n'); return this.menu(); }
+            this.seen = this.seen || [];
+            const i = fortunes.pick(this.s.random || Math.random, this.seen);
+            this.seen = [...this.seen, i].slice(-20);
+            const text = wrapText(fortunes.FORTUNES[i], 66).split('\n');
+            this.out(`\n\n${REV} FORTUNE ${OFF}  ${i + 1} of ${fortunes.FORTUNES.length}\n\n${text.map(l => '  ' + l).join('\n')}\n\n` +
+                `Another (${BOLD}Y${OFF}/N)? `);
+            this.ask('key', k => { if (k === 'Y') this.fortune(); else { this.out('\n'); this.menu(); } });
+        }
+
         /* --- the weather desk --- */
 
         weather() {
@@ -535,7 +577,9 @@
                 case 'W': return this.weather();
                 case 'F': return this.files();
                 case 'C': return this.chat();
-                case 'G': return this.goodbye();
+                case 'G': return this.game();
+                case 'O': return this.fortune();
+                case 'Q': return this.goodbye();
                 case '?': case 'H': this.out('\n'); return this.menu();
                 default: /* RETURN, line feed, noise: nothing */
             }

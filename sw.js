@@ -26,6 +26,8 @@ const SHELL = [
     'js/devices/telnet.js',
     'js/devices/gateway.js',
     'js/sysop.js',
+    'js/fortune.js',
+    'js/wopr.js',
     'js/bbs.js',
     'js/machine.js',
     'js/cpmfs.js',

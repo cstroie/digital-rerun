@@ -2,6 +2,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { bbs, moon, moonArt, weatherPage, MemoryBoard, StoredBoard } = require('../js/bbs.js');
+const { wopr } = require('../js/wopr.js');
+const fortunes = require('../js/fortune.js');
 
 const NOW = new Date(2026, 10, 5, 14, 3);          // Thursday 5 November 2026, 14:03 local
 
@@ -13,6 +15,8 @@ function caller(extra = {}) {
         store: { get: k => memory.get(k) || null, set: (k, v) => memory.set(k, v) },
         online: () => false,
         fetchJson: () => Promise.reject(new Error('no network in a test')),
+        wopr,
+        fortunes,
         ...extra
     };
     const c = { out: '', hung: false, services };
@@ -50,7 +54,7 @@ test('the moon drawn: new is dark, full is lit, a waxing quarter is lit on the r
 test('it greets, shows the menu, and answers a bare RETURN with nothing', () => {
     const c = caller();
     assert.match(c.out, /DIGITAL RERUN BBS/);
-    assert.match(c.out, /ime .*oon .*ulletins .*eather .*oodbye/s);
+    assert.match(c.out, /ime .*oon .*ulletins .*iles .*hat .*eather .*ames .*rtune .*uit/s);
     c.take();
     c.type('\r\n');
     assert.equal(c.out, '');
@@ -210,9 +214,9 @@ test('weather page: the temperature range bars line up', () => {
     assert.ok(bars[3].startsWith('=') || bars[2].startsWith('='), 'the coldest reaches the bottom');
 });
 
-test('G: goodbye hangs up; keys typed while it is busy are dropped', () => {
+test('Q: quit says goodbye and hangs up; keys typed while it is busy are dropped', () => {
     const c = caller();
-    c.type('g');
+    c.type('q');
     assert.match(c.out, /Thank you for calling/);
     assert.equal(c.hung, true);
     c.take();
@@ -488,4 +492,71 @@ test('C: a reply that comes after the caller has gone is dropped', async () => {
     release('late');
     await c.settle();
     assert.equal(c.out, '');
+});
+
+/* ---------- WOPR and the fortunes ---------- */
+
+test('G: the games room is WOPR; leaving it comes back to the menu', () => {
+    const c = caller();
+    c.take();
+    c.type('g');
+    assert.match(c.out, /W\.O\.P\.R\./);
+    assert.match(c.out, /LOGON: $/);
+    c.type('ann\r');
+    assert.match(c.out, /SHALL WE PLAY A GAME\?/);
+    c.take();
+    c.type('list games\r');
+    assert.match(c.out, /TIC-TAC-TOE/);
+    c.take();
+    c.type('logoff\r');
+    assert.match(c.out, /CONNECTION TERMINATED/);
+    assert.match(c.out, /ime .*oon .*ames/s);
+    c.take();
+    c.type('t');
+    assert.match(c.out, /It is Thursday/, 'the menu works again');
+});
+
+test('G: a game of tic-tac-toe through the BBS', () => {
+    const c = caller();
+    c.type('g\rx\r');
+    c.type('tic\r');
+    c.type('1');
+    c.take();
+    c.type('5');
+    assert.match(c.out, /WOPR PLAYS/);
+});
+
+test('G: without the games room module it is locked', () => {
+    const c = caller({ wopr: undefined });
+    c.take();
+    c.type('g');
+    assert.match(c.out, /games room is locked/);
+});
+
+test('O: a fortune, numbered; Y another, a different one; anything else back to the menu', () => {
+    const c = caller({ random: () => 0 });
+    c.take();
+    c.type('o');
+    assert.match(c.out, /FORTUNE.*1 of \d+/);
+    const first = c.take();
+    c.type('y');
+    assert.match(c.out, /FORTUNE.*2 of \d+/, 'not the same one again');
+    assert.notEqual(c.out.split('\n').find(l => /^ {2}\S/.test(l)), first.split('\n').find(l => /^ {2}\S/.test(first.split('\n')[0]) ? false : /^ {2}\S/.test(l)));
+    c.take();
+    c.type('n');
+    assert.match(c.out, /ime .*oon/s);
+});
+
+test('O: a fortune is wrapped to the screen', () => {
+    const c = caller({ fortunes: { FORTUNES: ['word '.repeat(40).trim()], pick: () => 0 } });
+    c.take();
+    c.type('o');
+    for (const line of c.out.split('\r\n')) assert.ok(line.replace(/\x1b\[[0-9;]*m/g, '').length <= 80);
+});
+
+test('O: without the cookie jar it says so', () => {
+    const c = caller({ fortunes: undefined });
+    c.take();
+    c.type('o');
+    assert.match(c.out, /cookie jar is empty/);
 });

@@ -86,7 +86,7 @@ flow control: a byte nobody reads before the next arrives is lost (overrun), as 
 - **W** the weather desk, needs SETUP → *Online services* (off by default): the city name goes to open-meteo.com
   (geocoding, then a 4-day forecast), nothing else. Off or unreachable: "the weather desk is not answering".
 - **C** chat with the sysop (below).
-- **G** goodbye (hangs up).
+- **G** games: WOPR (below). **O** a fortune. **Q** quit (hangs up).
 
 The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: a built-in terminal for CP/M 3's own `TERM`.
 
@@ -146,3 +146,16 @@ emulated machine, and says he is a program when sincerely asked.
 - **What the caller sees:** plain ASCII, a few lines of at most 74 characters (replies are cut down to that:
   smart quotes straightened, markdown and non-ASCII dropped, at most 480 characters), an indented second line,
   `/BYE` to leave. The chat starts with a request not to type names, numbers or medical details.
+
+## WOPR and the fortunes
+
+- **G** enters WOPR (`js/wopr.js`), the board's game computer, in the manner of an old war-games film: `LOGON:`
+  with any name, `SHALL WE PLAY A GAME?`, then a game by name or number, `LIST GAMES`, `LOGOFF`. Playable:
+  **TIC-TAC-TOE** (against WOPR, which cannot lose: a test walks every line of play; or 0 players, WOPR against
+  itself ten times, all drawn) and **GLOBAL THERMONUCLEAR WAR** (a simulation between two fictional blocs: pick a
+  side and three of eight made-up targets; the exchange runs, assets fall, winner none, "a strange game, the only
+  winning move is not to play", and a polite offer of chess). The other names on the list are not loaded on this line.
+- **O** is the fortune cookie jar (`js/fortune.js`): 97 messages written for this board (hacker koans, science
+  fiction, retro computing, cyberpunk, cold-war computing), plain ASCII, never repeating one of the last twenty;
+  **Y** another.
+- **Q** at the menu quits the board (it was G, Goodbye).

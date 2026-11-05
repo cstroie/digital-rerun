@@ -108,10 +108,10 @@ test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodby
     await until(m, 'Try ATDT5550100', at);
     at = say(m, 'ATDT555-0100\r');
     await until(m, 'DIGITAL RERUN BBS', at);
-    await until(m, 'oodbye', at);
+    await until(m, 'uit', at);
     at = say(m, 't');
     await until(m, 'It is Thursday 5 November 2026, 14:03', at);
-    await until(m, 'oodbye', at);
+    await until(m, 'uit', at);
     at = say(m, 'b');
     await until(m, 'P', at + 5);
     await until(m, 'ost a message', at);
@@ -122,7 +122,7 @@ test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodby
     at = say(m, 'hello\r');
     await until(m, 'Posted. Thank you.', at);
     assert.deepEqual((await board.list()).map(p => [p.name, p.text]), [['Ana', 'hello']]);
-    at = say(m, 'g');
+    at = say(m, 'q');
     await until(m, 'NO CARRIER', at);
     assert.equal(m.modem.carrier, false);
 });
@@ -147,7 +147,7 @@ test('TERM: XMODEM download from the BBS (Ctrl-] R), and the program runs', asyn
     let at = say(m, 'TERM\r');
     await until(m, 'Try ATDT', at);
     at = say(m, 'ATDT5550100\r');
-    await until(m, 'oodbye', at);
+    await until(m, 'uit', at);
     at = say(m, 'f');
     await until(m, 'ownload, ', at);
     at = say(m, 'd');
@@ -177,7 +177,7 @@ test('TERM: XMODEM upload to the BBS (Ctrl-] S)', async () => {
     let at = say(m, 'TERM\r');
     await until(m, 'Try ATDT', at);
     at = say(m, 'ATDT5550100\r');
-    await until(m, 'oodbye', at);
+    await until(m, 'uit', at);
     at = say(m, 'f');
     await until(m, 'ownload, ', at);
     at = say(m, 'u');

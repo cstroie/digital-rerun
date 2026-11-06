@@ -79,8 +79,7 @@
         </div>
             <nav class="tabs" id="tabs" role="tablist" aria-label="Panels">
                 <button role="tab" data-for="drives">DRIVES</button>
-                <button role="tab" data-for="shelf">SHELF</button>
-                <button role="tab" data-for="printer">PRINTER</button>
+                <button role="tab" data-for="devices">DEVICES</button>
                 <button role="tab" data-for="paper">PAPER <span class="badge" id="paper-badge" hidden></span></button>
                 <button role="tab" data-for="setup">SETUP</button>
                 <button role="tab" data-for="debug">DEBUG</button>
@@ -93,47 +92,34 @@
                 <div class="tools files-tools">
                     <button id="addFilesBtn" title="Copy files from this device to the selected drive">ADD FILES</button>
                 </div>
-                <h2 class="sub">PAPER TAPE</h2>
-                <div class="tools">
-                    <button id="tapeLoadBtn" title="Put a file from this device in the tape reader (RDR:)">LOAD TAPE</button>
-                    <button id="tapeSaveBtn" title="Download what was punched (PUN:)">SAVE TAPE</button>
-                    <button id="tapeClearBtn" title="Throw away what was punched">CLEAR</button>
-                </div>
-                <p class="hint">Reader: <span id="tape-reader">no tape</span>. Punch: <span id="tape-punch">nothing yet</span>. <code>PIP FILE.TXT=RDR:</code> reads the tape, <code>PIP PUN:=FILE.TXT</code> punches a file.</p>
                 <p class="hint">ADD FILES (or drop files here) copies them to the selected drive; then press <kbd>^C</kbd> at the prompt. Tap a file to download it.</p>
-            </section>
-
-            <section class="panel" id="shelf-panel" data-tab="shelf">
-                <h2>SHELF <span id="shelf-note"></span></h2>
-                <label class="field">Floppies go into
-                    <select id="shelfDrive">
-                        <option value="0">A:</option>
-                        <option value="1">B:</option>
-                        <option value="2" selected>C:</option>
-                        <option value="3">D:</option>
-                    </select>
-                </label>
+                <h2 class="sub">SHELF <span id="shelf-note"></span></h2>
+                <div id="shelfTabs" class="subtabs" role="tablist" aria-label="Shelf sections"></div>
                 <div id="shelf" class="shelf"></div>
-                <h2 class="sub">PRIVATE SHELF <span id="private-note"></span></h2>
-                <label class="field">Catalog <input id="privateUrl" class="wide" placeholder="https://host/games/" spellcheck="false" autocomplete="off"></label>
-                <label class="field">Token <input id="privateToken" class="wide" type="password" placeholder="none" spellcheck="false" autocomplete="off"></label>
-                <div class="tools">
-                    <button id="privateConnectBtn" title="Fetch the catalog and list its disks">CONNECT</button>
-                    <button id="privateForgetBtn" title="Forget the address and the token on this device">FORGET</button>
+                <div id="shelfPrivate" class="shelf-view" hidden>
+                    <p class="hint status" id="private-note">not connected</p>
+                    <p class="hint">Your own catalog on your own web server: disks you may not share are fetched from there when you insert them, and are never part of this app. The address and token stay in this browser.</p>
+                    <label class="field">Address <input id="privateUrl" class="wide" placeholder="https://host/games/" spellcheck="false" autocomplete="off"></label>
+                    <label class="field">Token <input id="privateToken" class="wide" type="password" placeholder="none" spellcheck="false" autocomplete="off"></label>
+                    <div class="tools">
+                        <button id="privateConnectBtn" title="Fetch the catalog and list its disks">CONNECT</button>
+                        <button id="privateForgetBtn" title="Forget the address and the token on this device">FORGET</button>
+                    </div>
+                    <div id="privshelf" class="shelf"></div>
                 </div>
-                <div id="privshelf" class="shelf"></div>
-                <p class="hint">A private shelf is your own catalog on your own web server: disks you may not share are fetched from there when you insert them, and are never part of this app. The address and token stay in this browser.</p>
-                <h2 class="sub">MY DISKS</h2>
-                <div class="tools">
-                    <button id="keepDiskBtn" title="Put a copy of a drive's disk on My disks">KEEP A DISK</button>
-                    <button id="importDiskBtn" title="Add a .dsk image from this device to My disks">IMPORT .DSK</button>
-                    <button id="folderDiskBtn" title="Make a disk from a folder on this device (subfolders 1 to 15 become user areas)">FROM FOLDER</button>
+                <div id="shelfMine" class="shelf-view" hidden>
+                    <p class="hint">Disks you keep here, from a drive or from a file on this device.</p>
+                    <div class="tools">
+                        <button id="keepDiskBtn" title="Put a copy of a drive's disk on My disks">KEEP A DISK</button>
+                        <button id="importDiskBtn" title="Add a .dsk image from this device to My disks">IMPORT .DSK</button>
+                        <button id="folderDiskBtn" title="Make a disk from a folder on this device (subfolders 1 to 15 become user areas)">FROM FOLDER</button>
+                    </div>
+                    <div id="mydisks" class="shelf"></div>
+                    <p class="hint">My disks are kept in this browser only: your own software (WordStar, MBASIC …) stays on your devices. After inserting a disk, press <kbd>^C</kbd> at the prompt.</p>
                 </div>
-                <div id="mydisks" class="shelf"></div>
-                <p class="hint">My disks are kept in this browser only: your own software (WordStar, MBASIC …) stays on your devices. After inserting a disk, press <kbd>^C</kbd> at the prompt.</p>
             </section>
 
-            <section class="panel" data-tab="printer">
+            <section class="panel" data-tab="devices">
                 <h2>PRINTER <span>FX-80</span></h2>
                 <div class="tools">
                     <button id="onlineBtn" class="toggle on" title="On line / off line">ON LINE</button>
@@ -143,6 +129,13 @@
                     <button id="printBtn" title="Print or save as PDF">PRINT</button>
                 </div>
                 <p class="hint">CP/M prints to <code>LST:</code>: <kbd>^P</kbd> echoes the console, <code>PIP LST:=FILE.TXT</code> prints a file.</p>
+                <h2 class="sub">PAPER TAPE</h2>
+                <div class="tools">
+                    <button id="tapeLoadBtn" title="Put a file from this device in the tape reader (RDR:)">LOAD TAPE</button>
+                    <button id="tapeSaveBtn" title="Download what was punched (PUN:)">SAVE TAPE</button>
+                    <button id="tapeClearBtn" title="Throw away what was punched">CLEAR</button>
+                </div>
+                <p class="hint">Reader: <span id="tape-reader">no tape</span>. Punch: <span id="tape-punch">nothing yet</span>. <code>PIP FILE.TXT=RDR:</code> reads the tape, <code>PIP PUN:=FILE.TXT</code> punches a file.</p>
             </section>
 
             <section class="panel" data-tab="setup">

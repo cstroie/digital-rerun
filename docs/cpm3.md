@@ -5,7 +5,7 @@ programs, the same drives as CP/M 2.2 (A: to D: and the hard disk I:), `CCP.COM`
 loaded from A: at each warm start, and CP/M 3's own commands (`DIR`, `PIP`, `SHOW`,
 `SET`, `DEVICE`, `HELP`, `ED` …). Nothing in the emulator changed for it.
 
-**It is a disk of the public shelf**: SHELF tab, *CP/M 3*, insert it in A: and press
+**It is a disk of the public shelf**: SHELF in DRIVES, *CP/M 3*, insert it in A: and press
 `^C` (or reset). The loader starts and reads `CPM3.SYS`.
 
 Digital Research's CP/M 3 is free to distribute under the same DRDOS, Inc. grant as

@@ -33,7 +33,7 @@ It is a single web page with no dependencies, no build step and no server. It in
 - **A modem and a BBS.** A 1200 baud modem on ports 6 and 7, with Hayes AT commands, and TERM to use it: dial the built-in bulletin board (`ATDT5550100`) for the time, the moon, bulletins, XMODEM downloads and uploads, a chat with the sysop (rules built in, or a language model of your choice), WOPR (a dozen games), a fortune cookie jar, a reference desk, a wall, mail from the sysop and, if you allow it in SETUP, the weather. `IRC` is an IRC client for the same modem (`/connect`, `/join`, `/msg`, `/query` ...); it and TERM are on the Online disk of the shelf. A real USB WiFi modem works too (Web Serial), and a small bridge program reaches telnet hosts and IRC servers. See [docs/modem.md](docs/modem.md).
 - **A printer you can watch.** PRTDEMO shows off pica, elite, condensed, bold, italic, underlined, enlarged, super- and subscript text and bit-image graphics. Save the pages as PNG or PDF.
 - **Snapshots.** Freeze the whole machine (CPU, memory, screen and disks) and come back to that exact moment later, even mid-game. Leave the page and it resumes where you were.
-- **Bring your own software.** Drop files onto the DRIVES panel to copy them to the selected drive, or LOAD a whole `.dsk` image into a drive. Make a disk from a folder on your device (FROM FOLDER), or point the SHELF tab at a private catalog on your own server: software you may not share stays on your machines. Disks use the standard 8" format of cpmtools and z80pack, plus the 5¼" ones below.
+- **Bring your own software.** Drop files onto the DRIVES panel to copy them to the selected drive, or LOAD a whole `.dsk` image into a drive. Make a disk from a folder on your device (FROM FOLDER), or point the SHELF section of DRIVES at a private catalog on your own server: software you may not share stays on your machines. Disks use the standard 8" format of cpmtools and z80pack, plus the 5¼" ones below.
 - **Hackable to the bone.** The BIOS, the boot loader and SYSGEN are short, commented 8080 sources on the boot disk. Change them with `ED`, assemble them with `ASM`, install them with `SYSGEN`.
 - **It sounds right.** The bell, the clunk of an 8" drive loading its head, the clicks of the head stepping across tracks, and the rasp of the print head. All are synthesized, and a SETUP switch turns them off.
 - **Screenshots.** SHOT saves the screen as a PNG, phosphor glow and scan lines included.
@@ -60,11 +60,11 @@ A>D:                         to a shelf disk, Zork I here
 D>VEZZA ZORK1.Z3             and you are standing west of a white house
 ```
 
-A: holds the CP/M 2.2 tools (PIP, STAT, ED, ASM, LOAD, DDT, SUBMIT, XSUB, DUMP), SYSGEN, PRTDEMO, and the sources of the BIOS, the loader and SYSGEN. B: holds an empty disk. Games and tools are on the shelf (SHELF tab): put Zork I in D: and `D:` `PLAY` starts it.
+A: holds the CP/M 2.2 tools (PIP, STAT, ED, ASM, LOAD, DDT, SUBMIT, XSUB, DUMP), SYSGEN, PRTDEMO, and the sources of the BIOS, the loader and SYSGEN. B: holds an empty disk. Games and tools are on the shelf (SHELF, in DRIVES): put Zork I in D: and `D:` `PLAY` starts it.
 
 `^C` warm-starts the system, `^S` pauses the output and `^P` echoes the console to the printer. In Zork, `SAVE` and `RESTORE` keep your progress on the disk.
 
-For CP/M 3, open the SHELF tab, put the *CP/M 3* disk in A: and press `^C` (on a phone, the **^C** key button). It boots as CP/M 3.0; try `DIR`, `SHOW` and `DATE`. To go back, put the *CP/M 2.2* disk in A: and press RESET.
+For CP/M 3, open SHELF in the DRIVES panel, put the *CP/M 3* disk in A: and press `^C` (on a phone, the **^C** key button). It boots as CP/M 3.0; try `DIR`, `SHOW` and `DATE`. To go back, put the *CP/M 2.2* disk in A: and press RESET.
 
 ## Learn more
 
@@ -74,7 +74,7 @@ The full guide is in the **[wiki](https://github.com/cstroie/digital-rerun/wiki/
 |---|---|
 | [Getting started](https://github.com/cstroie/digital-rerun/wiki/Getting-Started), [user guides](https://github.com/cstroie/digital-rerun/wiki/User-Guides) | first steps, everyday use |
 | [The interface and the app](https://github.com/cstroie/digital-rerun/wiki/Interface-and-App) | the panels, the paper drawer, phone, install, offline, updates |
-| [Drives and files](https://github.com/cstroie/digital-rerun/wiki/Drives-and-Files), [the shelf](https://github.com/cstroie/digital-rerun/wiki/Shelf) | disks, formats, ADD FILES, paper tape, My disks, the private shelf |
+| [Drives and files](https://github.com/cstroie/digital-rerun/wiki/Drives-and-Files), [the shelf](https://github.com/cstroie/digital-rerun/wiki/Shelf) | disks, formats, ADD FILES, My disks, the private shelf |
 | [The console](https://github.com/cstroie/digital-rerun/wiki/Console), [the printer](https://github.com/cstroie/digital-rerun/wiki/Printer) | VT100, VT52, ADM-3A; the FX-80 and its command set |
 | [Snapshots](https://github.com/cstroie/digital-rerun/wiki/Snapshots), [the debugger](https://github.com/cstroie/digital-rerun/wiki/Debugger) | freeze and restore the machine; registers, disassembly, breakpoints |
 | [Changing the system](https://github.com/cstroie/digital-rerun/wiki/Changing-the-System) | rebuild the BIOS inside CP/M, the 1980 way |

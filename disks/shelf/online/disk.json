@@ -4,6 +4,6 @@
  "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM), and IRC, an IRC client (/connect, /join, /msg, /query ...), each with its directory of numbers and servers (TERM.DIR, IRC.DIR). Put it in B:, then B: and IRC or TERM.",
  "credit": "Costin Stroie; MIT licence. Source in system/term.asm and system/irc.asm.",
  "licence": "MIT",
- "category": "Communications",
+ "category": "Comm",
  "text": ["TERM.DIR", "IRC.DIR"]
 }

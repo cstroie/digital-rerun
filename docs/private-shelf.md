@@ -1,6 +1,6 @@
 # A private shelf
 
-**Private shelf** is DigitalRerun's feature for managing software you own but may not share (such as the Infocom collections, WordStar, compilers, etc.). This software never goes into the DigitalRerun repository or the app itself. Instead, it lives in a catalog on your own web server. The SHELF tab's *Private shelf* section points the app at this catalog, and a disk image is fetched only when you insert it into a drive. Nothing is cached by the service worker, ensuring your private software stays on your servers.
+**Private shelf** is DigitalRerun's feature for managing software you own but may not share (such as the Infocom collections, WordStar, compilers, etc.). This software never goes into the DigitalRerun repository or the app itself. Instead, it lives in a catalog on your own web server. The *Private* section of SHELF (in DRIVES) points the app at this catalog, and a disk image is fetched only when you insert it into a drive. Nothing is cached by the service worker, ensuring your private software stays on your servers.
 
 ## Purpose and Benefits
 
@@ -13,7 +13,7 @@
 
 1. **Catalog Creation**: Build a catalog from your software using `tools/private-shelf.js`
 2. **Hosting**: Serve the catalog from your own web server (static file server or specialized tool)
-3. **Connection**: Point DigitalRerun to your catalog via the SHELF tab → Private shelf
+3. **Connection**: Point DigitalRerun to your catalog via SHELF (in DRIVES) → Private
 4. **Usage**: Insert disks from your catalog into drives as needed
 
 ## Key Differences from Public Shelf
@@ -101,7 +101,7 @@ It speaks http: fine for `http://localhost`, not for anything else.
 
 ## 3. Connect the app
 
-SHELF tab → *Private shelf*: the catalog's address (a folder, or the `.json`) and the
+SHELF (in DRIVES) → *Private*: the catalog's address (a folder, or the `.json`) and the
 token if there is one → CONNECT. The address and token are kept in this browser
 (`localStorage`) and the catalog is read again whenever the app opens; FORGET removes
 both. A catalog that cannot be reached says so under the heading (address, https

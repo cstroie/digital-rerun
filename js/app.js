@@ -103,6 +103,8 @@
     const phone = matchMedia('(max-width: 900px)');
 
     function showTab(name) {
+        if (name === 'shelf') name = 'drives';                      // the SHELF tab is part of DRIVES now
+        if (name === 'printer') name = 'devices';                   // PRINTER became DEVICES (with the paper tape)
         settings.tab = name;
         if (name === 'paper' && !phone.matches) name = 'drives';      // the desktop has no PAPER tab
         for (const b of document.querySelectorAll('#tabs [data-for]')) b.setAttribute('aria-selected', String(b.dataset.for === name));
@@ -385,6 +387,7 @@
             row.addEventListener('click', () => { selected = d; renderDrives(); });
             box.appendChild(row);
         }
+        if (shelfFloppy() !== shelfLetter) { shelfLetter = shelfFloppy(); renderShelf(); renderPrivate(); renderMyDisks(); }
         renderFiles();
         markInserted();
     }
@@ -483,7 +486,7 @@
             const at = Shelf.catalogUrl(url, location.href);
             privateShelf = Shelf.resolveCatalog(await (await fetchPrivate(at, token)).json(), at);
             localStorage.setItem(PRIVATE_KEY, JSON.stringify({ url, token }));
-            privateNote(`${privateShelf.length} disk${privateShelf.length === 1 ? '' : 's'}`);
+            privateNote(`connected to ${new URL(at).host}: ${privateShelf.length} disk${privateShelf.length === 1 ? '' : 's'}`);
         } catch (e) {
             privateShelf = [];
             // a network failure says nothing useful by itself: name the usual causes
@@ -496,7 +499,7 @@
         const box = $('privshelf');
         box.textContent = '';
         const { token } = privateConf();
-        const floppy = LETTER(Number($('shelfDrive').value));
+        const floppy = floppyLetter();
         for (const category of [...new Set(privateShelf.map(e => e.category))]) {
             const h = document.createElement('h3');
             h.textContent = category.toUpperCase();
@@ -512,6 +515,7 @@
             }
         }
         markInserted();
+        renderShelfTabs();
     }
 
     $('privateConnectBtn').addEventListener('click', () => connectPrivate($('privateUrl').value, $('privateToken').value.trim()));
@@ -521,12 +525,12 @@
         localStorage.removeItem(PRIVATE_KEY);
         $('privateUrl').value = $('privateToken').value = '';
         privateShelf = [];
-        privateNote('');
+        privateNote('not connected');
         renderPrivate();
     });
 
     /** Which drive a disk of this format goes into: I: for a hard disk, else the one chosen. */
-    const targetFor = format => (format === HARD ? 8 : Number($('shelfDrive').value));
+    const targetFor = format => (format === HARD ? 8 : shelfFloppy());
 
     async function insertDisk(make, label, format, origin) {
         const drive = targetFor(format);
@@ -586,23 +590,58 @@
         box.appendChild(el);
     }
 
+    /* The SHELF sections: one at a time, picked by the sub-tabs. The public ones are the
+       categories of shelf.json (in its order); PRIVATE and MY DISKS are the owner's own. */
+    const SHELF_OWN = ['private', 'mine'];
+    /* Floppy shelf disks go into the drive selected in DRIVES (I: has no floppy: C: then). */
+    const shelfFloppy = () => (selected === 8 ? 2 : selected);
+    const floppyLetter = () => LETTER(shelfFloppy());
+    let shelfLetter = -1;                         // the drive the shelf last showed, to redraw when it changes
+    let shelfView = '';                          // a category's key (lowercase), or 'private', or 'mine'
+    let myCount = 0;
+
+    /** The sub-tabs, with a count on each; shows the chosen section and hides the others. */
+    function renderShelfTabs() {
+        const categories = [...new Set(shelf.map(e => e.category))];
+        const views = categories.map(c => ({ key: c.toLowerCase(), label: c, n: shelf.filter(x => x.category === c).length }));
+        views.push({ key: 'private', label: 'Private', n: privateShelf.length }, { key: 'mine', label: 'My disks', n: myCount });
+        // the default is the first public section; before the catalogue loads there is none, so the choice waits
+        if (!views.some(v => v.key === shelfView)) shelfView = (views.find(v => !SHELF_OWN.includes(v.key)) || { key: '' }).key;
+        const box = $('shelfTabs');
+        box.textContent = '';
+        for (const v of views) {
+            const b = document.createElement('button');
+            b.setAttribute('role', 'tab');
+            b.setAttribute('aria-selected', String(v.key === shelfView));
+            b.dataset.shelf = v.key;
+            b.textContent = v.label.toUpperCase();
+            const n = document.createElement('span');
+            n.className = 'count';
+            n.textContent = v.n;
+            b.appendChild(n);
+            b.addEventListener('click', () => { shelfView = v.key; renderShelf(); });
+            box.appendChild(b);
+        }
+        const own = SHELF_OWN.includes(shelfView);
+        $('shelf').hidden = own;
+        $('shelfPrivate').hidden = shelfView !== 'private';
+        $('shelfMine').hidden = shelfView !== 'mine';
+    }
+
+    /** The public disks of the chosen section. */
     function renderShelf() {
+        renderShelfTabs();
         const box = $('shelf');
         box.textContent = '';
-        const floppy = LETTER(Number($('shelfDrive').value));
-        for (const category of [...new Set(shelf.map(e => e.category))]) {
-            const h = document.createElement('h3');
-            h.textContent = category.toUpperCase();
-            box.appendChild(h);
-            for (const e of shelf.filter(x => x.category === category)) {
-                const where = e.format === HARD ? 'I' : floppy;
-                card(box, {
-                    title: e.name, desc: e.description, meta: `${kindOf(e.format)} · ${e.credit}`,
-                    origin: `shelf:${e.id}`,
-                    buttons: [[`INSERT IN ${where}:`, `Put a fresh copy in ${where}:`,
-                        () => insertDisk(() => Shelf.buildDisk(e, fetchBytes), e.name, e.format, `shelf:${e.id}`)]]
-                });
-            }
+        const floppy = floppyLetter();
+        for (const e of shelf.filter(x => x.category.toLowerCase() === shelfView)) {
+            const where = e.format === HARD ? 'I' : floppy;
+            card(box, {
+                title: e.name, desc: e.description, meta: `${kindOf(e.format)} · ${e.credit}`,
+                origin: `shelf:${e.id}`,
+                buttons: [[`INSERT IN ${where}:`, `Put a fresh copy in ${where}:`,
+                    () => insertDisk(() => Shelf.buildDisk(e, fetchBytes), e.name, e.format, `shelf:${e.id}`)]]
+            });
         }
         markInserted();
     }
@@ -612,13 +651,15 @@
         box.textContent = '';
         let list = [];
         try { list = await Storage.listMyDisks(); } catch (e) { /* no storage */ }
+        myCount = list.length;
+        renderShelfTabs();
         if (!list.length) {
             const p = document.createElement('p');
             p.className = 'hint';
             p.textContent = 'None yet: KEEP A DISK puts a copy of a drive\'s disk here.';
             box.appendChild(p);
         }
-        const floppy = LETTER(Number($('shelfDrive').value));
+        const floppy = floppyLetter();
         for (const d of list) {
             const where = d.format === HARD ? 'I' : floppy;
             card(box, {
@@ -679,7 +720,6 @@
             PWA.toast(`${r.files} file${r.files === 1 ? '' : 's'} on "${folder}" (${kindOf(r.format)})${more.length ? ': ' + more.join(', ') : ''}.`);
         } catch (e) { note(e.message, false); }
     });
-    $('shelfDrive').addEventListener('change', () => { renderShelf(); renderPrivate(); renderMyDisks(); });
 
     async function loadShelf() {
         try {

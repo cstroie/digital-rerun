@@ -14,7 +14,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 command -v node >/dev/null 2>&1 || { echo "bridge.sh: node is needed (https://nodejs.org)" >&2; exit 1; }
 
 port=${BRIDGE_PORT:-1984}
-allow_default='telehack.com,bbs.fozztexx.com,towel.blinkenlights.nl,nethack.alt.org,bbs.retrocampus.com,bbs.hispamsx.org,particlesbbs.dyndns.org:6400,aardmud.org:4000,batmud.bat.org,sdf.org,irc.libera.chat:6667,irc.oftc.net:6667,irc.rizon.net:6667,irc.efnet.org:6667,irc.dal.net:6667,us.undernet.org:6667,irc.quakenet.org:6667'
+allow_default='telehack.com,bbs.fozztexx.com,towel.blinkenlights.nl,nethack.alt.org,bbs.retrocampus.com,bbs.hispamsx.org,particlesbbs.dyndns.org:6400,aardmud.org:4000,batmud.bat.org,sdf.org,irc.sdf.org:6667,irc.libera.chat:6667,irc.oftc.net:6667,irc.rizon.net:6667,irc.efnet.org:6667,irc.dal.net:6667,us.undernet.org:6667,irc.quakenet.org:6667,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12'
 allow=${BRIDGE_ALLOW:-$allow_default}
 
 # a first argument that is not an option is the list of hosts

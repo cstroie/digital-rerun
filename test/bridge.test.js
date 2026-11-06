@@ -25,6 +25,22 @@ test('allowed: names, ports, *.domain, * (public only unless allowed)', () => {
     assert.equal(allowed([], 'bbs.example.org', 23, false), false);
 });
 
+test('allowed: IPv4 blocks (LAN ranges), with an optional port; literal addresses only', () => {
+    const lan = ['192.168.0.0/16', '10.0.0.0/8'];
+    assert.equal(allowed(lan, '192.168.1.20', 23, false), true);
+    assert.equal(allowed(lan, '192.168.255.255', 6667, false), true);
+    assert.equal(allowed(lan, '192.169.0.1', 23, false), false);
+    assert.equal(allowed(lan, '10.1.2.3', 23, false), true);
+    assert.equal(allowed(lan, '11.0.0.1', 23, false), false);
+    assert.equal(allowed(['10.0.0.0/8:23'], '10.9.9.9', 23, false), true);
+    assert.equal(allowed(['10.0.0.0/8:23'], '10.9.9.9', 80, false), false);
+    assert.equal(allowed(['172.16.0.0/12'], '172.31.0.1', 23, false), true);
+    assert.equal(allowed(['172.16.0.0/12'], '172.32.0.1', 23, false), false);
+    assert.equal(allowed(['0.0.0.0/0'], '8.8.8.8', 23, false), true);
+    assert.equal(allowed(['192.168.0.0/33'], '192.168.1.1', 23, false), false, 'bad prefix matches nothing');
+    assert.equal(allowed(lan, 'nas.lan', 23, false), false, 'a name is not resolved, so not in a block');
+});
+
 /** A TCP server that records what it gets and says `greeting` first. */
 function tcpServer(greeting = Buffer.alloc(0)) {
     const got = [];

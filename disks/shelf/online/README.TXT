@@ -14,5 +14,5 @@ of places to go. Put this disk in B:, then type B: and the program.
 
 TERM.DIR and IRC.DIR are plain text, one place per line: edit them with
 ED. IRC.DIR holds host[:port] and a name; TERM.DIR a number or host and a
-name. Telnet hosts and IRC servers need the bridge (SETUP, MODEM; see
+name. Telnet hosts and IRC servers need the bridge (DEVICES, MODEM; see
 docs/modem.md); IRC servers must take plain TCP on a port of 6660-6669.

@@ -15,7 +15,7 @@
  *   --token    a secret the page must send. By default it is not random but worked out
  *              from this machine's name, your user name and the port (and --seed, if
  *              given): three words and four hex digits, the same every run, so it can be
- *              typed into SETUP once. It keeps stray web pages out; it is not a secret
+ *              typed into DEVICES once. It keeps stray web pages out; it is not a secret
  *              from someone who knows those three things. --show-token prints it and exits.
  *   --origin   the page origin(s) allowed to connect (default: any).
  *   --allow-private  let `*` reach private and loopback addresses too (they
@@ -204,7 +204,7 @@ function main() {
     server.listen(port, bind, () => {
         console.error(`modem bridge on ws://${bind}:${port}  allowing: ${args.allow}`);
         console.error(`token: ${token}`);
-        console.error('In DigitalRerun: SETUP, MODEM: put the URL and the token there, then ATDT host:port in TERM.');
+        console.error('In DigitalRerun: DEVICES, MODEM: put the URL and the token there, then ATDT host:port in TERM.');
         if (args.allow.split(',').includes('*') && args['allow-private']) console.error('warning: * with --allow-private reaches every address this machine can.');
     });
 }

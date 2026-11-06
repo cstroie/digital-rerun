@@ -22,7 +22,7 @@
  *   now()        a Date
  *   board        { list() -> Promise<[{ when, name, text }]>, add(post) -> Promise }
  *   store        { get(key), set(key, value) }: small memories (the last city)
- *   online()     may the board ask the internet? (SETUP; off by default)
+ *   online()     may the board ask the internet? (DEVICES; off by default)
  *   fetchJson(url) -> Promise<object>
  *   files        { list() -> Promise<[{ name, size }]>, get(name) -> Promise<Uint8Array|null>,
  *                  put(name, bytes) -> Promise }
@@ -710,7 +710,7 @@
         /* --- the weather desk --- */
 
         weather() {
-            if (!this.s.online()) return this.menu('the weather desk is not answering (SETUP, Online services)');
+            if (!this.s.online()) return this.menu('the weather desk is not answering (DEVICES, Online services)');
             const last = this.s.store.get('city') || '';
             this.page('WEATHER', 'RETURN with no city: back');
             this.out(`\nWhich city${last ? ` (RETURN for ${last})` : ''}?\n${DIM}The name is sent to open-meteo.com, nothing else.${OFF}\n\n? `);

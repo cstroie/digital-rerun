@@ -4,7 +4,7 @@
  *
  * Two minds, one voice:
  *   - an OpenAI-compatible chat endpoint (Ollama, llama.cpp, LM Studio or a
- *     hosted API), when SETUP names one and Online services is on. What is
+ *     hosted API), when DEVICES names one and Online services is on. What is
  *     sent: the persona below, the last few lines of this chat, and the line
  *     just typed. Nothing else leaves the page.
  *   - a small rule-based sysop (the old ELIZA trick, in the board's voice),
@@ -15,7 +15,7 @@
  *
  *   new Sysop({ online, config, fetch, random })
  *     online()   may the sysop ask the internet?
- *     config()   { url, model, key } from SETUP (url empty: no endpoint)
+ *     config()   { url, model, key } from DEVICES (url empty: no endpoint)
  *     fetch      like window.fetch
  *   reply(history, text) -> Promise<string>, history = [{ role, content }]
  */
@@ -98,7 +98,7 @@
             '1200 baud is 120 characters a second. Slow enough to read as it comes, which was the idea.',
             'ATDT dials, ATH hangs up, +++ gets the modem back. The rest is superstition.']],
         [/\b(weather|rain|snow|forecast|sun|cold|hot|temperature)\b/i, [
-            'The weather desk is W at the menu, if the internet is allowed in SETUP. Out my window it is dark.',
+            'The weather desk is W at the menu, if the internet is allowed in DEVICES. Out my window it is dark.',
             'I only know the sky from the spectrogram. Try W, if you let the board ask the internet.']],
         [/\bmoon\b/i, ['M at the menu draws it. Waxing on the right, waning on the left, as seen from the north.']],
         [/\b(cp\/?m|z80|8080|assembler|asm|bios|bdos|zork|wordstar|basic|forth)\b/i, [

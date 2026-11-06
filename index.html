@@ -136,6 +136,44 @@
                     <button id="tapeClearBtn" title="Throw away what was punched">CLEAR</button>
                 </div>
                 <p class="hint">Reader: <span id="tape-reader">no tape</span>. Punch: <span id="tape-punch">nothing yet</span>. <code>PIP FILE.TXT=RDR:</code> reads the tape, <code>PIP PUN:=FILE.TXT</code> punches a file.</p>
+                <h2 class="sub">ONLINE</h2>
+                <label class="check"><input type="checkbox" id="online"> Online services: the BBS weather desk may ask the internet (it sends the city you type to open-meteo.com)</label>
+                <h2 class="sub">MODEM <span id="serial-state"></span></h2>
+                <label class="field">Speed
+                    <select id="baud">
+                        <option value="300">300 baud</option>
+                        <option value="1200">1200 baud</option>
+                        <option value="2400">2400 baud</option>
+                        <option value="9600">9600 baud</option>
+                        <option value="19200">19200 baud</option>
+                    </select>
+                </label>
+                <div class="subtabs" role="radiogroup" aria-label="Which modem">
+                    <button role="radio" id="modemInternal" aria-selected="true" title="The built-in modem: no hardware, dials the BBS and the telnet hosts">INTERNAL</button>
+                    <button role="radio" id="modemExternal" aria-selected="false" title="A real modem on a USB serial port">EXTERNAL</button>
+                </div>
+                <div class="tools">
+                    <button id="serialBtn" hidden title="Choose the USB serial port of the external modem">CHOOSE PORT…</button>
+                </div>
+                <label class="field">Bridge
+                    <input id="gateway" type="url" placeholder="ws://localhost:1984" spellcheck="false" autocomplete="off">
+                </label>
+                <label class="field">Bridge token
+                    <input id="gatewayToken" type="password" placeholder="printed by the bridge" spellcheck="false" autocomplete="off">
+                </label>
+                <label class="check"><input type="checkbox" id="serialSignals"> Use the DTR and DCD lines (a USB board with an ESP chip resets when DTR changes)</label>
+                <p class="hint" id="serialNote">The built-in modem dials the BBS: <code>TERM</code>, then <code>ATDT5550100</code>. <code>ATDT host:port</code> reaches a telnet host through a bridge you run (<code>node tools/modem-bridge.js --allow=host</code>; put its address and token above). EXTERNAL uses a real modem on a USB serial port instead, even when one is plugged in; INTERNAL is the built-in one again (Chrome, Edge or another browser with Web Serial; set the speed to match).</p>
+                <h2 class="sub">SYSOP CHAT</h2>
+                <label class="field">Endpoint
+                    <input id="sysopUrl" type="url" placeholder="http://localhost:11434/v1" spellcheck="false" autocomplete="off">
+                </label>
+                <label class="field">Model
+                    <input id="sysopModel" placeholder="llama3.2" spellcheck="false" autocomplete="off">
+                </label>
+                <label class="field">API key
+                    <input id="sysopKey" type="password" placeholder="if it wants one" spellcheck="false" autocomplete="off">
+                </label>
+                <p class="hint">The BBS sysop (<code>C</code> at its menu) answers from rules built in. With <em>Online services</em> on and an OpenAI-compatible endpoint here (Ollama, llama.cpp, LM Studio or a hosted one), a language model answers instead: it is sent the sysop's instructions, the last lines of that chat and the line you type, nothing else. The key stays in this browser. A local server must allow this page's origin (CORS).</p>
             </section>
 
             <section class="panel" data-tab="setup">
@@ -164,39 +202,6 @@
                 </label>
                 <label class="check"><input type="checkbox" id="lineDrawing"> DEC line drawing: ESC ( 0 and Shift Out switch to the box and line characters (VT100 mode)</label>
                 <label class="check"><input type="checkbox" id="sound"> Sounds: bell, drives, printer</label>
-                <label class="check"><input type="checkbox" id="online"> Online services: the BBS weather desk may ask the internet (it sends the city you type to open-meteo.com)</label>
-                <h2 class="sub">MODEM <span id="serial-state"></span></h2>
-                <label class="field">Speed
-                    <select id="baud">
-                        <option value="300">300 baud</option>
-                        <option value="1200">1200 baud</option>
-                        <option value="2400">2400 baud</option>
-                        <option value="9600">9600 baud</option>
-                        <option value="19200">19200 baud</option>
-                    </select>
-                </label>
-                <div class="tools">
-                    <button id="serialBtn" title="Use a real modem on a USB serial port instead of the built-in one">REAL MODEM…</button>
-                </div>
-                <label class="field">Bridge
-                    <input id="gateway" type="url" placeholder="ws://localhost:1984" spellcheck="false" autocomplete="off">
-                </label>
-                <label class="field">Bridge token
-                    <input id="gatewayToken" type="password" placeholder="printed by the bridge" spellcheck="false" autocomplete="off">
-                </label>
-                <label class="check"><input type="checkbox" id="serialSignals"> Use the DTR and DCD lines (a USB board with an ESP chip resets when DTR changes)</label>
-                <p class="hint" id="serialNote">The built-in modem dials the BBS: <code>TERM</code>, then <code>ATDT5550100</code>. <code>ATDT host:port</code> reaches a telnet host through a bridge you run (<code>node tools/modem-bridge.js --allow=host</code>; put its address and token above). A real WiFi modem on a USB serial port takes its place here (Chrome, Edge or another browser with Web Serial; set its speed to match).</p>
-                <h2 class="sub">SYSOP CHAT</h2>
-                <label class="field">Endpoint
-                    <input id="sysopUrl" type="url" placeholder="http://localhost:11434/v1" spellcheck="false" autocomplete="off">
-                </label>
-                <label class="field">Model
-                    <input id="sysopModel" placeholder="llama3.2" spellcheck="false" autocomplete="off">
-                </label>
-                <label class="field">API key
-                    <input id="sysopKey" type="password" placeholder="if it wants one" spellcheck="false" autocomplete="off">
-                </label>
-                <p class="hint">The BBS sysop (<code>C</code> at its menu) answers from rules built in. With <em>Online services</em> on and an OpenAI-compatible endpoint here (Ollama, llama.cpp, LM Studio or a hosted one), a language model answers instead: it is sent the sysop's instructions, the last lines of that chat and the line you type, nothing else. The key stays in this browser. A local server must allow this page's origin (CORS).</p>
                 <h2 class="sub">APP <span id="version"></span></h2>
                 <div class="tools">
                     <button id="installBtn" hidden title="Install DigitalRerun as an app that works offline">INSTALL APP</button>

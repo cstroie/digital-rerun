@@ -212,12 +212,12 @@
     function directory(h) {
         h.out(begin(h, 'DIAL DIRECTORY', 'checked 5 Nov 2026'));
         const lines = DIRECTORY.map(e => `${BOLD}ATDT ${e.n}${OFF}  ${e.host}${e.port === 23 ? '' : ':' + e.port}\n${wrap(e.text, 76, '   ')}`).join('\n');
-        show(h, `${lines}\n\nDial 0101 or 555-0101. These are other people's machines, over the internet: they need the\nbridge (SETUP, MODEM). You can also dial a host by name: ATDT telehack.com. Be kind to them.`, () => finish(h));
+        show(h, `${lines}\n\nDial 0101 or 555-0101. These are other people's machines, over the internet: they need the\nbridge (DEVICES, MODEM). You can also dial a host by name: ATDT telehack.com. Be kind to them.`, () => finish(h));
     }
 
     /* ============================ online desks ======================== */
 
-    const offline = h => { h.out('\nThat desk needs the internet: SETUP, Online services.\n'); finish(h); };
+    const offline = h => { h.out('\nThat desk needs the internet: DEVICES, Online services.\n'); finish(h); };
     const notAnswering = h => { h.out('\nThe desk is not answering.\n'); finish(h); };
 
     function news(h) {

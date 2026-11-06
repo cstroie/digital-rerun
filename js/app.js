@@ -70,7 +70,7 @@
 
     /* ---------- settings ---------- */
 
-    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, lineDrawing: true, baud: 1200, serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
+    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, lineDrawing: true, baud: 1200, modem: 'internal', serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
 
     function applySettings() {
         $('speed').value = String(settings.speed);
@@ -1235,13 +1235,19 @@
         return info.usbVendorId !== undefined ? `USB ${hex(info.usbVendorId)}:${hex(info.usbProductId || 0)}` : 'SERIAL PORT';
     }
 
+    /* The choice: INTERNAL (the built-in modem) or EXTERNAL (a real modem on a USB serial port). It is the
+       choice that counts, even when a port is plugged in too: leaving EXTERNAL means INTERNAL again. */
     function showSerial() {
-        const on = !!serial;
-        $('serialBtn').textContent = on ? 'DISCONNECT REAL MODEM' : 'CONNECT REAL MODEM…';
-        $('serial-state').textContent = on ? `REAL MODEM CONNECTED, ${serialName(serial.port)}, ${settings.baud} BAUD` : 'NOT CONNECTED (BUILT-IN MODEM)';
-        $('serialBtn').disabled = !on && !SerialLine.supported();
-        $('serialBtn').title = SerialLine.supported() ? 'Use a real modem on a USB serial port instead of the built-in one' : 'This browser has no Web Serial (try Chrome or Edge)';
-        $('serialSignals').disabled = on;
+        const external = settings.modem === 'external';
+        const webSerial = SerialLine.supported();
+        $('modemInternal').setAttribute('aria-selected', String(!external));
+        $('modemExternal').setAttribute('aria-selected', String(external));
+        $('modemExternal').disabled = !webSerial;
+        $('modemExternal').title = webSerial ? 'A real modem on a USB serial port' : 'This browser has no Web Serial (try Chrome or Edge)';
+        $('serialBtn').hidden = !external;
+        $('serialBtn').textContent = serial ? 'CHOOSE ANOTHER PORT…' : 'CHOOSE PORT…';
+        $('serial-state').textContent = serial ? `EXTERNAL MODEM CONNECTED, ${serialName(serial.port)}, ${settings.baud} BAUD` : external ? 'EXTERNAL MODEM NOT CONNECTED' : 'INTERNAL MODEM';
+        $('serialSignals').disabled = !!serial;
     }
 
     /** Open `port` as the modem line (the call, if any, is dropped). */
@@ -1256,23 +1262,53 @@
         showSerial();
     }
 
+    /** Back to the built-in modem (the choice follows: INTERNAL). */
     function leaveSerial() {
         const line = serial;
         serial = null;
         machine.modem.attach(hayes);
         if (line) line.close();
+        settings.modem = 'internal';
+        Storage.set('settings', settings).catch(() => {});
         showSerial();
     }
 
-    $('serialBtn').addEventListener('click', async () => {
-        if (serial) { leaveSerial(); focusScreen(); return; }
-        try {
-            await openSerial(await SerialLine.request());
-            focusScreen();
-        } catch (e) {
+    /** The port chooser, then the external modem on the port chosen (the one before it, if any, is let go). False when none was.  */
+    async function pickExternal() {
+        let port;
+        try { port = await SerialLine.request(); } catch (e) {
             if (e.name !== 'NotFoundError') PWA.toast(`Could not open the modem port: ${e.message}`);   // NotFoundError: the chooser was closed
+            return false;
         }
+        if (serial) { const old = serial; serial = null; machine.modem.attach(hayes); await old.close(); }
+        try { await openSerial(port); return true; } catch (e) {
+            PWA.toast(`Could not open the modem port: ${e.message}`);
+            return false;
+        }
+    }
+
+    /** At startup, EXTERNAL comes back only if a port the user allowed before is there; else INTERNAL. */
+    async function restoreExternal() {
+        if (settings.modem !== 'external') return showSerial();
+        let ok = false;
+        try {
+            const granted = SerialLine.supported() ? await navigator.serial.getPorts() : [];
+            if (granted.length) { await openSerial(granted[0]); ok = true; }
+        } catch (e) { /* not there now: INTERNAL below */ }
+        if (!ok) { settings.modem = 'internal'; Storage.set('settings', settings).catch(() => {}); }
+        showSerial();
+    }
+
+    $('modemInternal').addEventListener('click', () => { leaveSerial(); focusScreen(); });
+    $('modemExternal').addEventListener('click', async () => {
+        settings.modem = 'external';
+        const ok = serial ? true : await pickExternal();
+        if (!ok) settings.modem = 'internal';
+        Storage.set('settings', settings).catch(() => {});
+        showSerial();
+        if (ok) focusScreen();
     });
+    $('serialBtn').addEventListener('click', async () => { await pickExternal(); showSerial(); focusScreen(); });
     $('baud').addEventListener('change', async () => {
         settings.baud = Number($('baud').value);
         machine.modem.baud = settings.baud;
@@ -1347,6 +1383,7 @@
             if (saved) Object.assign(settings, saved);
         } catch (e) { /* private mode: no storage */ }
         applySettings();
+        await restoreExternal();
         showTab(settings.tab);
         let disks = new Map();
         try { disks = await Storage.loadDisks(); } catch (e) { /* none */ }

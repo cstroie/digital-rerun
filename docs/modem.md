@@ -16,7 +16,7 @@ Z80 program ⇄ UART (ports 6/7, 1200 baud) ⇄ Hayes AT layer ⇄ line
   tested against the 1979 disk). CP/M 2.2 programs (a terminal program, MEX, Kermit-80) use the ports.
 - **Terminal unchanged**: ASCII only. The BBS uses boxes of `+-|`, bold and reverse. No DEC graphics, no
   colour. A bridge announces `TERM=vt100`.
-- **Online services are off by default**: one SETUP switch; the text says what is sent (a city name goes to
+- **Online services are off by default**: one switch in DEVICES; the text says what is sent (a city name goes to
   the weather service). Off or offline, the desk is "not answering".
 - **All three lines**: the built-in BBS, the telnet bridge, Web Serial.
 - **1200 baud for the feel**, 300/2400/9600 selectable. Timing is counted in the machine's T-states, so it
@@ -52,7 +52,7 @@ otherwise 1200 baud would crawl at an idle prompt.
 4. The built-in BBS: menu, clock, moon phase, bulletin board (IndexedDB), XMODEM file area (the shelf),
    SYSOP chat (Z80-μLM). Then the weather desk (Open-Meteo, behind the setting).
 5. `tools/modem-bridge.js`: a dependency-free Node WebSocket-to-TCP gateway (host allowlist, token); telnet
-   negotiation in the page. A gateway URL in SETUP. A page served over https reaches only `wss://` or
+   negotiation in the page. A gateway URL in DEVICES. A page served over https reaches only `wss://` or
    `ws://localhost`.
 6. Web Serial (Chromium only; needs a modem to test).
 
@@ -97,7 +97,7 @@ flow control: a byte nobody reads before the next arrives is lost (overrun), as 
   all, in the browser). **D**ownload and **U**pload by XMODEM; the board sends checksum or CRC, and asks for
   checksum. In TERM: `Ctrl-] R` receives (file name, then the board sends), `Ctrl-] S` sends; Ctrl-X stops.
   TERM times out through the machine's clock (port 20), so a transfer that gets no answer stops on its own.
-- **W** the weather desk, needs SETUP → *Online services* (off by default): the city name goes to open-meteo.com
+- **W** the weather desk, needs DEVICES → *Online services* (off by default): the city name goes to open-meteo.com
   (geocoding, then a 4-day forecast), nothing else. Off or unreachable: "the weather desk is not answering".
 - **C** chat with the sysop (below).
 - **G** games: WOPR (below). **O** a fortune. **S** services (below). **Q** quit (hangs up).
@@ -144,14 +144,13 @@ takes what comes meanwhile: nothing is lost up to 19200 baud (test/irc.test.js).
 
 ## A real modem (Web Serial, step 6)
 
-SETUP → MODEM → *CONNECT REAL MODEM…* opens the browser's port chooser (Chrome, Edge or another browser with Web Serial;
+DEVICES → MODEM → *EXTERNAL* opens the browser's port chooser (Chrome, Edge or another browser with Web Serial;
 https or localhost; a click is needed) and puts the chosen USB serial port in place of the built-in Hayes
 modem (`js/devices/webserial.js`). A WiFi modem (Zimodem, WiModem232 …) speaks Hayes itself, so bytes go
-through both ways: `TERM`, `ATDT host:port`. Set the speed in SETUP to the modem's (300–19200; changing it reopens
+through both ways: `TERM`, `ATDT host:port`. Set the speed in DEVICES to the modem's (300–19200; changing it reopens
 the port). The UART still spaces what comes in at that speed, so a fast modem is heard at 1200 baud if you like.
 Carrier is read from the modem's `CONNECT` and `NO CARRIER` lines; *Use the DTR and DCD lines* reads DCD and drives
-DTR instead (off by default: a USB board with an ESP chip resets when DTR changes). Unplugging the port, or
-*DISCONNECT REAL MODEM*, goes back to the BBS. The BBS and the echo service are not reachable while a real modem is on.
+DTR instead (off by default: a USB board with an ESP chip resets when DTR changes). The choice is *INTERNAL* or *EXTERNAL*, and it is the one that counts: with a port plugged in the built-in modem stays until you pick *EXTERNAL*. *CHOOSE PORT…* picks another port. Unplugging the external modem, or picking *INTERNAL*, goes back to the built-in modem and the BBS, and says so. After a restart *EXTERNAL* comes back only if the browser still has a port you allowed before; otherwise it is *INTERNAL*. The BBS and the echo service are not reachable while a real modem is on.
 
 ## A telnet host (the bridge, step 5)
 
@@ -165,8 +164,8 @@ tools/bridge.sh --show-token         # just print the token
 
 It prints its address (`ws://127.0.0.1:1984`) and a token. The token is not random: it is worked out from this machine's name, your
 user name and the port (three words and four hex digits, e.g. `valve-yonder-dynamo-8829`), so it is the same every run and can be
-typed into SETUP once (`BRIDGE_SEED=salt` adds a salt; `BRIDGE_PORT` changes the port). It keeps stray web pages out; it is not a
-secret from someone who knows the machine name, the user and the port. Then SETUP → MODEM: *Bridge* `ws://localhost:1984` and
+typed into DEVICES once (`BRIDGE_SEED=salt` adds a salt; `BRIDGE_PORT` changes the port). It keeps stray web pages out; it is not a
+secret from someone who knows the machine name, the user and the port. Then DEVICES → MODEM: *Bridge* `ws://localhost:1984` and
 *Bridge token*, and in TERM `ATDT bbs.example.org` (port 23) or `ATDT bbs.example.org:2323` (use `ATDT`: Hayes takes a lone `T` or
 `P` after `D` as a dial modifier). Anything that is not a number of the built-in directory (letters or dots) goes to the bridge.
 
@@ -182,7 +181,7 @@ secret from someone who knows the machine name, the user and the port. Then SETU
 - **The modem answers as a phone would** (`js/devices/gateway.js`): no bridge at the URL `NO DIALTONE`, not
   allowed or unreachable `NO CARRIER`, connection refused `BUSY`, no answer in time `NO ANSWER`; the far end
   hanging up `NO CARRIER`.
-- The line is the UART's: 1200 baud (or what SETUP says) however fast the host is, and the same XMODEM in TERM.
+- The line is the UART's: 1200 baud (or what DEVICES says) however fast the host is, and the same XMODEM in TERM.
   Colour BBSes send ANSI colour and CP437 line drawing, which the VT100 screen does not draw (ASCII only, by
   decision); most say VT100 and send plain text. The DEC line-drawing set (`ESC ( 0`, `ESC ) 0`, SO/SI, the box and line characters
   of curses programs) is drawn in VT100 mode; SETUP → *DEC line drawing* turns it off (the sequences are then ignored).
@@ -195,7 +194,7 @@ emulated machine, and says he is a program when sincerely asked.
 
 - **Built in:** a small rule-based sysop (the old ELIZA trick in the board's voice: reflects "I am ...", knows
   the menu, TERM, XMODEM, AT commands, CP/M). It needs nothing and answers whenever the endpoint cannot.
-- **A language model:** SETUP → SYSOP CHAT: *Endpoint* (an OpenAI-compatible base URL such as
+- **A language model:** DEVICES → SYSOP CHAT: *Endpoint* (an OpenAI-compatible base URL such as
   `http://localhost:11434/v1` for Ollama, or llama.cpp, LM Studio, a hosted API), *Model*, *API key*. Used only when
   *Online services* is on and an endpoint and a model are named. It is sent `POST {endpoint}/chat/completions`
   with the sysop's instructions, the last ten exchanges of that chat and the line just typed: nothing else leaves
@@ -254,7 +253,7 @@ program, by the next call: "you have mail from the sysop"), **D** the dial direc
 ## Line manners
 
 The board is one line, so now and then it is **busy** (8% of calls to `5550100`: dial again). Its sign-on follows
-the line's speed (SETUP → MODEM): short at 300 baud, the usual at 1200, with a banner from 2400.
+the line's speed (DEVICES → MODEM): short at 300 baud, the usual at 1200, with a banner from 2400.
 
 ## The console (VT100 furniture)
 

@@ -9,7 +9,7 @@
  */
 (function (root) {
     'use strict';
-    const info = { VERSION: '1.73.4', BUILD: 'b5919ad6f2de' };
+    const info = { VERSION: '1.73.6', BUILD: '510c52207116' };
     if (typeof module !== 'undefined' && module.exports) module.exports = info;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, info);
 })(typeof window !== 'undefined' ? window : globalThis);

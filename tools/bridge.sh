@@ -7,7 +7,7 @@
 #
 # Environment: BRIDGE_PORT (default 1984), BRIDGE_SEED (a salt for the token),
 # BRIDGE_ALLOW (the list, if none is given). More options are passed on to
-# modem-bridge.js (see its header). Then, in SETUP, MODEM: the address and the
+# modem-bridge.js (see its header). Then, in DEVICES, MODEM: the address and the
 # token this prints; in TERM: ATDT telehack.com
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)

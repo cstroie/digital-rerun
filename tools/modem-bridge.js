@@ -9,8 +9,9 @@
  *   tools/bridge.sh [hosts]      the same, with the board's directory allowed by default
  *
  *   --allow    which hosts may be dialed, comma separated: `bbs.example.org`,
- *              `bbs.example.org:2323`, `*.example.org`, or `*` for any public
- *              host. Required: nothing is dialed that is not named.
+ *              `bbs.example.org:2323`, `*.example.org`, an IPv4 block such as
+ *              `192.168.0.0/16` or `10.0.0.0/8` (a literal address only, no DNS),
+ *              or `*` for any public host. Required: nothing is dialed that is not named.
  *   --port     default 1984 (the year of a certain novel, and of a certain computer).
  *   --token    a secret the page must send. By default it is not random but worked out
  *              from this machine's name, your user name and the port (and --seed, if
@@ -68,6 +69,15 @@ function isPrivate(host) {
     return host.includes(':');                                // an IPv6 literal: not worth guessing
 }
 
+/** Is the IPv4 literal `host` inside the block `net`/`bits` (say 192.168.0.0/16)? */
+function inCidr(host, net, bits) {
+    const ip = s => { const p = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(s); if (!p) return null; const o = p.slice(1).map(Number); return o.every(x => x <= 255) ? ((o[0] << 24) | (o[1] << 16) | (o[2] << 8) | o[3]) >>> 0 : null; };
+    const h = ip(host), n = ip(net);
+    if (h === null || n === null || bits < 0 || bits > 32) return false;
+    const mask = bits === 0 ? 0 : (0xFFFFFFFF << (32 - bits)) >>> 0;
+    return ((h & mask) >>> 0) === ((n & mask) >>> 0);
+}
+
 /** Is host:port named by the allow list? */
 function allowed(list, host, port, allowPrivate) {
     host = host.toLowerCase();
@@ -76,6 +86,8 @@ function allowed(list, host, port, allowPrivate) {
         if (!m) continue;
         if (m[2] && Number(m[2]) !== port) continue;
         const pat = m[1];
+        const block = /^(\d+\.\d+\.\d+\.\d+)\/(\d{1,2})$/.exec(pat);
+        if (block) { if (inCidr(host, block[1], Number(block[2]))) return true; continue; }
         if (pat === '*') { if (isPrivate(host) && !allowPrivate) continue; return true; }
         if (pat.startsWith('*.')) { if (host.endsWith(pat.slice(1)) && !(isPrivate(host) && !allowPrivate)) return true; continue; }
         if (pat === host) return true;

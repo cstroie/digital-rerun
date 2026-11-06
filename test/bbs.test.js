@@ -7,7 +7,7 @@ const fortunes = require('../js/fortune.js');
 
 const NOW = new Date(2026, 10, 5, 14, 3);
 /** The text of a screen: the sequences gone, a cursor move a line break. */
-const plain = t => t.replace(/\x1b\[\d+;\d+H/g, '\n').replace(/\x1b\[(\d+)C/g, (m, n) => ' '.repeat(Number(n))).replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b[78]/g, '');          // Thursday 5 November 2026, 14:03 local
+const plain = t => t.replace(/\x1b\[\d+;\d+H/g, '\n').replace(/\x1b\[(\d+)C/g, (m, n) => ' '.repeat(Number(n))).replace(/\x1b\[\d+G/g, ' ').replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b[78]/g, '');          // Thursday 5 November 2026, 14:03 local
 
 function caller(extra = {}) {
     const memory = new Map();
@@ -56,22 +56,17 @@ test('the moon drawn: new is dark, full is lit, a waxing quarter is lit on the r
 test('it greets, shows the menu, and answers a bare RETURN with nothing', () => {
     const c = caller();
     assert.match(c.out, /DIGITAL RERUN BBS/);
-    for (const key of ['[T] time', '[M] moon', '[B] bulletins', '[F] files', '[C] chat', '[W] weather', '[G] games', '[O] fortune', '[S] services', '[Q] quit']) assert.ok(plain(c.out).includes(key), key);
+    for (const key of ['[B] Bulletins', '[F] Files', '[C] Chat', '[L] The Wall', '[M] Mail SysOp', '[W] Weather', '[K] Sky', '[G] Games', '[O] Fortune', '[S] Services', '[Q] Quit']) assert.ok(plain(c.out).includes(key), key);
     c.take();
     c.type('\r\n');
     assert.equal(c.out, '');
 });
 
-test('T: the date and time, from the host clock', () => {
-    const c = caller();
-    c.take();
-    c.type('t');
-    assert.match(c.out, /Thursday 5 November 2026/);
-    assert.match(c.out, /###/, 'the clock in big digits');
-});
 
-test('M: the moon page', () => {
-    const c = caller();
+test('M: the moon page, from the sky (K, then M)', () => {
+    const c = caller({ doors: require('../js/doors.js').DOORS });
+    c.take();
+    c.type('k');
     c.take();
     c.type('M');
     assert.match(c.out, /% lit/);
@@ -127,7 +122,7 @@ test('B: a post with no name is ANON, one with no text is not posted, Q goes bac
     c.type('b');
     await c.settle();
     c.type('q');
-    assert.match(plain(c.out), /\[T\] time/);
+    assert.match(plain(c.out), /\[B\] Bulletins/);
 });
 
 test('the board keeps the last 50 and shows the last 8', async () => {
@@ -160,7 +155,7 @@ test('W: off by default: the desk does not answer, and nothing is asked', () => 
     assert.match(c.out, /weather desk is not answering/);
     assert.match(c.out, /Online services/);
     assert.equal(asked, 0);
-    assert.match(plain(c.out), /\[T\] time/, 'the menu is back');
+    assert.match(plain(c.out), /\[B\] Bulletins/, 'the menu is back');
 });
 
 const GEO = { results: [{ name: 'Cluj-Napoca', country_code: 'RO', latitude: 46.77, longitude: 23.6 }] };
@@ -181,7 +176,7 @@ test('W: online: asks only for the city, shows the forecast, remembers the city'
     assert.match(c.out, /sent to open-meteo\.com, nothing else/);
     c.type('Cluj\r');
     await c.settle(); await c.settle();
-    assert.equal(urls.length, 2);
+    assert.equal(urls.length, 3, 'the geocoding, the forecast, the air');
     assert.match(urls[0], /^https:\/\/geocoding-api\.open-meteo\.com\/v1\/search\?name=Cluj&count=1$/);
     assert.match(urls[1], /^https:\/\/api\.open-meteo\.com\/v1\/forecast\?latitude=46\.77&longitude=23\.6&/);
     assert.match(c.out, /WEATHER DESK.*Cluj-Napoca, RO/s);
@@ -194,8 +189,8 @@ test('W: online: asks only for the city, shows the forecast, remembers the city'
     assert.match(c.out, /RETURN for Cluj-Napoca/);
     c.type('\r');
     await c.settle(); await c.settle();
-    assert.equal(urls.length, 4);
-    assert.match(urls[2], /name=Cluj-Napoca/);
+    assert.equal(urls.length, 6, 'and the same three again');
+    assert.match(urls[3], /name=Cluj-Napoca/);
 });
 
 test('W: an unknown place, and a desk that does not answer', async () => {
@@ -207,7 +202,7 @@ test('W: an unknown place, and a desk that does not answer', async () => {
     c.type('wCluj\r');
     await c.settle(); await c.settle();
     assert.match(c.out, /weather desk is not answering/);
-    assert.match(plain(c.out), /\[T\] time/);
+    assert.match(plain(c.out), /\[B\] Bulletins/);
 });
 
 test('weather page: the temperature range bars line up', () => {
@@ -302,7 +297,7 @@ test('download: waits for NAK, sends blocks, ACK moves on, EOT ends it (checksum
     c.take();
     c.session.send(6);
     assert.match(c.out, /HELLO\.COM: sent/);
-    assert.match(plain(c.out), /\[T\] time/);
+    assert.match(plain(c.out), /\[B\] Bulletins/);
 });
 
 test('download: a CRC receiver asking with C gets a CRC block; a NAK repeats the block; CAN stops it', async () => {
@@ -440,7 +435,7 @@ test('C: without a sysop service he is away', () => {
     c.take();
     c.type('c');
     assert.match(c.out, /stepped away/);
-    assert.match(plain(c.out), /\[T\] time/);
+    assert.match(plain(c.out), /\[B\] Bulletins/);
 });
 
 test('C: a chat, with the history passed on, and /BYE back to the menu', async () => {
@@ -463,7 +458,7 @@ test('C: a chat, with the history passed on, and /BYE back to the menu', async (
     c.take();
     c.type('/bye\r');
     assert.match(plain(c.out), /chat with the sysop ended/);
-    assert.match(plain(c.out), /\[T\] time/);
+    assert.match(plain(c.out), /\[B\] Bulletins/);
 });
 
 test('C: an empty line asks again, control characters are not sent, a failing sysop does not break the chat', async () => {
@@ -514,17 +509,17 @@ test('G: the games room is WOPR; leaving it comes back to the menu', () => {
     c.take();
     c.type('logoff\r');
     assert.match(c.out, /CONNECTION TERMINATED/);
-    assert.match(plain(c.out), /\[G\] games/);
+    assert.match(plain(c.out), /\[G\] Games/);
     c.take();
-    c.type('t');
-    assert.match(c.out, /Thursday 5 November/, 'the menu works again');
+    c.type('?');
+    assert.match(plain(c.out), /\[G\] Games/, 'the menu works again');
 });
 
 test('G: a game of tic-tac-toe through the BBS', () => {
     const c = caller();
     c.type('g\rx\r');
     c.type('tic\r');
-    c.type('1');
+    c.type('p');
     c.take();
     c.type('5');
     assert.match(c.out, /WOPR PLAYS/);
@@ -537,18 +532,21 @@ test('G: without the games room module it is locked', () => {
     assert.match(c.out, /games room is locked/);
 });
 
-test('O: a fortune, numbered; Y another, a different one; anything else back to the menu', () => {
+test('O: a fortune, numbered; O another, a different one; Q back to the menu', () => {
     const c = caller({ random: () => 0 });
     c.take();
     c.type('o');
     assert.match(plain(c.out), /FORTUNE 1 OF \d+/);
     const first = c.take();
-    c.type('y');
+    c.type('o');
     assert.match(plain(c.out), /FORTUNE 2 OF \d+/, 'not the same one again');
+    assert.match(plain(c.out), /O: Another {3}Esc-Esc\/Q: Quit/);
     assert.notEqual(plain(c.out), plain(first), 'a different fortune');
     c.take();
     c.type('n');
-    assert.match(plain(c.out), /\[T\] time/);
+    assert.equal(c.out, '', 'another key is nothing');
+    c.type('q');
+    assert.match(plain(c.out), /\[B\] Bulletins/);
 });
 
 test('O: a fortune is wrapped to the screen', () => {
@@ -598,8 +596,8 @@ test('S: the services menu runs a door and comes back to it; Q returns to the ma
     c.take();
     c.type('s');
     assert.match(plain(c.out), /SERVICES/);
-    assert.match(plain(c.out), /\[R\] Reference desk/);
-    assert.match(plain(c.out), /\[D\] Dial directory/);
+    assert.match(plain(c.out), /\[R\] Reference Desk/);
+    assert.match(plain(c.out), /\[D\] Dial Directory/);
     c.take();
     c.type('d');
     assert.match(plain(c.out), /DIAL DIRECTORY/);
@@ -607,10 +605,10 @@ test('S: the services menu runs a door and comes back to it; Q returns to the ma
     c.take();
     c.type(' ');                                              // a key at the end of the directory...
     c.type(' ');                                              // ...and one at the end of its page
-    assert.match(plain(c.out), /\[R\] Reference desk/, 'back at the services menu');
+    assert.match(plain(c.out), /\[R\] Reference Desk/, 'back at the services menu');
     c.take();
     c.type('q');
-    assert.match(plain(c.out), /\[T\] time/);
+    assert.match(plain(c.out), /\[B\] Bulletins/);
 });
 
 test('S: without the doors module the desk is closed', () => {
@@ -700,7 +698,7 @@ test('F, L: no library service, no L; a missing file or an unreachable shelf is 
 test('the main page follows the line: lean at 300 baud, the whole console every time above it', () => {
     const slow = caller({ baud: () => 300 });
     assert.doesNotMatch(plain(slow.out), /SYSTEM/);
-    assert.match(plain(slow.out), /\[T\] time/, 'the menu is there');
+    assert.match(plain(slow.out), /\[B\] Bulletins/, 'the menu is there');
     const mid = caller({ baud: () => 1200 });
     assert.match(plain(mid.out), /SYSTEM/);
     assert.match(plain(mid.out), /line +1200 baud, 8N1/);
@@ -716,19 +714,19 @@ test('the main page follows the line: lean at 300 baud, the whole console every 
 });
 
 test('the main page: a title bar, a status bar, a region between, nothing wider than 79 columns', () => {
-    const c = caller();
+    const c = caller({ doors: require('../js/doors.js').DOORS });
     assert.match(c.out, /^\x1b\[r.*\x1b\[1;1H.*DIGITAL RERUN BBS {2}> {2}MAIN/s);
     assert.match(c.out, /\x1b\[2;23r/);
     for (const part of c.out.split(/\x1b\[\d+;\d+H/).slice(3)) assert.ok(plain(part).length <= 79, plain(part));
     c.take();
-    c.type('t');
-    assert.match(plain(c.out), /TIME/);
-    assert.match(c.out, /\x1b\[24;1H.*press any key/);
+    c.type('k');
+    assert.match(plain(c.out), /SKY/);
+    assert.match(c.out, /\x1b\[24;1H.*Keys: MPIA {3}Esc-Esc\/Q: Back/);
 });
 
 test('every page has its bars; goodbye puts the terminal right again', () => {
-    const c = caller();
-    for (const key of ['t', ' ', 'm', ' ']) { c.take(); c.type(key); assert.match(c.out, /\x1b\[2;23r/, key); }
+    const c = caller({ doors: require('../js/doors.js').DOORS });
+    for (const key of ['k', ' ', 'k', ' ']) { c.take(); c.type(key); assert.match(c.out, /\x1b\[2;23r/, key); }
     c.take();
     c.type('q');
     assert.ok(c.out.includes('\x1b[r\x1b[0m\x1b[?25h'), 'the scroll region is reset');
@@ -747,4 +745,176 @@ test('C: a long reply never runs past column 79: the lines are set after the "sy
     for (const line of lines) assert.ok(line.length <= 79, `${line.length}: ${line}`);
     assert.ok(lines.some(l => /^ {7}\S/.test(l)), 'a continuation is indented under the first line');
     assert.ok(!lines.some(l => /^\S{1,3}$/.test(l)), 'no stray one-word line like a word broken at the margin');
+});
+
+test('a line prompt with an Esc way out: two Esc keys in succession leave; one Esc, an arrow key, or two spaced apart do not', async () => {
+    const got = { left: 0, lines: [] };
+    const doors = [{ key: 'Z', title: 'Test', group: 'info', desc: 'a prompt', run: h => { h.ask('line', t => { got.lines.push(t); }, 10, () => { got.left++; }); } }];
+    const c = caller({ doors });
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    c.type('S'); await c.settle();
+    c.type('Z'); await c.settle();
+    c.session.send(27); c.session.send(91); c.session.send(65);            // ESC [ A: an arrow, not an Esc
+    c.session.send(27); c.session.send(79); c.session.send(66);            // ESC O B: another arrow
+    assert.equal(got.left, 0, 'arrow keys do not leave');
+    c.session.send(27); c.type('x');                                  // one Esc, then a letter: the letter is typed
+    c.session.send(13);
+    assert.deepEqual(got.lines, ['x']);
+    assert.equal(got.left, 0, 'one Esc does not leave');
+    const c2 = caller({ doors });                                          // a new prompt, for the timing
+    c2.type('S'); await c2.settle();
+    c2.type('Z'); await c2.settle();
+    c2.session.send(27); await wait(1200); c2.session.send(27);            // two Escs, too far apart
+    assert.equal(got.left, 0, 'spaced Escs do not leave');
+    c2.session.send(27); c2.session.send(27);                              // two in succession
+    assert.equal(got.left, 1, 'two Escs in succession leave');
+});
+
+test('a key prompt with an Esc way out: one Esc or an arrow key is not a key; two Esc keys in succession leave', async () => {
+    const got = { left: 0, keys: [] };
+    const doors = [{ key: 'Z', title: 'Test', group: 'info', desc: 'a key', run: h => { h.ask('key', k => { got.keys.push(k); h.ask('key', () => {}, 0, () => {}); }, 0, () => { got.left++; }); } }];
+    const c = caller({ doors });
+    c.type('S'); await c.settle();
+    c.type('Z'); await c.settle();
+    c.session.send(27); c.session.send(91); c.session.send(65);            // ESC [ A: an arrow, not a key
+    c.session.send(27);                                                    // one Esc: not a key either
+    assert.equal(got.left, 0);
+    assert.deepEqual(got.keys, []);
+    c.session.send(27); c.session.send(27);                                // two in succession
+    assert.equal(got.left, 1, 'two Esc keys leave the key prompt');
+    c.type('k'); await c.settle();                                         // the next prompt takes a key, as before
+    assert.deepEqual(got.keys, []);
+});
+
+test('services under their headings, online at the right; the sky from the main menu, K', () => {
+    const D = require('../js/doors.js');
+    const c = caller({ doors: D.DOORS });
+    c.take();
+    c.type('s');
+    const services = plain(c.out);
+    for (const h of ['Information', 'Community', 'Dial']) assert.ok(services.includes(h), h);
+    assert.ok(!services.includes('Planets') && !services.includes('ISS passes'), 'the sky is not in the services');
+    const newsLine = services.split('\n').find(l => l.includes('[N] News Desk')) || '';
+    assert.ok(newsLine.trimEnd().endsWith('online'), 'online is at the end of the line: ' + JSON.stringify(newsLine));
+    assert.ok(!/\(online\)/.test(services), 'no (online) in the titles');
+    c.take();
+    c.type('q');
+    c.take();
+    c.type('k');
+    const sky = plain(c.out);
+    assert.match(sky, /SKY/);
+    for (const t of ['Planets', 'ISS Passes', 'Aurora']) assert.ok(sky.includes(t), t + ' in ' + JSON.stringify(sky.slice(0, 400)));
+    assert.match(sky, /\[P\] Planets .* online/);
+    assert.ok(!sky.includes('[N] News'), 'the services are not in the sky');
+});
+
+test('the moon is in the sky: M from SKY shows it, and a key brings back the sky, not the main menu', () => {
+    const D = require('../js/doors.js');
+    const c = caller({ doors: D.DOORS });
+    c.take();
+    c.type('k');
+    assert.match(plain(c.out), /\[M\] Moon/);
+    c.take();
+    c.type('m');
+    assert.match(plain(c.out), /MOON/);
+    c.take();
+    c.type(' ');
+    assert.match(plain(c.out), /The Sky/, 'back in the sky');
+});
+
+test('W: the forecast and the air of the city, on one page; the air missing, the forecast alone', async () => {
+    const AIR = { current: { time: '2026-11-05T14:00', us_aqi: 42, pm2_5: 6.1, pm10: 9.8, ozone: null, nitrogen_dioxide: 11 } };
+    const c = caller({ online: () => true, fetchJson: url => Promise.resolve(url.includes('geocoding') ? GEO : url.includes('air-quality') ? AIR : FORECAST) });
+    c.take();
+    c.type('w');
+    c.type('Cluj\r');
+    await c.settle(); await c.settle();
+    assert.match(plain(c.out), /AIR {2}US AQI 42, good/);
+    assert.match(plain(c.out), /PM2\.5 6 {2}PM10 10 {2}ozone - {2}NO2 11/);
+    const c2 = caller({ online: () => true, fetchJson: url => Promise.resolve(url.includes('geocoding') ? GEO : FORECAST) });
+    c2.take();
+    c2.type('w');
+    c2.type('Cluj\r');
+    await c2.settle(); await c2.settle();
+    assert.ok(!/AIR/.test(plain(c2.out)), 'no air, no air lines');
+    assert.match(plain(c2.out), /Source: open-meteo\.com/);
+});
+
+test('moon: the sunrise and sunset of a city, when online; RETURN skips it; offline there is no question', async () => {
+    const SUN = { daily: { sunrise: ['2026-11-05T07:12'], sunset: ['2026-11-05T16:48'] } };
+    const c = caller({ doors: require('../js/doors.js').DOORS, online: () => true, fetchJson: url => Promise.resolve(url.includes('geocoding') ? GEO : SUN) });
+    c.take();
+    c.type('k'); c.take();
+    c.type('m');
+    assert.match(plain(c.out), /Sunrise and sunset: a city/);
+    c.take();
+    c.type('Cluj\r');
+    await c.settle(); await c.settle();
+    assert.match(plain(c.out), /sunrise 07:12 {3}sunset 16:48/);
+    c.take();
+    c.type(' ');
+    assert.match(plain(c.out), /The Sky/, 'back in the sky');
+    const off = caller({ doors: require('../js/doors.js').DOORS, online: () => false });
+    off.take();
+    off.type('k'); off.take();
+    off.type('m');
+    assert.ok(!/Sunrise and sunset/.test(plain(off.out)), 'no question offline');
+    assert.match(plain(off.out), /press any key/);
+});
+
+test('news desk: the menu on top with its keys in the status bar; a source below it; any other key draws the menu again', async () => {
+    const D = require('../js/doors.js');
+    const c = caller({ doors: D.DOORS, online: () => true, fetchJson: async () => [], fetchText: async () => '<rss></rss>' });
+    c.take();
+    c.type('s'); await c.settle();
+    c.type('n'); await c.settle();
+    assert.match(plain(c.out), /NEWS DESK/);
+    assert.match(c.out, /Keys: HDWTNO {3}Esc-Esc\/Q: Back/, 'the keys in the status bar');
+    assert.match(plain(c.out), /\[H\] Hacker News/);
+    c.take();
+    c.type('h'); await c.settle(); await c.settle();
+    assert.match(plain(c.out), /Nothing on the wire/, 'the headlines come below the menu');
+    assert.ok(!c.out.includes('\x1b[2J'), 'the menu is not drawn again for a source key');
+    c.take();
+    c.type('z'); await c.settle();
+    assert.ok(c.out.includes('\x1b[2J'), 'an unknown key draws the menu again, on a clean screen');
+    assert.match(plain(c.out), /NEWS DESK/);
+});
+
+test('the main menu: two Esc keys in succession say goodbye, as Q does; one Esc does nothing', () => {
+    const c = caller();
+    c.take();
+    c.session.send(27);
+    assert.equal(c.hung, false, 'one Esc does nothing');
+    c.session.send(27);
+    assert.equal(c.hung, true, 'two Esc keys in succession quit');
+});
+
+test('no line of a menu runs past the 80 columns of the screen (the cursor moves are counted)', () => {
+    const D = require('../js/doors.js');
+    const widest = raw => {
+        let max = 0, col = 0;
+        const re = /\x1b\[([0-9;?]*)([A-Za-z])|\x1b[78]|\r|\n|[^\x1b\r\n]/g; let m;
+        while ((m = re.exec(raw))) {
+            const t = m[0];
+            if (t === '\r') { max = Math.max(max, col); col = 0; continue; }
+            if (t === '\n') { max = Math.max(max, col); col = 0; continue; }
+            if (m[2]) {
+                const p = (m[1] || '').split(';');
+                if (m[2] === 'C') col += Number(p[0] || 1);
+                if (m[2] === 'G') col = Number(p[0] || 1) - 1;
+                if (m[2] === 'H' || m[2] === 'f') col = Number(p[1] || 1) - 1;
+                continue;
+            }
+            if (t.startsWith('\x1b')) continue;
+            col++;
+        }
+        return Math.max(max, col);
+    };
+    for (const keys of ['', 's', 'k', 'sn', 'sr', 'so']) {
+        const c = caller({ doors: D.DOORS, online: () => true, fetchJson: async () => [], fetchText: async () => '<rss></rss>' });
+        c.take();
+        for (const ch of keys) c.session.send(ch.charCodeAt(0));
+        assert.ok(widest(c.take() || c.out) <= 80, `screen after "${keys}"`);
+    }
 });

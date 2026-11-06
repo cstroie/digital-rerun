@@ -2,11 +2,12 @@
  * bbs.js: the bulletin board you reach by dialing. It runs in the page, and
  * is what answers an ATDT in js/devices/directory.js.
  *
- *   T  the time and date          M  the moon
- *   B  the bulletin board         W  the weather desk (online, off by default)
+ *   M  the moon
+ *   B  the bulletin board         W  the weather desk, and the air of the city (online, off by default)
  *   F  the file area: download and upload by XMODEM (checksum or CRC); L, the software library of the shelf
  *   C  chat with the sysop (services.sysop: the page's, not the emulated machine's)
  *   G  games: WOPR (js/wopr.js)   O  a fortune (js/fortune.js)
+ *   K  the sky: planets, ISS passes, aurora, the station now (js/sky.js, js/doors.js)
  *   S  services: reference desk, news, sky, the wall, last callers, high scores, the weekly vote,
  *      art gallery, mail to the sysop, the dial directory (js/doors.js)
  *   Q  quit (hangs up)
@@ -44,9 +45,12 @@
 
     const CLEAR = '\x1b[2J\x1b[H', DIM = '\x1b[2m', BOLD = '\x1b[1m', REV = '\x1b[7m', OFF = '\x1b[0m';
     const NAME_MAX = 12, TEXT_MAX = 70, CITY_MAX = 40, SHOWN = 8, KEPT = 50;
+    const ESC_TWICE = 1000;                         // ms: two Esc keys this close, in succession, leave a prompt
     const SYNODIC = 29.530588853, NEW_MOON = Date.UTC(2000, 0, 6, 18, 14);
     const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    // the cursor forward to a column (the terminal has no column move): from `start`, the visible text so far, to `target`
+    const fwd = (start, visible, target) => `\x1b[${Math.max(1, target - start - visible.length)}C`;
     const pad2 = n => String(n).padStart(2, '0');
 
     /* ---------- the moon ---------- */
@@ -103,8 +107,20 @@
         return 'Unsettled';
     }
 
-    /** The weather desk's page as lines of text, from Open-Meteo's forecast and the place it was asked for. */
-    function weatherPage(place, w) {
+    /** The US air quality index in words. */
+    function aqiWord(a) { return a <= 50 ? 'good' : a <= 100 ? 'moderate' : a <= 150 ? 'unhealthy for sensitive people' : a <= 200 ? 'unhealthy' : a <= 300 ? 'very unhealthy' : 'hazardous'; }
+
+    /** The air of the same place, as lines: nothing when the air is not there. */
+    function airLines(a) {
+        const c = a && a.current;
+        if (!c || c.us_aqi == null) return [];
+        const n = v => (v == null ? '-' : String(Math.round(v)));
+        return ['', `${BOLD}AIR${OFF}  US AQI ${n(c.us_aqi)}, ${aqiWord(Number(c.us_aqi))}`,
+            `     PM2.5 ${n(c.pm2_5)}  PM10 ${n(c.pm10)}  ozone ${n(c.ozone)}  NO2 ${n(c.nitrogen_dioxide)}  (ug/m3)`];
+    }
+
+    /** The weather desk's page as lines of text, from Open-Meteo's forecast, the air of the place, and the place it was asked for. */
+    function weatherPage(place, w, air) {
         const lines = [];
         const where = [place.name, place.country_code].filter(Boolean).join(', ');
         lines.push(`${BOLD}WEATHER DESK${OFF}  ${where}`, '');
@@ -121,7 +137,7 @@
             const bar = Array.from({ length: width }, (_, k) => (k >= a && k <= b ? '=' : '.')).join('');
             lines.push(` ${day} ${d.time[i].slice(5)}  ${d.temperature_2m_min[i].toFixed(0).padStart(4)}  ${d.temperature_2m_max[i].toFixed(0).padStart(4)}  ${d.precipitation_sum[i].toFixed(1).padStart(4)}  ${bar} ${sky(d.weather_code[i])}`);
         }
-        lines.push('', `Temperatures in C, rain in mm. Source: open-meteo.com`);
+        lines.push(...airLines(air), '', `Temperatures in C, rain in mm. Source: open-meteo.com`);
         return lines;
     }
 
@@ -320,12 +336,12 @@
         pause(fn, hint = 'press any key') { this.status(hint); this.ask('key', fn); }
 
         /** `text` a page at a time (20 lines), a key between. */
-        more(text, fn) {
+        more(text, fn, size = 20) {
             const lines = String(text).replace(/\n$/, '').split('\n');
             let at = 0;
             const next = () => {
-                this.out(lines.slice(at, at + 20).join('\n') + '\n');
-                at += 20;
+                this.out(lines.slice(at, at + size).join('\n') + '\n');
+                at += size;
                 if (at >= lines.length) return fn();
                 this.status('-- more --   SPACE or RETURN: the next page   Q: stop');
                 this.ask('key', k => (k === 'Q' ? fn() : next()));
@@ -336,8 +352,8 @@
         /** What a door or a game is handed to draw on. */
         host(leave, extra = {}) {
             return {
-                out: t => this.out(t), ask: (mode, fn, max) => this.ask(mode, fn, max), leave, random: this.s.random || Math.random, s: this.s,
-                page: (crumb, hint) => this.page(crumb, hint), status: hint => this.status(hint), pause: (fn, hint) => this.pause(fn, hint), more: (text, fn) => this.more(text, fn),
+                out: t => this.out(t), ask: (mode, fn, max, escape) => this.ask(mode, fn, max, escape), leave, random: this.s.random || Math.random, s: this.s,
+                page: (crumb, hint) => this.page(crumb, hint), status: hint => this.status(hint), pause: (fn, hint) => this.pause(fn, hint), more: (text, fn, size) => this.more(text, fn, size),
                 ...extra
             };
         }
@@ -346,19 +362,23 @@
 
         menu(note) {
             if (note) this.log(note);
-            this.page('MAIN', 'press a key');
             const d = this.s.now();
-            const items = [['T', 'time', 'the clock, big'], ['M', 'moon', 'phase, age, a drawing'], ['B', 'bulletins', 'read and post'], ['F', 'files', 'XMODEM, the shelf'],
-                ['C', 'chat', 'the night-shift sysop'], ['W', 'weather', 'needs the internet'], ['G', 'games', 'WOPR and friends'], ['O', 'fortune', 'a cookie from the jar'],
-                ['S', 'services', 'desks and doors'], ['Q', 'quit', 'hang up']];
+            const items = [['B', 'Bulletins', 'read and post'], ['F', 'Files', 'XMODEM, the shelf'],
+                ['C', 'Chat', 'the night-shift sysop'], ['L', 'The Wall', 'one-liners from callers'], ['M', 'Mail SysOp', 'a note, and a reply'], ['W', 'Weather', 'forecast and air for a city'], ['K', 'Sky', 'planets, the ISS, aurora'], ['G', 'Games', 'WOPR and friends'], ['O', 'Fortune', 'a cookie from the jar'],
+                ['S', 'Services', 'desks and doors'], ['Q', 'Quit', 'hang up']];
+            this.page('MAIN', `Keys: ${items.filter(i => i[0] !== 'Q').map(i => i[0]).join('')}   Esc-Esc/Q: Quit`);
+            this.escape = () => this.goodbye();          // two Esc keys in succession quit, as Q does
             // the whole console every time, except at 300 baud: only the menu
             const full = this.baud() > 300;
-            const item = ([k, name, desc], withDesc) => `${BOLD}[${k}]${OFF} ${withDesc ? name.padEnd(11) + `${DIM}${desc}${OFF}` : name}`;
+            // a line: clear to the end of it, then the label, the description at its column (no spaces drawn for the padding)
+            const item = ([k, name, desc], withDesc) => `\x1b[K${BOLD}[${k}]${OFF} ${name}${withDesc ? `${fwd(3, `[${k}] ${name}`, 18)}${DIM}${desc}${OFF}` : ''}`;
             const itemWidth = ([, name, desc], withDesc) => 4 + 11 + (withDesc ? desc.length : 0);
 
+            // a blank line before Quit, as before the last menu key
+            const itemRow = i => 4 + i + (items[i][0] === 'Q' ? 1 : 0);
             if (!full) {
                 let o = vt.rule(3, [[3, 'MAIN CONSOLE']]);
-                items.forEach((it, i) => { o += `${vt.at(4 + i, 3)}${item(it, false)}`; });
+                items.forEach((it, i) => { o += `${vt.at(itemRow(i), 3)}${item(it, false)}`; });
                 const last = (this.logs || []).at(-1);
                 if (last && note) o += `${vt.at(21, 3)}${DIM}${last.slice(0, 74)}${OFF}`;
                 this.out(`${o}${vt.at(23, 3)}${BOLD}bbs>${OFF} `);
@@ -380,16 +400,11 @@
             const art = MENU_ART[Math.floor(d.getTime() / 86400000) % MENU_ART.length];
             // one pass, row by row: the left text positioned once, then a short move right to the other column
             let o = vt.rule(3, [[3, 'MAIN CONSOLE'], [47, 'SYSTEM']]);
-            const rows = Math.max(items.length, info.length + 1 + art.length);
+            items.forEach((it, i) => { o += `${vt.at(itemRow(i), 3)}${item(it, true)}`; });
+            const rows = info.length + 1 + art.length;
             for (let i = 0; i < rows; i++) {
-                const row = 4 + i;
                 const r = i < info.length ? right[i] : (i > info.length && art[i - info.length - 1] ? `${DIM}${art[i - info.length - 1]}${OFF}` : '');
-                const rWidth = i < info.length ? rightWidth[i] : 0;
-                const rCol = i < info.length ? 47 : 49;
-                if (i < items.length) {
-                    o += `${vt.at(row, 3)}${item(items[i], true)}`;
-                    if (r) o += vt.forward(rCol - 3 - itemWidth(items[i], true)) + r;
-                } else if (r) o += vt.at(row, rCol) + r;
+                if (r) o += vt.at(4 + i, i < info.length ? 47 : 49) + r;
             }
             o += vt.rule(18, [[3, 'LOG']]);
             (this.logs || []).slice(-4).forEach((line, i) => { o += `${vt.at(19 + i, 3)}${DIM}${line.slice(0, 74)}${OFF}`; });
@@ -397,23 +412,35 @@
             this.mode = 'menu';
         }
 
-        time() {
-            const d = this.s.now();
-            this.page('TIME', 'press any key');
-            const digits = vt.big(`${pad2(d.getHours())}:${pad2(d.getMinutes())}`);
-            this.out('\n\n' + digits.map(l => `${BOLD}      ${l}${OFF}`).join('\n') +
-                `\n\n      ${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}\n      ${DIM}the clock of the computer you are calling from${OFF}\n`);
-            this.pause(() => this.menu());
-        }
-
-        moonPage() {
+        moonPage(back = () => this.menu()) {
             const m = moon(this.s.now());
             this.page('MOON', 'press any key');
             const art = moonArt(m.phase);
             const info = ['', '', `${BOLD}${m.name}${OFF}`, `${Math.round(m.lit * 100)}% lit`, `${m.age.toFixed(1)} days old`, '', `full moon in ${m.toFull.toFixed(0)} days`, `new moon in ${m.toNew.toFixed(0)} days`,
                 '', `${DIM}[${'#'.repeat(Math.round(m.phase * 20)).padEnd(20, '.')}]${OFF}`, `${DIM}new . . full . . new${OFF}`];
             this.out('\n' + art.map((l, i) => `   ${l.padEnd(24)}${info[i] || ''}`).join('\n') + '\n');
-            this.pause(() => this.menu());
+            if (!this.s.online()) return this.pause(back);
+            // the sunrise and sunset of a city, when the internet is allowed: the city name is the only thing sent
+            const last = this.s.store.get('city') || '';
+            this.out(`\n${DIM}Sunrise and sunset: a city${last ? ` (RETURN for ${last})` : ' (RETURN to skip)'}? The name is sent to open-meteo.com, nothing else.${OFF}\n? `);
+            this.ask('line', async text => {
+                const city = clean(text) || last;
+                if (city) {
+                    this.mode = 'busy';
+                    try {
+                        const geo = await this.s.fetchJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`);
+                        const place = geo && geo.results && geo.results[0];
+                        if (!place) this.out(`\nNo such place: ${city}.\n`);
+                        else {
+                            const f = await this.s.fetchJson('https://api.open-meteo.com/v1/forecast' +
+                                `?latitude=${place.latitude}&longitude=${place.longitude}&daily=sunrise,sunset&timezone=auto&forecast_days=1`);
+                            this.s.store.set('city', place.name);
+                            this.out(`\n${BOLD}${place.name.toUpperCase()}${OFF}\n  sunrise ${f.daily.sunrise[0].slice(11)}   sunset ${f.daily.sunset[0].slice(11)}  (local time)\n`);
+                        }
+                    } catch (e) { this.out('\nThe desk is not answering.\n'); }
+                }
+                this.pause(back);
+            }, CITY_MAX);
         }
 
         goodbye() {
@@ -666,18 +693,63 @@
 
         /* --- the services --- */
 
+        /** One door as a row: the key, the title, what it is, "online" at the right. */
+        doorRow(d) {
+            return `\x1b[K  ${BOLD}[${d.key}]${OFF} ${d.title}${fwd(1, `  [${d.key}] ${d.title}`, 27)}${DIM}${d.desc || ''}${OFF}${d.online ? `${fwd(27, d.desc || '', 68)}${BOLD}online${OFF}` : ''}\n`;
+        }
+
+        /** The doors of a menu, under their group headings: the key, the title, what it is, and "online" at the right. */
+        doorLines(doors, groups) {
+            let o = '';
+            for (const [group, label] of groups) {
+                const items = doors.filter(d => d.group === group);
+                if (!items.length) continue;
+                o += `\n  ${BOLD}${label}${OFF}\n`;
+                for (const d of items) o += this.doorRow(d);
+            }
+            return o;
+        }
+
         services() {
             const doors = this.s.doors;
             if (!doors) return this.menu('the services desk is closed');
-            this.page('SERVICES', 'press a key');
-            this.out('\n');
-            doors.forEach(d => this.out(`  ${BOLD}[${d.key}]${OFF} ${d.title.padEnd(22)}${DIM}${d.desc || ''}${OFF}\n`));
-            this.out(`  ${BOLD}[Q]${OFF} ${'back'.padEnd(22)}${DIM}to the main menu${OFF}\n\n${BOLD}bbs>${OFF} `);
-            this.ask('key', k => {
-                const door = doors.find(d => d.key === k);
-                if (!door) return this.menu();
+            const list = doors.filter(d => d.group === 'info' || d.group === 'talk' || d.group === 'dial');
+            this.page('SERVICES', `Keys: ${list.map(d => d.key).join('')}   Esc-Esc/Q: Back`);
+            this.out(this.doorLines(list, [['info', 'Information'], ['talk', 'Community'], ['dial', 'Dial']]));
+            this.out(`\n\x1b[K  ${BOLD}[Q]${OFF} Back${fwd(1, '  [Q] Back', 27)}${DIM}to the main menu${OFF}\n\n${BOLD}bbs>${OFF} `);
+            const onKey = k => {
+                if (k === 'Q') return this.menu();
+                const door = list.find(d => d.key === k);
+                if (!door) return k.trim() ? this.services() : this.ask('key', onKey);      // another key: the screen again; RETURN: nothing
                 this.mode = 'busy';
                 door.run(this.host(() => this.services()));
+            };
+            this.ask('key', onKey, 0, () => this.menu());
+        }
+
+        /** A door of the main menu, by its key: back to the main menu when it is done. */
+        openDoor(key) {
+            const door = (this.s.doors || []).find(d => d.key === key);
+            if (!door) return this.menu();
+            this.mode = 'busy';
+            door.run(this.host(() => this.menu()));
+        }
+
+        /** The sky, from the main page: the planets, the ISS, the aurora, the station now. */
+        sky() {
+            const doors = this.s.doors;
+            if (!doors) return this.menu('the sky desk is closed');
+            const list = doors.filter(d => d.group === 'sky');
+            this.page('SKY', `Keys: M${list.map(d => d.key).join('')}   Esc-Esc/Q: Back`);
+            this.out(`\n  ${BOLD}The Sky${OFF}\n\x1b[K  ${BOLD}[M]${OFF} Moon${fwd(1, '  [M] Moon', 27)}${DIM}phase, age, a drawing${OFF}\n`);
+            for (const d of list) this.out(this.doorRow(d));
+            this.out(`\n\x1b[K  ${BOLD}[Q]${OFF} Back${fwd(1, '  [Q] Back', 27)}${DIM}to the main menu${OFF}\n\n${BOLD}bbs>${OFF} `);
+            this.ask('key', k => {
+                if (k === 'M') { this.mode = 'busy'; return this.moonPage(() => this.sky()); }
+                const door = list.find(d => d.key === k);
+                if (!door) return this.menu();
+                this.mode = 'busy';
+                door.run(this.host(() => this.sky()));
             });
         }
 
@@ -699,12 +771,18 @@
             const i = fortunes.pick(this.s.random || Math.random, this.seen);
             this.seen = [...this.seen, i].slice(-20);
             const text = wrapText(fortunes.FORTUNES[i], 70).split('\n');
-            this.page('FORTUNE', 'Y: another   any other key: back');
+            this.page('FORTUNE', 'O: Another   Esc-Esc/Q: Quit');
             // a bar above and below, drawn by erase-to-end-of-line, the cookie between: a few dozen bytes
             const last = 6 + text.length;
             this.out(vt.rule(4, [[3, `FORTUNE ${i + 1} OF ${fortunes.FORTUNES.length}`]]) + text.map((l, j) => `${vt.at(6 + j, 5)}${l}`).join('') +
                 vt.rule(last + 1, []) + vt.at(last + 3, 3));
-            this.ask('key', k => { if (k === 'Y') this.fortune(); else this.menu(); });
+            // O: another; Q, or two Esc keys, back to the menu; any other key is nothing
+            const onKey = k => {
+                if (k === 'O') return this.fortune();
+                if (k === 'Q') return this.menu();
+                this.ask('key', onKey, 0, () => this.menu());
+            };
+            this.ask('key', onKey, 0, () => this.menu());
         }
 
         /* --- the weather desk --- */
@@ -727,8 +805,13 @@
                         `?latitude=${place.latitude}&longitude=${place.longitude}` +
                         '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code' +
                         '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=4');
+                    let air = null;
+                    try {
+                        air = await this.s.fetchJson('https://air-quality-api.open-meteo.com/v1/air-quality' +
+                            `?latitude=${place.latitude}&longitude=${place.longitude}&current=us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide&timezone=auto`);
+                    } catch (e) { air = null; }                 // the forecast is what counts: no air, no air lines
                     this.s.store.set('city', place.name);
-                    this.out('\n' + weatherPage(place, w).join('\n') + '\n');
+                    this.out('\n' + weatherPage(place, w, air).join('\n') + '\n');
                 } catch (e) {
                     return this.menu('the weather desk is not answering');
                 }
@@ -739,18 +822,33 @@
         /* --- input --- */
 
         /** Wait for a key ('key') or a line ('line', at most `max` characters) and give it to `fn`. */
-        ask(mode, fn, max = 0) {
+        /** A prompt: `fn` gets the line (or the key); `escape`, if given, runs when the caller presses Esc twice in succession at a line. */
+        leaveEscape() {
+            const fn = this.escape;
+            if (!fn) return;
+            this.escape = null;
+            this.mode = 'busy';
+            return fn();
+        }
+
+        ask(mode, fn, max = 0, escape = null) {
+            this.escAt = 0;
+            this.escSeq = false;
             this.mode = mode;
             this.buffer = '';
             this.max = max;
             this.done = fn;
+            this.escape = escape;
         }
 
         send(byte) {
             if (this.closed) return;
             switch (this.mode) {
-                case 'menu': return this.command(String.fromCharCode(byte).toUpperCase());
-                case 'key': { const fn = this.done; this.mode = 'busy'; return fn(String.fromCharCode(byte).toUpperCase()); }
+                case 'menu': if (this.escapeByte(byte)) return; return this.command(String.fromCharCode(byte).toUpperCase());
+                case 'key': {
+                    if (this.escapeByte(byte)) return;
+                    const fn = this.done; this.mode = 'busy'; return fn(String.fromCharCode(byte).toUpperCase());
+                }
                 case 'line': return this.edit(byte);
                 case 'xsend': return this.xsendByte(byte);
                 case 'xrecv': return this.xrecvByte(byte);
@@ -760,22 +858,37 @@
 
         command(key) {
             switch (key) {
-                case 'T': return this.time();
-                case 'M': return this.moonPage();
                 case 'B': return this.bulletins();
                 case 'W': return this.weather();
+                case 'K': return this.sky();
                 case 'F': return this.files();
                 case 'C': return this.chat();
+                case 'L': case 'M': return this.openDoor(key);
                 case 'G': return this.game();
                 case 'O': return this.fortune();
                 case 'S': return this.services();
                 case 'Q': return this.goodbye();
                 case '?': case 'H': return this.menu();
-                default: /* RETURN, line feed, noise: nothing */
+                default: if (key.trim()) this.menu();     // a key of no use here: the menu again; RETURN is nothing
             }
         }
 
+        /** Two Esc keys in succession leave a prompt that has a way out (a single Esc does nothing). An arrow or function
+         *  key is ESC [ … or ESC O … in one burst, and is not an Esc: its final letter is dropped. True when the byte is taken. */
+        escapeByte(byte) {
+            if (this.escSeq) { if (byte >= 0x40 && byte <= 0x7e) this.escSeq = false; return true; }
+            if (this.escAt) {
+                const quick = Date.now() - this.escAt < ESC_TWICE;
+                this.escAt = 0;
+                if (byte === 27 && quick && this.escape) { this.leaveEscape(); return true; }
+                if (byte === 91 || byte === 79) { this.escSeq = true; return true; }     // '[' or 'O'
+            }
+            if (byte === 27 && this.escape) { this.escAt = Date.now(); return true; }
+            return false;
+        }
+
         edit(byte) {
+            if (this.escapeByte(byte)) return;
             if (byte === 13) {
                 const fn = this.done, line = this.buffer;
                 this.out('\n');

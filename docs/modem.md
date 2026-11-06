@@ -16,8 +16,7 @@ Z80 program ⇄ UART (ports 6/7, 1200 baud) ⇄ Hayes AT layer ⇄ line
   tested against the 1979 disk). CP/M 2.2 programs (a terminal program, MEX, Kermit-80) use the ports.
 - **Terminal unchanged**: ASCII only. The BBS uses boxes of `+-|`, bold and reverse. No DEC graphics, no
   colour. A bridge announces `TERM=vt100`.
-- **Online services are off by default**: one switch in DEVICES; the text says what is sent (a city name goes to
-  the weather service). Off or offline, the desk is "not answering".
+- **Online services are off by default**: one switch in DEVICES; the text says what is sent (each desk says what it sends). Off or offline, the desk is "not answering".
 - **All three lines**: the built-in BBS, the telnet bridge, Web Serial.
 - **1200 baud for the feel**, 300/2400/9600 selectable. Timing is counted in the machine's T-states, so it
   is the same at any emulator speed, paused, stepped or restored from a snapshot.
@@ -91,13 +90,13 @@ flow control: a byte nobody reads before the next arrives is lost (overrun), as 
 
 `ATDT0100` (or `ATDT5550100`; dashes are ignored) reaches the Digital Rerun BBS (`js/bbs.js`):
 
-- **T** time and date (the host clock); **M** the moon (phase, age, lit fraction, a drawing; computed, offline).
+- **M** the moon, in the sky (**K**): phase, age, lit fraction, a drawing; computed, offline.
 - **B** bulletins: the last 8 of 50, kept in the browser (localStorage); a post is a name and one line.
 - **F** files: `ABOUT.TXT`, `HELLO.COM` (a nine-byte CP/M program) and what callers uploaded (32K each, 256K in
   all, in the browser). **D**ownload and **U**pload by XMODEM; the board sends checksum or CRC, and asks for
   checksum. In TERM: `Ctrl-] R` receives (file name, then the board sends), `Ctrl-] S` sends; Ctrl-X stops.
   TERM times out through the machine's clock (port 20), so a transfer that gets no answer stops on its own.
-- **W** the weather desk, needs DEVICES → *Online services* (off by default): the city name goes to open-meteo.com
+- **W** the weather desk, with the air of the same city (US air quality index, the main pollutants), needs DEVICES → *Online services* (off by default): the city name goes to open-meteo.com
   (geocoding, then a 4-day forecast), nothing else. Off or unreachable: "the weather desk is not answering".
 - **C** chat with the sysop (below).
 - **G** games: WOPR (below). **O** a fortune. **S** services (below). **Q** quit (hangs up).
@@ -238,14 +237,14 @@ connected (`Sysop.converse`), with their own hints as the fallback.
 
 ## The services
 
-`S` at the menu opens the services (`js/doors.js`): **R** the reference desk (ASCII chart, a number converter,
+`K` at the menu opens the sky: the planets, the ISS passes, the aurora, the station now (`js/doors.js`, `js/sky.js`). `S` opens the services (`js/doors.js`), under three headings (information, community, dial), with *online* at the right of a desk that needs the internet: **R** the reference desk (ASCII chart, a number converter,
 BDOS functions, the BIOS jump table, AT commands, 8080 and Z80 opcodes, VT100 codes: `js/reference.js`), **N** the
-news desk (Hacker News, Wikipedia on this day), **K** the sky desk (the space station now; sunrise and sunset of a
-city: the name goes to open-meteo.com), **L** the wall (one-liners, the last 30), **U** last callers (also counted at
+news desk (a menu: Hacker News, Dev.to, Wired, The New York Times, NASA, Wikipedia on this day; a number shows a source, and the menu waits for the next one; Esc-Esc goes back), **K** the sky desk (the space station now; sunrise and sunset of a
+city: the name goes to open-meteo.com), **E** earthquakes (USGS: the last day, magnitude 2.5 and up), **A** aurora (NOAA: the Kp index and the storm scale), **W** Wikipedia (a word or a name, the lead of the article; the next prompt comes after each answer, two Esc keys in succession go back), **P** the planets tonight (the five you can see with the eye, for a city: worked out here, from the city name only), **I** the ISS passes over a city (the next three days, above 10 degrees; the orbit comes from celestrak.org, kept a week), **L** on the main menu, the wall (one-liners, the last 30), **C** last callers (also counted at
 every call: "you are caller #N"), **H** high scores, **V** this week's vote (one of 26 questions a week; the regulars'
-votes are a fixed made-up tally, yours is added), **A** the art gallery, **E** mail to the sysop (he answers, a
+votes are a fixed made-up tally, yours is added), **A** the art gallery, **M** on the main menu, mail to the sysop (he answers, a
 program, by the next call: "you have mail from the sysop"), **D** the dial directory (real telnet hosts, checked on
-5 Nov 2026, to dial through the bridge). News and sky are online desks: they need *Online services*, like the weather.
+5 Nov 2026, to dial through the bridge). The news, sky, earthquake, aurora, Wikipedia, air and wire desks are online: they need *Online services*, like the weather. Only the desks that need a name (sky, Wikipedia, air, the weather) send anything of yours.
 
 **F, L** in the file area is the software library: the shelf's programs (disks made of files), sent by XMODEM
 (text files as CP/M text); at 1200 baud a big one takes minutes, as it should.

@@ -96,7 +96,7 @@ const { Gateway } = require('../js/devices/gateway.js');
     assert.ok(files.includes('TERM.COM'));
 });
 
-test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodbye', async () => {
+test('TERM: dial the bulletin board, leave a bulletin, say goodbye', async () => {
     const m = boot();
     const board = new MemoryBoard();
     const dir = new Directory().add('5550100', bbs({
@@ -108,11 +108,6 @@ test('TERM: dial the bulletin board, read the time, leave a bulletin, say goodby
     await until(m, 'Try ATDT0100', at);
     at = say(m, 'ATDT555-0100\r');
     await until(m, 'DIGITAL RERUN BBS', at);
-    await until(m, 'uit', at);
-    at = say(m, 't');
-    await until(m, 'Thursday 5 November 2026', at);
-    await until(m, 'press any key', at);
-    at = say(m, ' ');
     await until(m, 'uit', at);
     at = say(m, 'b');
     await until(m, 'P', at + 5);

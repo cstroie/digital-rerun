@@ -69,7 +69,7 @@ test('games are found by number or by the start of the name', () => {
         w.say('x');
         w.take();
         w.say(cmd);
-        assert.match(w.text, /HOW MANY PLAYERS/, cmd);
+        assert.match(w.text, /WATCH \(W\) OR PLAY/, cmd);
     }
     const w = rig();
     w.say('x'); w.take(); w.say('glob');
@@ -112,7 +112,7 @@ test('it takes a win and blocks a loss', () => {
 test('a game: you play, WOPR answers, the board is shown, the game ends and asks again', () => {
     const w = rig();
     w.say('x'); w.take(); w.say('tic-tac-toe'); w.take();
-    w.say('1');
+    w.say('P');
     assert.match(w.text, /YOU ARE X, WOPR IS O/);
     assert.match(w.text, /YOUR MOVE \(1-9\)\? $/);
     w.take();
@@ -137,7 +137,7 @@ test('a game: you play, WOPR answers, the board is shown, the game ends and asks
 
 test('Q gives a game up', () => {
     const w = rig();
-    w.say('x'); w.take(); w.say('1'); w.say('1'); w.take();
+    w.say('x'); w.take(); w.say('1'); w.say('P'); w.take();
     w.say('q');
     assert.match(w.text, /GAME ABANDONED/);
 });
@@ -145,7 +145,7 @@ test('Q gives a game up', () => {
 test('zero players: WOPR plays itself ten times, all drawn, then the lesson', () => {
     const w = rig(Math.random);
     w.say('x'); w.take(); w.say('1'); w.take();
-    w.say('0');
+    w.say('W');
     assert.match(w.text, /WOPR PLAYS ITSELF/);
     assert.equal((w.text.match(/^GAME +\d+/gm) || []).length, 10);
     assert.equal((w.text.match(/DRAW$/gm) || []).length, 10);
@@ -157,7 +157,7 @@ test('global thermonuclear war: choose a side and targets, watch the exchange, n
     const w = rig();
     w.say('x'); w.take(); w.say('global');
     assert.match(w.text, /A SIMULATION/);
-    w.say('2');
+    w.say('E');
     assert.match(w.text, /EAST/);
     assert.match(w.text, /1 {2}GRIDPORT/);
     w.take();
@@ -178,7 +178,7 @@ test('global thermonuclear war: choose a side and targets, watch the exchange, n
 
 test('a bad target list is filled in; nothing in the output is outside ASCII and escapes', () => {
     const w = rig(Math.random);
-    w.say('x'); w.take(); w.say('global'); w.say('1'); w.take(); w.say('zz');
+    w.say('x'); w.take(); w.say('global'); w.say('W'); w.take(); w.say('zz');
     assert.match(w.text, /TARGETS: \w/);
     assert.equal(/[^\x20-\x7e\r\n\x1b\[0-9;mHJ]/.test(w.text), false);
 });

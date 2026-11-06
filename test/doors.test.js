@@ -20,10 +20,11 @@ function rig(door, extra = {}) {
         scores: new Scores(store, () => clock), sysop: { reply: async (h, t) => `Heard you: ${t}` }, ...extra
     };
     const r = { text: '', asks: [], left: false, s, advance: ms => { clock += ms; } };
-    const h = { out: t => { r.text += t; }, ask: (mode, fn) => r.asks.push({ mode, fn }), leave: () => { r.left = true; }, random: () => 0.3, s };
+    const h = { out: t => { r.text += t; }, ask: (mode, fn, max, escape) => r.asks.push({ mode, fn, escape }), leave: () => { r.left = true; }, random: () => 0.3, s };
     r.take = () => { const t = r.text; r.text = ''; return t; };
     r.say = v => { const a = r.asks.pop(); assert.ok(a, 'a prompt was waiting'); return a.fn(a.mode === 'key' ? String(v).toUpperCase() : String(v)); };
     r.wait = () => new Promise(res => setImmediate(res));
+    r.esc = () => { const a = r.asks.pop(); assert.ok(a && a.escape, 'a prompt with an Esc was waiting'); a.escape(); };
     D[door](h);
     return r;
 }
@@ -195,9 +196,9 @@ test('scores door: each game with its top three', () => {
 test('poll door: vote once, see the bars with your choice marked, then only the results', () => {
     const r = rig('poll');
     assert.match(r.text, /THIS WEEK'S VOTE/);
-    assert.match(r.text, / 1 {2}PIP/);
+    assert.match(r.text, / A {2}PIP/);
     r.take();
-    r.say('2');
+    r.say('B');
     assert.match(r.text, /Voted: ED/);
     assert.match(r.text, /#+ +\d+%  <- you/);
     assert.equal(r.left, true);
@@ -208,9 +209,9 @@ test('poll door: vote once, see the bars with your choice marked, then only the 
 
 test('art door: pick a picture, get it, come back to the list', () => {
     const r = rig('art');
-    assert.match(r.text, / 1 {2}PIXEL/);
+    assert.match(r.text, / A {2}PIXEL/);
     r.take();
-    r.say('1');
+    r.say('A');
     assert.match(r.text, /PIXEL, NIGHT SHIFT/);
     assert.match(r.text, /ART GALLERY/);
     r.say('q');
@@ -253,73 +254,192 @@ test('dial directory: real hosts, how to dial them, a word on the bridge', () =>
     assert.equal(new Set(D.DIRECTORY.map(e => e.n)).size, D.DIRECTORY.length, 'every number once');
 });
 
-test('news desk: off without Online services; Hacker News and Wikipedia when on', async () => {
+test('news desk: off without Online services; a menu of six sources; a number shows one, and the menu waits for the next key', async () => {
     let r = rig('news');
     assert.match(r.text, /needs the internet/);
     const urls = [];
     const fetchJson = async url => {
         urls.push(url);
         if (/topstories/.test(url)) return [11, 12, 13];
-        if (/item\/(\d+)/.test(url)) return { title: `Story \u201c${RegExp.$1}\u201d caf\u00e9`, url: 'https://www.example.org/a', score: 99 };
+        if (/item\/(\d+)/.test(url)) return { title: `Story “${RegExp.$1}” café`, url: 'https://www.example.org/a', score: 99 };
+        if (/dev\.to/.test(url)) return [{ title: 'A post', user: { name: 'Ann' } }];
         return { events: [{ year: 1969, text: 'Something happened.' }, { year: 1066, text: 'Another thing.' }, { year: 1900, text: 'A third.' }] };
     };
-    r = rig('news', { online: () => true, fetchJson });
-    r.take();
-    r.say('h');
+    const fetchText = async () => '<rss><item><title>Launch</title><pubDate>Fri, 06 Nov 2026 05:05:00 +0000</pubDate></item></rss>';
+    r = rig('news', { online: () => true, fetchJson, fetchText });
+    const menu = plain(r.take());
+    for (const name of ['Hacker News', 'Dev.to', 'Wired', 'The New York Times', 'NASA', 'On This Day']) assert.match(menu, new RegExp(name));
+    assert.equal(r.asks.length, 1, 'waiting for a key');
+    r.say('H');
     await r.wait(); await r.wait();
-    assert.match(r.text, /1\. Story "11" cafe \(example\.org\)  99 pts/);
-    assert.equal(urls.length, 4);
-    assert.equal(r.left, true);
-    r = rig('news', { online: () => true, fetchJson });
-    r.say('w');
+    assert.match(plain(r.text), /1\. Story "11" cafe \(example\.org\)\n {3}99 points/);
+    assert.equal(urls.length, 4, 'the front page and its three stories (the mock lists three)');
+    assert.equal(r.left, false, 'no exit after a source: the menu is back');
+    assert.equal(r.asks.length, 1, 'and it waits for the next key');
+    r.say('O');
     await r.wait();
     assert.match(urls.at(-1), /onthisday\/events\/11\/05$/);
-    assert.match(r.text, /1066: Another thing\.\n1900: A third\.\n1969: Something happened\./);
+    assert.match(plain(r.text), /1066: Another thing\.\n/);
+    assert.equal(r.left, false);
+    r.say('D');
+    await r.wait();
+    assert.match(plain(r.text), /1\. A post\n {3}by Ann/);
+    assert.equal(urls.at(-1), 'https://dev.to/api/articles?top=1&per_page=8');
+    r.say('N');
+    await r.wait();
+    assert.match(plain(r.text), /1\. Launch\n {3}Fri, 06 Nov 2026 05:05:00 UTC/);
+    assert.equal(r.left, false);
+    r.say('Q');
+    assert.equal(r.left, true, 'Q goes back to the services');
 });
 
-test('news desk: a desk that does not answer is said so; only the intended addresses are called', async () => {
+test('news desk: two Esc keys go back; a key that is no source shows the menu again', async () => {
+    const r = rig('news', { online: () => true, fetchJson: async () => [] });
+    r.take();
+    r.say('Z');
+    assert.equal(r.asks.length, 1, 'no such source: the menu again');
+    assert.equal(r.left, false);
+    r.esc();
+    assert.equal(r.left, true, 'two Esc keys leave');
+});
+
+test('news desk: a source that does not answer is said so, and the menu waits; only the intended addresses are called', async () => {
     const urls = [];
-    const r = rig('news', { online: () => true, fetchJson: async u => { urls.push(u); throw new Error('down'); } });
-    r.say('h');
+    const r = rig('news', { online: () => true, fetchJson: async u => { urls.push(u); throw new Error('down'); }, fetchText: async u => { urls.push(u); throw new Error('down'); } });
+    r.take();
+    r.say('H');
     await r.wait();
     assert.match(r.text, /desk is not answering/);
-    for (const u of urls) assert.match(u, /^https:\/\/(hacker-news\.firebaseio\.com|en\.wikipedia\.org)\//);
+    assert.equal(r.asks.length, 1);
+    r.say('W');
+    await r.wait();
+    for (const u of urls) assert.match(u, /^https:\/\/(hacker-news\.firebaseio\.com|dev\.to|www\.wired\.com|rss\.nytimes\.com|www\.nasa\.gov|en\.wikipedia\.org)\//);
+    assert.equal(urls.at(-1), 'https://www.wired.com/feed/rss');
 });
 
-test('sky desk: off by default; the ISS and the sun times of a city when on, only the city sent', async () => {
-    let r = rig('sky');
+test('the list: fourteen doors; the keys are distinct within each menu (the S menu and the sky)', () => {
+    assert.equal(D.DOORS.length, 14);
+    for (const group of ['sky', 'other']) {
+        const keys = D.DOORS.filter(d => (d.group === 'sky') === (group === 'sky')).map(d => d.key);
+        assert.equal(new Set(keys).size, keys.length, group);
+    }
+    for (const d of D.DOORS) { assert.equal(typeof d.run, 'function'); assert.ok(d.title); }
+});
+
+test('earthquakes: off by default; the largest of the last day, and only the USGS feed is called', async () => {
+    let r = rig('quakes');
     assert.match(r.text, /needs the internet/);
     const urls = [];
-    const fetchJson = async url => {
-        urls.push(url);
-        if (/wheretheiss/.test(url)) return { latitude: 46.5, longitude: -12.25, altitude: 420.1, velocity: 27600, visibility: 'daylight' };
-        if (/geocoding/.test(url)) return { results: [{ name: 'Cluj-Napoca', latitude: 46.77, longitude: 23.6 }] };
-        return { daily: { sunrise: ['2026-11-05T07:12'], sunset: ['2026-11-05T16:48'] } };
-    };
-    r = rig('sky', { online: () => true, fetchJson });
-    assert.match(r.text, /sent to open-meteo\.com, nothing else/);
+    const feed = { features: [
+        { properties: { mag: 3.1, place: '12 km S of Somewhere', time: NOW.getTime() }, geometry: { coordinates: [1, 2, 10] } },
+        { properties: { mag: 4.6, place: 'Off the coast', time: NOW.getTime() }, geometry: { coordinates: [1, 2, 33.4] } },
+        { properties: { mag: null, place: 'no size', time: 0 }, geometry: { coordinates: [0, 0, 0] } }
+    ] };
+    r = rig('quakes', { online: () => true, fetchJson: async u => { urls.push(u); return feed; } });
+    await r.wait();
+    assert.match(r.text, /M4\.6  Off the coast  .* 33 km deep/);
+    assert.ok(r.text.indexOf('M4.6') < r.text.indexOf('M3.1'), 'largest first');
+    assert.ok(!/no size/.test(r.text), 'a quake with no size is left out');
+    assert.deepEqual(urls, ['https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson']);
+});
+
+test('aurora: the Kp index of the last hours and the storm scale it means', async () => {
+    const rows = [{ time_tag: '2026-11-06T00:00:00', Kp: 2.33 }, { time_tag: '2026-11-06T03:00:00', Kp: 5.67 }];
+    const r = rig('aurora', { online: () => true, fetchJson: async () => rows });
+    await r.wait();
+    assert.match(plain(r.text), /Kp 5\.7  G1 minor storm   at 03:00 UTC/);
+    assert.match(plain(r.text), /last hours  2\.3  5\.7/);
+    assert.equal(D.gScale(2), 'G0 quiet');
+    assert.equal(D.gScale(9), 'G5 extreme storm');
+});
+
+test('wikipedia: the word is the only thing sent; each answer is followed by the next prompt; Esc leaves', async () => {
+    const urls = [];
+    let r = rig('wiki', { online: () => true, fetchJson: async u => { urls.push(u); return { title: 'Moon', extract: 'The Moon is Earth\u2019s only natural satellite.' }; } });
+    assert.match(r.text, /sent to en\.wikipedia\.org, nothing else/);
     r.take();
-    r.say('Cluj');
-    await r.wait(); await r.wait(); await r.wait();
-    assert.match(r.text, /over 46\.5 N, 12\.3 W/);
-    assert.match(r.text, /420 km up, 27600 km\/h, in daylight/);
-    assert.match(plain(r.text), /CLUJ-NAPOCA\n {2}sunrise 07:12 {3}sunset 16:48/);
-    assert.equal(r.s.store.get('city'), 'Cluj-Napoca');
-    assert.match(urls[1], /name=Cluj/);
+    r.say('Moon');
+    await r.wait();
+    assert.match(plain(r.text), /Moon\nThe Moon is Earth's only natural satellite\./);
+    assert.equal(urls[0], 'https://en.wikipedia.org/api/rest_v1/page/summary/Moon');
+    assert.equal(r.left, false, 'no key to press: the next prompt is waiting');
+    assert.equal(r.asks.length, 1);
+    r.say('Mars');
+    await r.wait();
+    assert.equal(urls[1], 'https://en.wikipedia.org/api/rest_v1/page/summary/Mars');
+    assert.equal(r.left, false);
+    r.esc();
+    assert.equal(r.left, true, 'Esc goes back to the services');
+    r = rig('wiki', { online: () => true, fetchJson: async u => { urls.push(u); return { title: 'Mercury', type: 'disambiguation' }; } });
+    r.say('Mercury');
+    await r.wait();
+    assert.match(r.text, /Mercury can mean several things/);
+    assert.equal(r.left, false);
+    r = rig('wiki', { online: () => true, fetchJson: async () => { throw new Error('404'); } });
+    r.say('Nothingness Xyz');
+    await r.wait();
+    assert.match(r.text, /No such article/);
+    assert.equal(r.asks.length, 1, 'asked again after the miss');
+    r.esc();
     assert.equal(r.left, true);
 });
 
-test('sky desk: no city means just the station; the ISS call is the only one made', async () => {
+test('planets tonight: off without Online services; for a city, the planets with the time they are best in the dark; only the city goes out', async () => {
+    let r = rig('tonight');
+    assert.match(r.text, /needs the internet/);
     const urls = [];
-    const r = rig('sky', { online: () => true, fetchJson: async u => { urls.push(u); return { latitude: 1, longitude: 1, altitude: 400, velocity: 27000, visibility: 'eclipsed' }; } });
-    r.say('');
-    await r.wait();
-    assert.match(r.text, /Earth's shadow/);
-    assert.equal(urls.length, 1);
+    const fetchJson = async u => { urls.push(u); return { results: [{ name: 'Bucharest', latitude: 44.43, longitude: 26.10 }] }; };
+    r = rig('tonight', { online: () => true, fetchJson });
+    assert.match(plain(r.text), /sent to open-meteo\.com, nothing else; the sums are done here/);
+    r.take();
+    r.say('Bucharest');
+    await r.wait(); await r.wait();
+    const out = plain(r.text);
+    assert.match(out, /BUCHAREST/);
+    assert.match(out, /the sun is (down|up|low)/, 'the sun says how dark it is');
+    for (const name of ['Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn']) assert.match(out, new RegExp(name));
+    assert.equal(urls.length, 1, 'the geocoding only');
+    assert.match(urls[0], /geocoding-api\.open-meteo\.com\/v1\/search\?name=Bucharest/);
+    assert.equal(r.s.store.get('city'), 'Bucharest');
 });
 
-test('the list: ten doors with distinct keys', () => {
-    assert.equal(D.DOORS.length, 10);
-    assert.equal(new Set(D.DOORS.map(d => d.key)).size, 10);
-    for (const d of D.DOORS) { assert.equal(typeof d.run, 'function'); assert.ok(d.title); }
+test('ISS passes: the orbit fetched once from CelesTrak and kept; the passes over a city', async () => {
+    const TLE = 'ISS (ZARYA)\n1 25544U 98067A   26309.85320381  .00006629  00000+0  12749-3 0  9998\n2 25544  51.6327 319.0560 0007195 352.5747   7.5134 15.49194530593711\n';
+    const fetched = [];
+    const fetchText = async u => { fetched.push(u); return TLE; };
+    const fetchJson = async () => ({ results: [{ name: 'Bucharest', latitude: 44.43, longitude: 26.10 }] });
+    let r = rig('iss', { online: () => true, fetchJson, fetchText });
+    r.take();
+    await r.wait(); await r.wait();
+    r.say('Bucharest');
+    await r.wait(); await r.wait(); await r.wait();
+    assert.equal(fetched.length, 1);
+    assert.equal(fetched[0], 'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle');
+    assert.match(plain(r.text), /BUCHAREST/);
+    assert.match(plain(r.text), /highest \d+ deg at \d\d:\d\d/);
+    const kept = r.s.store.get('iss.orbit');
+    assert.ok(kept && JSON.parse(kept).tle, 'kept in the store');
+    r = rig('iss', { online: () => true, fetchJson, fetchText, store: r.s.store });
+    r.take();
+    await r.wait(); await r.wait();
+    r.say('Bucharest');
+    await r.wait(); await r.wait(); await r.wait();
+    assert.equal(fetched.length, 1, 'a week-old orbit is not fetched again');
+});
+
+test('ISS: the city is asked first; then where the station is now, and its passes over the city', async () => {
+    const TLE = 'ISS (ZARYA)\n1 25544U 98067A   26309.85320381  .00006629  00000+0  12749-3 0  9998\n2 25544  51.6327 319.0560 0007195 352.5747   7.5134 15.49194530593711\n';
+    const fetchJson = async url => (/wheretheiss/.test(url)
+        ? { latitude: 46.5, longitude: -12.25, altitude: 420.1, velocity: 27600, visibility: 'daylight' }
+        : { results: [{ name: 'Cluj-Napoca', latitude: 46.77, longitude: 23.6 }] });
+    const r = rig('iss', { online: () => true, fetchJson, fetchText: async () => TLE });
+    await r.wait(); await r.wait();
+    assert.match(plain(r.text), /sent to open-meteo\.com/, 'the city is asked first');
+    assert.ok(!/THE STATION NOW/.test(plain(r.text)), 'no station before the city');
+    r.say('Cluj');
+    await r.wait(); await r.wait(); await r.wait();
+    assert.match(plain(r.text), /THE STATION NOW[\s\S]*over 46\.5 N, 12\.3 W/);
+    assert.match(plain(r.text), /420 km up, 27600 km\/h, in daylight/);
+    assert.match(plain(r.text), /CLUJ-NAPOCA/);
+    assert.match(plain(r.text), /highest \d+ deg at \d\d:\d\d/);
 });

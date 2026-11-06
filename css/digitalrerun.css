@@ -145,7 +145,7 @@ header a { color: var(--text-dim); margin-left: auto; }
     border-radius: 10px;
     padding: 6px 12px;
 }
-.leds { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.leds { display: flex; flex-wrap: nowrap; align-items: center; gap: 14px; }   /* one row: the lights, then the speed on the right */
 .led {
     display: inline-flex;
     align-items: center;
@@ -169,7 +169,7 @@ header a { color: var(--text-dim); margin-left: auto; }
 .led.run.idle i { background: #2c6e2e; box-shadow: none; }
 
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.mhz { margin-left: auto; font-family: 'VT323', monospace; font-size: 18px; color: var(--fg-dim); min-width: 72px; text-align: right; }
+.mhz { margin-left: auto; flex: none; white-space: nowrap; font-family: 'VT323', monospace; font-size: 18px; color: var(--fg-dim); min-width: 72px; text-align: right; }
 
 button, select {
     font: inherit;
@@ -399,7 +399,14 @@ aside [data-tab].active { display: block; }
 /* the desktop shows the paper under everything: no PAPER tab there */
 .tabs [data-for="paper"], .paper-empty { display: none; }
 
+@media (max-width: 420px) {
+    .leds { gap: 5px; flex-wrap: wrap; row-gap: 4px; }   /* a very narrow screen: the lights may take two lines, the speed stays on the right */
+    .led { font-size: 9px; letter-spacing: 0; gap: 3px; }
+    .mhz { font-size: 15px; min-width: 50px; }
+}
 @media (max-width: 900px) {
+    .leds { gap: 8px; }
+    .led { font-size: 10px; letter-spacing: 0.5px; gap: 4px; }
     .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "aside" "tray"; grid-template-rows: auto; }
     .crt { padding: 10px 8px; }
     .tabs {

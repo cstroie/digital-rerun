@@ -146,10 +146,10 @@
         /* ---- tic-tac-toe ---- */
 
         function ticTacToe() {
-            out('\nTIC-TAC-TOE.  HOW MANY PLAYERS (0 OR 1)? ');
+            out('\nTIC-TAC-TOE.  WATCH (W) OR PLAY (P)? ');
             ask('key', k => {
-                if (k === '0') return watch();
-                if (k === '1') return play();
+                if (k === 'W') return watch();
+                if (k === 'P') return play();
                 out('\n');
                 return menu(false);
             });
@@ -202,10 +202,10 @@
 
         function thermonuclear() {
             out(`\n${BOLD}GLOBAL THERMONUCLEAR WAR${OFF}   (A SIMULATION. NOTHING HERE IS REAL.)\n\n` +
-                'WHICH SIDE?  1 WEST BLOC   2 EAST BLOC   ');
+                'WHICH SIDE?  W WEST BLOC   E EAST BLOC   ');
             ask('key', k => {
-                if (k !== '1' && k !== '2') { out('\n'); return menu(false); }
-                const side = k === '1' ? 'WEST' : 'EAST', other = k === '1' ? 'EAST' : 'WEST';
+                if (k !== 'W' && k !== 'E') { out('\n'); return menu(false); }
+                const side = k === 'W' ? 'WEST' : 'EAST', other = k === 'W' ? 'EAST' : 'WEST';
                 out(`${side}\n\nPRIORITY TARGETS:\n\n`);
                 TARGETS.forEach((t, i) => out(` ${i + 1}  ${t}\n`));
                 out('\nPICK THREE (NUMBERS, E.G. 1 4 7)? ');

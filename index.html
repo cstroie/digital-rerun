@@ -137,7 +137,7 @@
                 </div>
                 <p class="hint">Reader: <span id="tape-reader">no tape</span>. Punch: <span id="tape-punch">nothing yet</span>. <code>PIP FILE.TXT=RDR:</code> reads the tape, <code>PIP PUN:=FILE.TXT</code> punches a file.</p>
                 <h2 class="sub">ONLINE</h2>
-                <label class="check"><input type="checkbox" id="online"> Online services: the BBS weather desk may ask the internet (it sends the city you type to open-meteo.com)</label>
+                <label class="check"><input type="checkbox" id="online"> Online services: the BBS desks may ask the internet (each one says what it sends)</label>
                 <h2 class="sub">MODEM <span id="serial-state"></span></h2>
                 <label class="field">Speed
                     <select id="baud">
@@ -162,7 +162,7 @@
                     <input id="gatewayToken" type="password" placeholder="printed by the bridge" spellcheck="false" autocomplete="off">
                 </label>
                 <label class="check"><input type="checkbox" id="serialSignals"> Use the DTR and DCD lines (a USB board with an ESP chip resets when DTR changes)</label>
-                <p class="hint" id="serialNote">The built-in modem dials the BBS: <code>TERM</code>, then <code>ATDT5550100</code>. <code>ATDT host:port</code> reaches a telnet host through a bridge you run (<code>node tools/modem-bridge.js --allow=host</code>; put its address and token above). EXTERNAL uses a real modem on a USB serial port instead, even when one is plugged in; INTERNAL is the built-in one again (Chrome, Edge or another browser with Web Serial; set the speed to match).</p>
+                <p class="hint" id="serialNote">INTERNAL dials the BBS: <code>TERM</code>, then <code>ATDT5550100</code>, or a telnet host through a bridge you run (<code>node tools/modem-bridge.js --allow=host</code>, its address and token above). EXTERNAL uses a real modem on a USB serial port instead (Chrome or Edge); set the speed to match.</p>
                 <h2 class="sub">SYSOP CHAT</h2>
                 <label class="field">Endpoint
                     <input id="sysopUrl" type="url" placeholder="http://localhost:11434/v1" spellcheck="false" autocomplete="off">
@@ -173,7 +173,7 @@
                 <label class="field">API key
                     <input id="sysopKey" type="password" placeholder="if it wants one" spellcheck="false" autocomplete="off">
                 </label>
-                <p class="hint">The BBS sysop (<code>C</code> at its menu) answers from rules built in. With <em>Online services</em> on and an OpenAI-compatible endpoint here (Ollama, llama.cpp, LM Studio or a hosted one), a language model answers instead: it is sent the sysop's instructions, the last lines of that chat and the line you type, nothing else. The key stays in this browser. A local server must allow this page's origin (CORS).</p>
+                <p class="hint">The BBS sysop (<code>C</code> at its menu) answers from built-in rules. With Online services on and an endpoint here (Ollama, LM Studio or any OpenAI-compatible server), a language model answers instead. It gets only the sysop's instructions, the recent chat and your line. The key stays in this browser. A local server must allow this page's origin (CORS).</p>
             </section>
 
             <section class="panel" data-tab="setup">
@@ -275,6 +275,9 @@
     <script src="js/scores.js"></script>
     <script src="js/records.js"></script>
     <script src="js/reference.js"></script>
+    <script src="js/vendor/astronomy.browser.min.js"></script>
+    <script src="js/vendor/satellite.min.js"></script>
+    <script src="js/sky.js"></script>
     <script src="js/doors.js"></script>
     <script src="js/games.js"></script>
     <script src="js/gibson.js"></script>

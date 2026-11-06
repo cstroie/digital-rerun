@@ -49,7 +49,8 @@
         wall: new Wall(bbsStore), callers: new Callers(bbsStore), mail: new Mail(bbsStore), poll: new Poll(bbsStore),
         sysop: new Sysop({ online: () => settings.online, config: () => ({ url: settings.sysopUrl, model: settings.sysopModel, key: settings.sysopKey }) }),
         fetchJson: url => fetch(url, { signal: AbortSignal.timeout(8000), referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-        fetchText: url => fetch(url, { signal: AbortSignal.timeout(8000), referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+        fetchText: url => fetch(url, { signal: AbortSignal.timeout(8000), referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+        fetchBytes: url => fetch(url, { signal: AbortSignal.timeout(60000), referrerPolicy: 'no-referrer' }).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(b => new Uint8Array(b))
     });
     const directory = new Directory().add('5550100', sometimesBusy(bbsAnswer, 0.08));      // one line: now and then it is busy
     const hayes = new Hayes({ dial: directory.dial });

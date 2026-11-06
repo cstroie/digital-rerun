@@ -363,6 +363,7 @@
     /* ============================ the sky ============================ */
 
     const skyCalc = node ? require('./sky.js') : root.DigitalRerun.skyCalc;
+    const EPUB = node ? require('./epub.js') : root.DigitalRerun;
     const hhmm = d => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
     const ORBIT_KEY = 'iss.orbit', ORBIT_DAYS = 7;
 
@@ -442,6 +443,93 @@
         });
     }
 
+    /* ============================== books ============================= */
+
+    /** The books of a Standard Ebooks feed (OPDS, Atom): the title, the author, and the recommended EPUB (those without one are left out). */
+    function parseOpds(xml) {
+        return [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(m => {
+            const body = m[1];
+            const title = /<title>([\s\S]*?)<\/title>/.exec(body);
+            const author = /<author>\s*<name>([\s\S]*?)<\/name>/.exec(body);
+            const epub = /<link\b[^>]*href="([^"]+)"[^>]*title="Recommended compatible epub"/.exec(body);
+            return { title: ascii(unent(title ? title[1] : '')), author: ascii(unent(author ? author[1] : '')), url: epub ? unent(epub[1]) : '' };
+        }).filter(b => b.url);
+    }
+
+    /** A converted book in the file area: CP/M text, parts of at most 32K cut at line ends, each ended by ^Z. The names:
+     *  five letters of the title and the part number, as PRIDE_01.TXT. Returns the names. */
+    async function saveBook(h, book) {
+        const enc = new TextEncoder(), PART = 32768 - 1;          // one byte of the part is the ^Z
+        const base = book.title.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 5) || 'BOOK';
+        const parts = [];
+        let cur = '', curBytes = 0;
+        for (const line of book.text.split('\n')) {
+            const piece = `${line}\r\n`, n = enc.encode(piece).length;
+            if (cur && curBytes + n > PART) { parts.push(cur); cur = ''; curBytes = 0; }
+            cur += piece;
+            curBytes += n;
+        }
+        if (cur) parts.push(cur);
+        const names = [];
+        for (let i = 0; i < parts.length; i++) {
+            const bytes = enc.encode(parts[i]);
+            const data = new Uint8Array(bytes.length + 1);
+            data.set(bytes);
+            data[bytes.length] = 0x1A;
+            const name = `${base}_${pad2(i + 1)}.TXT`;
+            await h.s.files.put(name, data);
+            names.push(name);
+        }
+        return names;
+    }
+
+    const BOOK_KEYS = 'ABCDEFGHIJKL';
+    const clip = (s, n) => (s.length > n ? s.slice(0, n - 3) + '...' : s);
+
+    /** Standard Ebooks: search by a title or an author, pick one (a letter), read it a page at a time. */
+    function books(h) {
+        if (!h.s.online()) return offline(h);
+        let found = [];
+        const search = () => {
+            h.out(begin(h, 'BOOKS', 'Standard Ebooks: search, read'));
+            h.out(`A title or an author? ${DIM}The words are sent to standardebooks.org, nothing else.${OFF}\n? `);
+            h.ask('line', async text => {
+                const q = ascii(text).slice(0, 60);
+                if (!q) return h.leave();
+                h.out('\nSearching ...\n');
+                try {
+                    found = parseOpds(await h.s.fetchText(`https://standardebooks.org/feeds/opds/all?query=${encodeURIComponent(q)}&page=1&per-page=12`)).slice(0, BOOK_KEYS.length);
+                } catch (e) { h.out('\nThe desk is not answering.\n'); return search(); }
+                list();
+            }, 60, () => h.leave());
+        };
+        const list = () => {
+            const keys = BOOK_KEYS.slice(0, found.length) + 'S';
+            h.out(begin(h, 'BOOKS', `Keys: ${keys}   Esc-Esc/Q: Back`));
+            if (!found.length) h.out('\nNothing found.\n');
+            found.forEach((b, i) => h.out(`  ${BOLD}[${BOOK_KEYS[i]}]${OFF} ${clip(`${b.title} - ${b.author}`, 70)}\n`));
+            h.out(`\n  ${BOLD}[S]${OFF} Search again\n\n${BOLD}bbs>${OFF} `);
+            h.ask('key', async k => {
+                if (k === 'Q') return h.leave();
+                if (k === 'S') return search();
+                const i = BOOK_KEYS.indexOf(k);
+                if (i < 0 || i >= found.length) return list();
+                const b = found[i];
+                h.out(`\nDownloading ${b.title} ...\n`);
+                let book;
+                try {
+                    book = await EPUB.epubToText(await h.s.fetchBytes(b.url));
+                } catch (e) { h.out('\nThe book could not be read.\n'); return list(); }
+                try {
+                    const names = await saveBook(h, book);
+                    h.out(`\n${wrap(`Saved in Files: ${names.join(', ')}. Files (F) sends them by XMODEM.`, 76)}\n`);
+                } catch (e) { h.out('\nThe file area is full: the book is only read here.\n'); }
+                show(h, `${book.title}\nby ${b.author}\n\n${book.text}\n`, list);
+            }, 0, () => h.leave());
+        };
+        search();
+    }
+
     /* ============================== the list ========================== */
 
     /* group: info, talk, dial (the S menu, in that order) or sky (the K menu of the main page); online: needs Online services */
@@ -449,6 +537,7 @@
         { key: 'R', title: 'Reference Desk', desc: 'ASCII, hex, BDOS, opcodes', group: 'info', run: reference },
         { key: 'N', title: 'News Desk', desc: 'six sources, pick one', group: 'info', online: true, run: news },
         { key: 'W', title: 'Wikipedia', desc: 'look up a word or a name', group: 'info', online: true, run: wiki },
+        { key: 'B', title: 'Books', desc: 'Standard Ebooks: search, read', group: 'info', online: true, run: books },
         { key: 'E', title: 'Earthquakes', desc: 'the last day, the largest', group: 'info', online: true, run: quakes },
         { key: 'L', title: 'The Wall', desc: 'one-liners from callers', group: 'main', run: wall },
         { key: 'C', title: 'Last Callers', desc: 'who called, and when', group: 'talk', run: callers },
@@ -462,7 +551,7 @@
         { key: 'A', title: 'Aurora', desc: 'space weather, the storm scale', group: 'sky', online: true, run: aurora }
     ];
 
-    const api = { DOORS, DIRECTORY, ART, reference, wall, callers, scores, poll, art, mail, directory, news, quakes, aurora, wiki, parseRss, NEWS, tonight, iss, gScale, unent, ascii, wrap };
+    const api = { DOORS, DIRECTORY, ART, reference, wall, callers, scores, poll, art, mail, directory, news, quakes, aurora, wiki, parseRss, NEWS, tonight, iss, gScale, unent, ascii, wrap, parseOpds, books, saveBook };
     if (node) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, { doors: DOORS });
 })(typeof window !== 'undefined' ? window : globalThis);

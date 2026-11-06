@@ -317,8 +317,8 @@ test('news desk: a source that does not answer is said so, and the menu waits; o
     assert.equal(urls.at(-1), 'https://www.wired.com/feed/rss');
 });
 
-test('the list: fourteen doors; the keys are distinct within each menu (the S menu and the sky)', () => {
-    assert.equal(D.DOORS.length, 14);
+test('the list: fifteen doors; the keys are distinct within each menu (the S menu and the sky)', () => {
+    assert.equal(D.DOORS.length, 15);
     for (const group of ['sky', 'other']) {
         const keys = D.DOORS.filter(d => (d.group === 'sky') === (group === 'sky')).map(d => d.key);
         assert.equal(new Set(keys).size, keys.length, group);
@@ -442,4 +442,93 @@ test('ISS: the city is asked first; then where the station is now, and its passe
     assert.match(plain(r.text), /420 km up, 27600 km\/h, in daylight/);
     assert.match(plain(r.text), /CLUJ-NAPOCA/);
     assert.match(plain(r.text), /highest \d+ deg at \d\d:\d\d/);
+});
+
+const zipStored = files => {
+    const zlib = require('node:zlib');
+    const parts = [], central = [];
+    let at = 0;
+    for (const [name, body] of Object.entries(files)) {
+        const raw = Buffer.from(body, 'utf8'), nameB = Buffer.from(name, 'utf8');
+        const head = Buffer.alloc(30);
+        head.writeUInt32LE(0x04034b50, 0); head.writeUInt32LE(raw.length, 18); head.writeUInt32LE(raw.length, 22); head.writeUInt16LE(nameB.length, 26);
+        parts.push(head, nameB, raw);
+        const dir = Buffer.alloc(46);
+        dir.writeUInt32LE(0x02014b50, 0); dir.writeUInt32LE(raw.length, 20); dir.writeUInt32LE(raw.length, 24); dir.writeUInt16LE(nameB.length, 28); dir.writeUInt32LE(at, 42);
+        central.push(dir, nameB);
+        at += 30 + nameB.length + raw.length;
+    }
+    const cd = Buffer.concat(central), end = Buffer.alloc(22);
+    end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(Object.keys(files).length, 10); end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(at, 16);
+    void zlib;
+    return new Uint8Array(Buffer.concat([...parts, cd, end]));
+};
+
+const OPDS = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom">
+<entry><title>Pride and Prejudice</title><author><name>Jane Austen</name></author>
+<link href="https://standardebooks.org/ebooks/jane-austen/pride-and-prejudice/downloads/x.epub?source=feed" length="1" rel="http://opds-spec.org/acquisition/open-access" title="Recommended compatible epub" type="application/epub+zip" />
+<link href="https://standardebooks.org/x_advanced.epub?source=feed" rel="http://opds-spec.org/acquisition/open-access" title="Advanced epub" type="application/epub+zip" /></entry>
+<entry><title>Emma &amp; Friends</title><author><name>Jane Austen</name></author><link href="https://example.org/no.azw3" title="Amazon Kindle azw3" /></entry>
+</feed>`;
+
+test('books: the feed gives the title, the author and the recommended EPUB; a book without one is left out', () => {
+    const found = D.parseOpds(OPDS);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].title, 'Pride and Prejudice');
+    assert.equal(found[0].author, 'Jane Austen');
+    assert.match(found[0].url, /\.epub\?source=feed$/);
+    assert.ok(!/advanced/.test(found[0].url));
+});
+
+test('books: off without Online services; a search (only the words sent), a list, a book read a page at a time, then the list again', async () => {
+    let r = rig('books');
+    assert.match(r.text, /needs the internet/);
+    const urls = [];
+    const saved = new Map();
+    const epub = zipStored({
+        'META-INF/container.xml': '<container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>',
+        'OEBPS/content.opf': '<package><metadata><dc:title>Pride and Prejudice</dc:title></metadata><manifest><item id="c1" href="one.xhtml"/></manifest><spine><itemref idref="c1"/></spine></package>',
+        'OEBPS/one.xhtml': '<html><body><p>It is a truth universally acknowledged.</p></body></html>',
+    });
+    r = rig('books', {
+        online: () => true,
+        fetchText: async u => { urls.push(u); return OPDS; },
+        fetchBytes: async u => { urls.push(u); return epub; },
+        files: { put: async (name, bytes) => saved.set(name, bytes) },
+    });
+    assert.match(plain(r.text), /sent to standardebooks\.org, nothing else/);
+    r.take();
+    r.say('austen');
+    await r.wait(); await r.wait();
+    assert.equal(urls[0], 'https://standardebooks.org/feeds/opds/all?query=austen&page=1&per-page=12');
+    assert.match(plain(r.text), /\[A\] Pride and Prejudice - Jane Austen/);
+    r.take();
+    r.say('A');
+    await r.wait(); await r.wait(); await r.wait();
+    assert.match(urls[1], /\.epub\?source=feed$/);
+    assert.match(plain(r.text), /Pride and Prejudice\nby Jane Austen/);
+    assert.match(plain(r.text), /It is a truth universally acknowledged\./);
+    assert.match(plain(r.text), /Saved in Files: PRIDE_01\.TXT/);
+    const file = saved.get('PRIDE_01.TXT');
+    assert.ok(file, 'the book is in the file area');
+    assert.equal(file[file.length - 1], 0x1A, 'ended by ^Z');
+    assert.match(Buffer.from(file).toString('latin1'), /It is a truth universally acknowledged\.\r\n/);
+    assert.equal(r.left, false, 'back to the list, not out');
+    r.say('Q');
+    assert.equal(r.left, true);
+});
+
+test('books: a long book is kept as parts of at most 32K, each on a line end and ended by ^Z', async () => {
+    const saved = new Map();
+    const line = 'x'.repeat(99);
+    const text = Array.from({ length: 1000 }, (_, i) => `${i} ${line}`).join('\n');
+    const names = await D.saveBook({ s: { files: { put: async (n, b) => saved.set(n, b) } } }, { title: 'The Big Book', text });
+    assert.deepEqual(names, ['THEBI_01.TXT', 'THEBI_02.TXT', 'THEBI_03.TXT', 'THEBI_04.TXT'], 'about 106K, four parts');
+    for (const n of names) {
+        const b = saved.get(n);
+        assert.ok(b.length <= 32768, n);
+        assert.equal(b[b.length - 1], 0x1A, n);
+    }
+    const all = names.map(n => Buffer.from(saved.get(n).subarray(0, -1)).toString('latin1')).join('');
+    assert.equal(all.split('\r\n').filter(Boolean).length, 1000, 'every line kept, once');
 });

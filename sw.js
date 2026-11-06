@@ -34,6 +34,7 @@ const SHELL = [
     'js/reference.js',
     'js/doors.js',
     'js/sky.js',
+    'js/epub.js',
     'js/vendor/astronomy.browser.min.js',
     'js/vendor/satellite.min.js',
     'js/games.js',

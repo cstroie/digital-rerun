@@ -199,7 +199,7 @@
         'HELLO.COM': Uint8Array.from([0x11, 0x09, 0x01, 0x0E, 0x09, 0xCD, 0x05, 0x00, 0xC9,
             ...Array.from('Hello from the BBS!\r\n$', c => c.charCodeAt(0))])
     };
-    const UPLOAD_MAX = 32768, UPLOADS_MAX = 262144;
+    const UPLOAD_MAX = 32768, UPLOADS_MAX = 1048576;   // a file at most 32K; the area 1M (a book is one or more parts)
 
     /** The file area in memory: the built-in files, then what callers uploaded. */
     class MemoryFiles {

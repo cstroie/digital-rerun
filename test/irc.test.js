@@ -139,8 +139,12 @@ test('IRC draws its screen: status bar, message region, prompt; /help; unknown c
     assert.match(rows[0], /^ IRC {2}rerun\d\d {2}not connected {2}talking to nobody/);
     assert.equal(rows[23].trimEnd(), '>');
     assert.ok(m.out.includes('\x1b[2;23r'), 'the messages scroll in rows 2 to 23');
+    for (let i = 0; i < 10; i++) m.run(200000);          // the rest of the welcome
+    assert.ok(has(m, '/connect 1       dial the first one'), 'the welcome shows how to start');
     await type(m, '/help');
+    for (const group of ['CONNECTING', 'CHANNELS', 'PEOPLE', 'OTHER']) assert.ok(has(m, group), group);
     assert.ok(has(m, '/connect [host[:port]|n]'));
+    assert.ok(has(m, '/join #chan [key]'));
     await type(m, '/foo');
     assert.ok(has(m, '*** Unknown command'));
     await type(m, 'hello');                                // no target, no connection

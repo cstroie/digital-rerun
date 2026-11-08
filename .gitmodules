@@ -4,3 +4,6 @@
 [submodule "system/dialtone"]
 	path = system/dialtone
 	url = https://github.com/cstroie/dialtone.git
+[submodule "apps/coldstor"]
+	path = apps/coldstor
+	url = https://github.com/cstroie/cold-storage.git

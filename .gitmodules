@@ -1,0 +1,3 @@
+[submodule "apps/sigseek"]
+	path = apps/sigseek
+	url = https://github.com/cstroie/signal-seeker.git

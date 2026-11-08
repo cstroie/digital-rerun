@@ -62,7 +62,7 @@ and sets `modem.carrier`. A snapshot does not keep a connection: restoring drops
 
 ## Status (2026-11-05)
 
-Steps 1–3 are built. `TERM.COM` is on the CP/M 2.2 disk (its source is `system/term.asm`; it is not on the disk, which needs the room for rebuilding the BIOS): `TERM`, then `AT`,
+Steps 1–3 are built. `TERM.COM` is on the CP/M 2.2 disk (its source is `system/dialtone/term.asm`, the submodule [cstroie/dialtone](https://github.com/cstroie/dialtone); it is not on the disk, which needs the room for rebuilding the BIOS): `TERM`, then `AT`,
 `ATDT0` (the echo service), `+++` and `ATH`; Ctrl-] Q leaves with the call up, Ctrl-] H hangs up.
 
 **The TERM menu (Ctrl-]).** Ctrl-] draws a full screen (VT100 codes, so the terminal must be in VT100 mode): a title bar,
@@ -105,7 +105,7 @@ The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: 
 
 ## IRC (`IRC.COM`)
 
-`IRC` is an IRC client for the modem, a program of its own (`system/irc.asm`, 8080 code like TERM). It is on the **Online** shelf
+`IRC` is an IRC client for the modem, a program of its own (`system/dialtone/irc.asm`, 8080 code like TERM). It is on the **Online** shelf
 disk (SHELF, the Comm section) with `IRC.DIR`, and `TERM.COM` and `TERM.DIR` are there too: put the disk in B:, then `B:` and `IRC`.
 (The boot disk has no room for it: it keeps its space for rebuilding the BIOS inside CP/M. `tools/build.js` writes the four files
 into `disks/shelf/online` beside its `disk.json`.) It does not speak to a BBS: it dials a server, registers (`NICK`, `USER`) and talks IRC. The screen is a VT100:

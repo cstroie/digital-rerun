@@ -828,7 +828,7 @@
   "name": "Online",
   "format": "sssd8",
   "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM), and IRC, an IRC client (/connect, /join, /msg, /query ...), each with its directory of numbers and servers (TERM.DIR, IRC.DIR). Put it in B:, then B: and IRC or TERM.",
-  "credit": "Costin Stroie; MIT licence. Source in system/term.asm and system/irc.asm.",
+  "credit": "Costin Stroie; MIT licence. Source: github.com/cstroie/dialtone (system/dialtone).",
   "licence": "MIT",
   "category": "Comm",
   "text": [
@@ -857,7 +857,7 @@
     "path": "disks/shelf/online/TERM.DIR"
    }
   ],
-  "size": 11119,
+  "size": 11121,
   "free": 233472
  },
  {

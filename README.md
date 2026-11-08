@@ -94,7 +94,7 @@ node --test                         # assembler, file system, terminal, printer,
 ZEX=1 node --test test/zex.test.js  # ZEXDOC on the Z80 core (a few minutes; ZEX=all adds ZEXALL, CI runs both)
 ```
 
-Signal Seeker lives in its own repository, [cstroie/signal-seeker](https://github.com/cstroie/signal-seeker), a submodule at `apps/sigseek` (`git submodule update --init` if you cloned without `--recurse-submodules`; its tests need it). No dependencies and no build step for the app itself. `node tools/build.js` assembles the system and makes the disks; `node tools/build-cpm3.js` builds the CP/M 3 disk. To release, raise `VERSION` in [`js/version.js`](js/version.js) and run `node tools/stamp.js`. The source tree and the tools are described in the [wiki](https://github.com/cstroie/digital-rerun/wiki/Development).
+Signal Seeker lives in its own repository, [cstroie/signal-seeker](https://github.com/cstroie/signal-seeker), a submodule at `apps/sigseek`, and TERM and IRC in [cstroie/dialtone](https://github.com/cstroie/dialtone), a submodule at `system/dialtone` (`git submodule update --init` if you cloned without `--recurse-submodules`; `tools/build.js` and their tests need them). No dependencies and no build step for the app itself. `node tools/build.js` assembles the system and makes the disks; `node tools/build-cpm3.js` builds the CP/M 3 disk. To release, raise `VERSION` in [`js/version.js`](js/version.js) and run `node tools/stamp.js`. The source tree and the tools are described in the [wiki](https://github.com/cstroie/digital-rerun/wiki/Development).
 
 
 ## Credits

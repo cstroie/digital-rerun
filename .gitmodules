@@ -1,3 +1,6 @@
 [submodule "apps/sigseek"]
 	path = apps/sigseek
 	url = https://github.com/cstroie/signal-seeker.git
+[submodule "system/dialtone"]
+	path = system/dialtone
+	url = https://github.com/cstroie/dialtone.git

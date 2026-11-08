@@ -108,7 +108,7 @@ The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: 
 `IRC` is an IRC client for the modem, a program of its own (`system/dialtone/irc.asm`, 8080 code like TERM). It is on the **Online** shelf
 disk (SHELF, the Comm section) with `IRC.DIR`, and `TERM.COM` and `TERM.DIR` are there too: put the disk in B:, then `B:` and `IRC`.
 (The boot disk has no room for it: it keeps its space for rebuilding the BIOS inside CP/M. `tools/build.js` writes the four files
-into `disks/shelf/online` beside its `disk.json`.) It does not speak to a BBS: it dials a server, registers (`NICK`, `USER`) and talks IRC. The screen is a VT100:
+into `disks/shelf/online` beside its `disk.json`.) `IRC libera` (or a number of `IRC.DIR`, or a host) connects at once, and `TERM telehack` likewise dials from the command line. It does not speak to a BBS: it dials a server, registers (`NICK`, `USER`) and talks IRC. The screen is a VT100:
 a status bar on row 1 (your nick, the server, who you are talking to), the messages scrolling in rows 2–23, and your line on
 row 24 (76 characters; backspace edits, Ctrl-U clears it).
 

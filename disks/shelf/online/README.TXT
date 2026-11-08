@@ -2,7 +2,9 @@ ONLINE
 ======
 
 Two programs for the modem port (ports 6 and 7), each with a directory
-of places to go. Put this disk in B:, then type B: and the program.
+of places to go. Put this disk in B:, then type B: and the program. Name
+a place after it to call at once: TERM TELEHACK, IRC LIBERA (a word of a
+line of its directory, a number, or a host).
 
   TERM       a terminal. AT commands go to the modem: ATDT0 is the echo
              service, ATDT0100 the Digital Rerun BBS. Ctrl-] opens the

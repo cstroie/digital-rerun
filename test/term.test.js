@@ -369,3 +369,27 @@ test('TERM menu: D without a TERM.DIR offers to type a number', async () => {
     await until(m, 'No TERM.DIR', at);
     await until(m, 'Number or host?', at);
 });
+
+test('TERM with a name on the command line dials it: a number as it is, a word of TERM.DIR\'s lines, a host', async () => {
+    let m = boot();
+    await until(m, 'A>');
+    let at = say(m, 'TERM 0\r');                       // a number: the echo service
+    await until(m, 'CONNECT 1200', at);
+    await until(m, 'What you type comes back', at);
+    assert.equal(m.modem.carrier, true);
+
+    m = boot();
+    await until(m, 'A>');
+    at = say(m, 'TERM RERUN\r');                       // a word of "0100 Digital Rerun BBS": the board
+    await until(m, 'ATDT0100', at);
+
+    m = boot();
+    await until(m, 'A>');
+    at = say(m, 'TERM Telehack\r');                    // a host in a line: its dial string, 0101
+    await until(m, 'ATDT0101', at);
+
+    m = boot();
+    await until(m, 'A>');
+    at = say(m, 'TERM Some.Host.Example:2323\r');      // in no line: dialed as given, in lower case
+    await until(m, 'ATDTsome.host.example:2323', at);
+});

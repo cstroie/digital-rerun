@@ -430,3 +430,25 @@ test('IRC through the bridge to a real TCP server: plain CRLF on the wire (no NU
         tcp.close();
     }
 });
+
+test('IRC with a name on the command line connects at once: a number, a word of IRC.DIR, a host', async () => {
+    const dialing = async arg => {
+        const b = boot({ server: false });
+        await until(b.m, 'A>');
+        const sw = say(b.m, 'B:\r');
+        await until(b.m, 'B>', sw);
+        say(b.m, `IRC ${arg}\r`);
+        await untilTrue(b.m, () => has(b.m, '*** Dialing'), 'dialing');
+        return screen(b.m).find(row => row.includes('*** Dialing'));
+    };
+    assert.match(await dialing('3'), /\*\*\* Dialing irc\.rizon\.net:6667/);
+    assert.match(await dialing('OFTC'), /\*\*\* Dialing irc\.oftc\.net:6667/);
+    assert.match(await dialing('Libera.Chat'), /\*\*\* Dialing irc\.libera\.chat:6667/);
+    assert.match(await dialing('Some.Host.Example:6668'), /\*\*\* Dialing some\.host\.example:6668/);
+});
+
+test('IRC /connect takes a word of IRC.DIR too', async () => {
+    const { m } = await start({ server: false });
+    await type(m, '/connect efnet');
+    assert.ok(has(m, '*** Dialing irc.efnet.org:6667'));
+});

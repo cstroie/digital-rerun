@@ -145,6 +145,7 @@ test('IRC draws its screen: status bar, message region, prompt; /help; unknown c
     for (const group of ['CONNECTING', 'CHANNELS', 'PEOPLE', 'OTHER']) assert.ok(has(m, group), group);
     assert.ok(has(m, '/connect [host[:port]|n]'));
     assert.ok(has(m, '/join #chan [key]'));
+    assert.ok(has(m, 'IRC for CP/M') && has(m, 'Plain TCP only'), 'the welcome and the whole help are on the screen together');
     await type(m, '/foo');
     assert.ok(has(m, '*** Unknown command'));
     await type(m, 'hello');                                // no target, no connection

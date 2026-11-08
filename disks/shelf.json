@@ -837,6 +837,10 @@
   ],
   "files": [
    {
+    "name": "IRC.ASM",
+    "path": "disks/shelf/online/IRC.ASM"
+   },
+   {
     "name": "IRC.COM",
     "path": "disks/shelf/online/IRC.COM"
    },
@@ -845,8 +849,20 @@
     "path": "disks/shelf/online/IRC.DIR"
    },
    {
+    "name": "MAKE.SUB",
+    "path": "disks/shelf/online/MAKE.SUB"
+   },
+   {
+    "name": "MAKEALL.SUB",
+    "path": "disks/shelf/online/MAKEALL.SUB"
+   },
+   {
     "name": "README.TXT",
     "path": "disks/shelf/online/README.TXT"
+   },
+   {
+    "name": "TERM.ASM",
+    "path": "disks/shelf/online/TERM.ASM"
    },
    {
     "name": "TERM.COM",
@@ -857,8 +873,8 @@
     "path": "disks/shelf/online/TERM.DIR"
    }
   ],
-  "size": 12081,
-  "free": 232448
+  "size": 63590,
+  "free": 174080
  },
  {
   "id": "photopia",

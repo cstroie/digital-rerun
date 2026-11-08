@@ -1,0 +1,3 @@
+ASM $1.BBZ
+LOAD B:$1
+ERA B:$1.HEX

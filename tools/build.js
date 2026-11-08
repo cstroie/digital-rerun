@@ -101,6 +101,9 @@ function main() {
     fs.writeFileSync(path.join(onlineDir, 'IRC.COM'), ircCom);
     fs.writeFileSync(path.join(onlineDir, 'TERM.DIR'), termDir);        // text: the page makes it CP/M text (disk.json lists it)
     fs.writeFileSync(path.join(onlineDir, 'IRC.DIR'), ircDir);
+    // the sources and the submit files too: ASM, LOAD and SUBMIT of the boot disk build both programs on the machine itself
+    for (const f of ['term.asm', 'irc.asm', 'MAKE.SUB', 'MAKEALL.SUB'])
+        fs.copyFileSync(path.join(ROOT, 'system/dialtone', f), path.join(onlineDir, f.toUpperCase()));
 
     buildShelf();
 

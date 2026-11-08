@@ -14,6 +14,9 @@ line of its directory, a number, or a host).
              IRC.DIR), /join #chan, then type to talk. /help lists the
              commands, /quit hangs up, /bye leaves.
 
+The sources are here too: with the system disk in A:, SUBMIT B:MAKEALL
+assembles both with ASM and LOAD (SUBMIT B:MAKE TERM for one).
+
 TERM.DIR and IRC.DIR are plain text, one place per line: edit them with
 ED. IRC.DIR holds host[:port] and a name; TERM.DIR a number or host and a
 name. Telnet hosts and IRC servers need the bridge (DEVICES, MODEM; see

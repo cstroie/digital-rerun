@@ -34,7 +34,7 @@ test('every shelf entry is listed with what the page needs, and its files exist'
         if (e.image) assert.ok(fs.existsSync(path.join(ROOT, e.image)), e.image);
         else for (const f of e.files) assert.ok(fs.existsSync(path.join(ROOT, f.path)), f.path);
     }
-    assert.deepEqual(shelf.map(e => e.id).sort(), ['905', 'advent', 'aisle', 'bbcbasic', 'bdsc', 'catseye', 'coldstor', 'cpm22', 'cpm3', 'curses', 'fantasy', 'forth83', 'hitech', 'moonglow', 'online', 'photopia', 'shade', 'sigseek', 'spiderweb', 'subsab', 'suvehnux', 'z80ulm', 'zork1', 'zork2', 'zork3']);
+    assert.deepEqual(shelf.map(e => e.id).sort(), ['905', 'advent', 'aisle', 'bbcbasic', 'bdsc', 'catseye', 'coldstor', 'cpm22', 'cpm3', 'curses', 'fantasy', 'forth83', 'hitech', 'moonglow', 'online', 'photopia', 'shade', 'sigseek', 'spiderweb', 'subsab', 'suvehnux', 'tidepool', 'z80ulm', 'zork1', 'zork2', 'zork3']);
 });
 
 test('each shelf disk builds as the page builds it, every file on it', async () => {

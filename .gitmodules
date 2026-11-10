@@ -7,3 +7,6 @@
 [submodule "apps/coldstor"]
 	path = apps/coldstor
 	url = https://github.com/cstroie/cold-storage.git
+[submodule "apps/tidepool"]
+	path = apps/tidepool
+	url = https://github.com/cstroie/tidepool.git

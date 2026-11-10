@@ -41,7 +41,7 @@ test('Tidepool: PLAY starts the pool, Q saves it, and a week later the next run 
     v.m.out = ''; v.m.console.type('1');
     v.until(/a very slow garden/, 'the intro');
     v.m.out = ''; v.m.console.type(' ');
-    v.until(/Cairn stones:[\s\S]*Q leave/, 'the pool');
+    v.until(/Cairn stones:[\s\S]*Q quit/, 'the pool');
     v.m.out = ''; v.m.console.type('Q');
     v.until(/carries on without you[\s\S]*B>/, 'Q leaves');
     v.m.out = ''; v.m.console.paste('DIR\r'); v.settle();
@@ -51,5 +51,5 @@ test('Tidepool: PLAY starts the pool, Q saves it, and a week later the next run 
     v.until(/You were away for 7 days and 3 hours\.\s+1[34] tides came and went/, 'the week');
     assert.doesNotMatch(v.m.out, /Your terminal\?|a very slow garden/);
     v.m.out = ''; v.m.console.type(' ');
-    v.until(/day 8 /, 'the pool, a week on');
+    v.until(/day 8, /, 'the pool, a week on');
 });

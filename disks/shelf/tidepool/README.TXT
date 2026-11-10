@@ -31,6 +31,12 @@ The screen
               has been quiet
   row 23      the latest happening        row 24  the keys
 
+The seasons
+  The real calendar sets the pace. Winter (December to February): growth
+  is halved, little settles, storms are common. Spring: things settle
+  eagerly. Summer: growth is a quarter faster, storms are rare, crabs
+  wander in. Autumn: storms return. The season is named on row 1.
+
 What lives there
   algae       slick film on bare rock; the start of everything
   barnacles   slow, and tough
@@ -59,8 +65,17 @@ Keys
   T                            the tide table: a day of the tide drawn
                                out, the next high and low waters
   J                            the journal: the last sixteen happenings
+                               (a rock is named as it was named then)
+  B                            the bell on or off: it rings when a tide
+                               turns while you watch, and at low water
+  R                            start a new pool (asks first: Y)
   ?                            this page, short
   Q                            leave (saves, and walks the open rocks)
+
+If you close the page without Q, the next start walks the open rocks
+anyway (and says so): leaving is never free. When you come back after a
+while, TIDEPOOL tells you how long, how many tides, which rocks changed
+and what happened.
 
 The pool is kept in TIDEPOOL.SAV on the disk you ran it from, and saved on
 every cairn, every name and every tide. Delete it to start a new pool.

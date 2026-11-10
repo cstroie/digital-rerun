@@ -1,7 +1,7 @@
 {
  "name": "Tidepool",
  "format": "sssd8",
- "description": "Tidepool: a very slow garden you can't control. Ten rocks and a tide table. Things grow when the tide is in, and you only decide what not to disturb: five cairn stones keep five rocks safe from your own feet. The pool keeps the real time of the machine's clock, so come back after a week away and the pool has changed. VT100 line drawing, a sun and a moon, a tide curve; no hurry, nothing to win. Type PLAY, or TIDEPOOL (TIDEPOOL /52 or /ADM for a VT52 or an ADM-3A).",
+ "description": "Tidepool: a very slow garden you can't control. Ten rocks and a tide table. Things grow when the tide is in, and you only decide what not to disturb: five cairn stones keep five rocks safe from your own feet. The pool keeps the real time of the machine's clock, so come back after a week away and the pool has changed. The seasons set the pace, a bell rings when a tide turns; VT100 line drawing, a sun and a moon, a tide curve. No hurry, nothing to win. Type PLAY, or TIDEPOOL (TIDEPOOL /52 or /ADM for a VT52 or an ADM-3A).",
  "credit": "Costin Stroie; MIT licence. Source in apps/tidepool.",
  "licence": "MIT",
  "category": "Games",

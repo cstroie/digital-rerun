@@ -40,7 +40,11 @@ A night
   shows her if it was lit no later than she passed; fog hides a lamp lit
   late. An answered light is entered as "seen", a missed one "unseen";
   neither costs anything. A ship whose light is answered often enough
-  writes to you (H).
+  writes to you (H); letters the relief hand earns are announced when
+  you come back. A ship whose light is never answered gets a nudge in the
+  harbour book: see when she passes, and when you lit the lamp.
+  The harbour book also counts storms foreseen: a storm that comes after
+  a swell and a wind in the log, met with the lamp lit.
 
 The book
   Left: four nights to a page. Arrow keys (or , and .) turn the pages.
@@ -61,12 +65,17 @@ Keys
   H          the harbour book: the ships, how often their light was
              answered, and their letters
   M          the bell on/off    ?  this introduction      Q  leave
+  R          a new log (asks first: Y)
 
 The diary
   Whenever a night is written, LEDGER.LOG is rewritten: the last 128
   nights as plain text, one paragraph a night, with the harbour book at
-  the end. TYPE LEDGER.LOG. The save is LEDGER.SAV, next to it; delete
-  both to start a new log.
+  the end. TYPE LEDGER.LOG. The save is LEDGER.SAV, next to it. Files are
+  written under a temporary name and replace the old ones only when
+  complete, so a full disk keeps the last good save. R starts a new log.
+  While you choose the words the clock goes on: the bell rings once if
+  the next night begins, and the nights you missed are kept when you
+  finish.
 
 Terminals
   On a VT100 the book is drawn with the line-drawing set, the calendar

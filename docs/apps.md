@@ -1,9 +1,9 @@
 # Adding an app or a game to DigitalRerun
 
-Cold Storage, Signal Seeker and Tidepool are written for this machine and live in their own
+Cold Storage, Signal Seeker, Tidepool and Ledger are written for this machine and live in their own
 repositories. DigitalRerun mounts each as a git submodule under `apps/`, builds nothing from it,
 and ships only the finished files on a shelf disk. This is the recipe, from an empty directory to
-a green test run. Tidepool (`apps/tidepool`) is the freshest example; read it beside this page.
+a green test run. Ledger (`apps/ledger`) is the freshest example, Tidepool (`apps/tidepool`) the clearest; read them beside this page. Ledger also shows a second model of the app's rules in JavaScript (`tools/ledger.js`) that the test compares the emulated program with.
 
 | Piece | Where | Notes |
 |-------|-------|-------|

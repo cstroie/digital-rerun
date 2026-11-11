@@ -1,0 +1,9 @@
+{
+ "name": "Ledger",
+ "format": "sssd8",
+ "description": "Ledger: the lighthouse keeper's logbook. You keep a coastal light for a village and never see the sea, only the book. Each night you choose how the lamp burns (early, at dark, late, or not at all: the oil is limited) and the words you write; what passed in the dark is only in the log. The patterns in your own writing predict the storms and the ships: a ship that came on the 3rd, the 10th and the 17th will come again. The calendar folds the nights into rows of any width so the cycles line up. No combat, no losing: away, a relief hand keeps the lamp, and the log, LEDGER.LOG, is a diary you can TYPE. Runs on the real clock (a night is three hours; a bell rings when one begins). VT100 line drawing, scroll region, blink and reverse. Type PLAY, or LEDGER (LEDGER /52 or /ADM for a VT52 or an ADM-3A).",
+ "credit": "Costin Stroie; MIT licence. Source in apps/ledger.",
+ "licence": "MIT",
+ "category": "Games",
+ "play": "LEDGER"
+}

@@ -10,3 +10,6 @@
 [submodule "apps/tidepool"]
 	path = apps/tidepool
 	url = https://github.com/cstroie/tidepool.git
+[submodule "apps/ledger"]
+	path = apps/ledger
+	url = https://github.com/cstroie/ledger.git

@@ -72,7 +72,7 @@
 
     /* ---------- settings ---------- */
 
-    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', tab: 'drives', resume: true, sound: true, online: false, lineDrawing: true, baud: 1200, modem: 'internal', serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
+    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', font: 'vga', tab: 'drives', resume: true, sound: true, online: false, lineDrawing: true, baud: 1200, modem: 'internal', serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
 
     function applySettings() {
         $('speed').value = String(settings.speed);
@@ -82,6 +82,8 @@
         $('lineDrawing').checked = settings.lineDrawing;
         $('arrows').value = settings.arrows;
         $('phosphor').value = settings.phosphor;
+        applyFont();
+        $('font').value = FONTS[settings.font] ? settings.font : 'vga';
         $('resume').checked = settings.resume;
         $('sound').checked = settings.sound;
         $('online').checked = settings.online;
@@ -198,7 +200,7 @@
         if (b) $(b.dataset.paper).click();
     });
 
-    for (const key of ['speed', 'terminal', 'arrows', 'phosphor']) {
+    for (const key of ['speed', 'terminal', 'arrows', 'phosphor', 'font']) {
         $(key).addEventListener('change', () => {
             settings[key] = key === 'speed' ? Number($(key).value) : $(key).value;
             // Terminal arrow keys follow the terminal; WordStar keys stay.
@@ -981,7 +983,26 @@
 
     /* ---------- the screen: 80 columns across, and pictures of it ---------- */
 
-    const COLS = 80, LINE = 1, MIN_PX = 11, MAX_PX = 44;      // LINE: the rows' line height, as in the CSS
+    const COLS = 80, MIN_PX = 11, MAX_PX = 44;
+    /** The screen fonts. line: the rows' line height; cell: the pixel height of a pixel font (0: a smooth font); shot: the size of the screenshot's text at 1x. */
+    const FONTS = {
+        vga:   { family: '"Px437 IBM VGA"',        line: 1,    cell: 16, shot: 16 },
+        iso9:  { family: '"Px437 IBM DOS ISO9"',   line: 1,    cell: 16, shot: 16 },
+        vt323: { family: 'VT323',                  line: 1.06, cell: 0,  shot: 20 }
+    };
+    const fontNow = () => FONTS[settings.font] || FONTS.vga;
+    let loadedFont = null;
+    /** Put the chosen font on the screen, and fit it again once it has arrived. */
+    function applyFont() {
+        const f = fontNow();
+        const screen = $('screen');
+        screen.style.fontFamily = `${f.family}, "Px437 IBM VGA", VT323, ui-monospace, monospace`;
+        screen.style.setProperty('--line', String(f.line));
+        if (loadedFont === settings.font) return;
+        loadedFont = settings.font;
+        if (document.fonts) document.fonts.load(`16px ${f.family}`).catch(() => {}).then(() => fitScreen());
+        else fitScreen();
+    }
 
     /**
      * The font size at which the screen shows 80 x 24 as large as it can:
@@ -1005,11 +1026,12 @@
         if (!at100) return;
         let px = width * 100 / at100;
         // a few pixels of slack under the screen: with the rounding of fractional sizes, fonts and zoom the bottom border must still show
-        if (!phone.matches) px = Math.min(px, (wrap.clientHeight - padY - 8) / (term.rows * LINE));
+        if (!phone.matches) px = Math.min(px, (wrap.clientHeight - padY - 8) / (term.rows * fontNow().line));
         px = Math.max(MIN_PX, Math.min(MAX_PX, Math.floor(px * 100) / 100));
-        // a pixel font (16 px tall) is sharp only at whole multiples of 16: snap to one when that costs under 15 % of the size
-        const snap = Math.floor(px / 16) * 16;
-        if (snap >= 16 && snap >= px * 0.85) px = snap;
+        // a pixel font is sharp only at whole multiples of its height: snap to one when that costs under 15 % of the size
+        const cell = fontNow().cell;
+        const snap = cell ? Math.floor(px / cell) * cell : 0;
+        if (snap >= cell && snap >= px * 0.85 && cell) px = snap;
         screen.style.fontSize = `${px}px`;
     }
     new ResizeObserver(fitScreen).observe($('screen-wrap'));
@@ -1020,7 +1042,7 @@
         if (!fontSheet || fontSheet.sheet) r();
         else { fontSheet.addEventListener('load', r); fontSheet.addEventListener('error', r); }
     });
-    Promise.race([sheetIn.then(() => document.fonts && Promise.all([document.fonts.load('16px "Px437 IBM VGA"'), document.fonts.load('16px VT323')])).catch(() => {}), new Promise(r => setTimeout(r, 2000))])
+    Promise.race([sheetIn.then(() => document.fonts && Promise.all([document.fonts.load(`16px ${fontNow().family}`), document.fonts.load('16px VT323')])).catch(() => {}), new Promise(r => setTimeout(r, 2000))])
         .then(() => {
             fitScreen();
             requestAnimationFrame(() => { fitScreen(); $('crt').classList.add('fitted'); });   // the header changes height with the font: fit again
@@ -1032,8 +1054,8 @@
         const fg = crtStyle.getPropertyValue('--fg').trim() || '#9dff8a';
         const glow = crtStyle.getPropertyValue('--glow').trim() || 'rgba(157,255,138,0.35)';
         const bg = '#050805';
-        const scale = 2, px = 16 * scale, lineH = px * LINE, pad = 18 * scale;
-        const font = `${px}px "Px437 IBM VGA", VT323, ui-monospace, monospace`;
+        const scale = 2, px = fontNow().shot * scale, lineH = Math.round(px * fontNow().line), pad = 18 * scale;
+        const font = `${px}px ${fontNow().family}, "Px437 IBM VGA", VT323, ui-monospace, monospace`;
         if (document.fonts) await document.fonts.load(font).catch(() => {});
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');

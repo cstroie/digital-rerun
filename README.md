@@ -131,13 +131,14 @@ DigitalRerun stands on the work of many people, with thanks to all of them.
 - **HI-TECH Software** made its Z80 C compiler free for any use; **Tony Nicholson** keeps it updated at [agn453/HI-TECH-Z80-C](https://github.com/agn453/HI-TECH-Z80-C).
 
 **Fonts**
-- [VT323](https://fonts.google.com/specimen/VT323) by **Peter Hull**, and [IBM Plex Sans Condensed](https://github.com/IBM/plex) by **Mike Abbink** and **Bold Monday**, both under the SIL Open Font License.
+- [VT323](https://fonts.google.com/specimen/VT323) by **Peter Hull**, and [IBM Plex Sans Condensed](https://github.com/IBM/plex) by **Mike Abbink** and **Bold Monday**, both under the SIL Open Font License; and [Px437 IBM VGA](https://int10h.org/oldschool-pc-fonts/) by **VileR** (The Ultimate Oldschool PC Font Pack), under CC BY-SA 4.0 (`fonts/LICENSE-Px437.txt`), the font of the terminal screen.
 
 ## Licence
 
 DigitalRerun's own code is under the [MIT licence](LICENSE). The parts that come from elsewhere keep their own licences, listed in [LICENSE](LICENSE):
 - CP/M 2.2 and CP/M 3 under the DRDOS, Inc. grant ([LICENSE-DRI](LICENSE-DRI));
 - Z80.js under MIT;
+- the Px437 IBM VGA font in `fonts/` under CC BY-SA 4.0 ([fonts/LICENSE-Px437.txt](fonts/LICENSE-Px437.txt));
 - Zork I under MIT;
 - Vezza under GPL-2.0-or-later (its licence is in `disks/shelf/zork1/`);
 - Z80-μLM under MIT or Apache-2.0 (`disks/shelf/z80ulm/`);

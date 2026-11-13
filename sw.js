@@ -14,6 +14,7 @@ const SHELL = [
     './',
     'index.html',
     'css/digitalrerun.css',
+    'fonts/Web437_IBM_VGA_9x16.woff',
     'js/version.js',
     'js/z80.js',
     'js/devices/fdc.js',

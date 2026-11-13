@@ -981,7 +981,7 @@
 
     /* ---------- the screen: 80 columns across, and pictures of it ---------- */
 
-    const COLS = 80, LINE = 1.06, MIN_PX = 11, MAX_PX = 44;      // LINE: the rows' line height, as in the CSS
+    const COLS = 80, LINE = 1, MIN_PX = 11, MAX_PX = 44;      // LINE: the rows' line height, as in the CSS
 
     /**
      * The font size at which the screen shows 80 x 24 as large as it can:
@@ -1007,6 +1007,9 @@
         // a few pixels of slack under the screen: with the rounding of fractional sizes, fonts and zoom the bottom border must still show
         if (!phone.matches) px = Math.min(px, (wrap.clientHeight - padY - 8) / (term.rows * LINE));
         px = Math.max(MIN_PX, Math.min(MAX_PX, Math.floor(px * 100) / 100));
+        // a pixel font (16 px tall) is sharp only at whole multiples of 16: snap to one when that costs under 15 % of the size
+        const snap = Math.floor(px / 16) * 16;
+        if (snap >= 16 && snap >= px * 0.85) px = snap;
         screen.style.fontSize = `${px}px`;
     }
     new ResizeObserver(fitScreen).observe($('screen-wrap'));
@@ -1017,7 +1020,7 @@
         if (!fontSheet || fontSheet.sheet) r();
         else { fontSheet.addEventListener('load', r); fontSheet.addEventListener('error', r); }
     });
-    Promise.race([sheetIn.then(() => document.fonts && document.fonts.load('16px VT323')).catch(() => {}), new Promise(r => setTimeout(r, 2000))])
+    Promise.race([sheetIn.then(() => document.fonts && Promise.all([document.fonts.load('16px "Px437 IBM VGA"'), document.fonts.load('16px VT323')])).catch(() => {}), new Promise(r => setTimeout(r, 2000))])
         .then(() => {
             fitScreen();
             requestAnimationFrame(() => { fitScreen(); $('crt').classList.add('fitted'); });   // the header changes height with the font: fit again
@@ -1029,8 +1032,8 @@
         const fg = crtStyle.getPropertyValue('--fg').trim() || '#9dff8a';
         const glow = crtStyle.getPropertyValue('--glow').trim() || 'rgba(157,255,138,0.35)';
         const bg = '#050805';
-        const scale = 2, px = 20 * scale, lineH = Math.round(px * 1.06), pad = 18 * scale;
-        const font = `${px}px VT323, ui-monospace, monospace`;
+        const scale = 2, px = 16 * scale, lineH = px * LINE, pad = 18 * scale;
+        const font = `${px}px "Px437 IBM VGA", VT323, ui-monospace, monospace`;
         if (document.fonts) await document.fonts.load(font).catch(() => {});
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');

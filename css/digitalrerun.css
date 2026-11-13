@@ -1,3 +1,6 @@
+/* The screen font: Px437 IBM VGA 9x16 (VileR, Ultimate Oldschool PC Font Pack, CC BY-SA 4.0; see fonts/LICENSE-Px437.txt).
+   It has the box, block and line-drawing characters of the VT100 graphics set, which VT323 lacks. */
+@font-face { font-family: 'Px437 IBM VGA'; src: url('../fonts/Web437_IBM_VGA_9x16.woff') format('woff'); font-display: block; }
 :root {
     --page: #0d0f0c;
     --panel: #151913;
@@ -84,7 +87,7 @@ header a { color: var(--text-dim); margin-left: auto; }
     border-radius: 14px;
 }
 .screen {
-    font-family: 'VT323', ui-monospace, monospace;
+    font-family: 'Px437 IBM VGA', 'VT323', ui-monospace, monospace;
     /* app.js (fitScreen) sets the size so 80 columns fill the width; on a
        phone they stay readable and the screen scrolls sideways */
     font-size: 16px;
@@ -95,13 +98,13 @@ header a { color: var(--text-dim); margin-left: auto; }
     overflow-x: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--fg-faint) transparent;
-    line-height: 1.06;
+    line-height: 1;                       /* the VGA font: 16 rows in a 16 px em */
     color: var(--fg);
     text-shadow: 0 0 6px var(--glow);
     white-space: pre;
     user-select: text;
 }
-.screen .row { height: 1.06em; overflow: hidden; }
+.screen .row { height: 1em; overflow: hidden; }
 .screen .g { font-style: normal; display: inline-block; width: 1ch; text-align: center; }   /* line-drawing glyphs come from a fallback font: pin each to one cell */
 .screen .b { color: #d6ffcc; text-shadow: 0 0 9px var(--glow); }
 .screen .d { opacity: 0.6; }

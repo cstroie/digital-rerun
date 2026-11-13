@@ -14,10 +14,12 @@ const SHELF = path.join(ROOT, 'disks/shelf/coldstor');
 const shelf = JSON.parse(fs.readFileSync(path.join(ROOT, 'disks/shelf.json'), 'utf8'));
 const read = async p => new Uint8Array(fs.readFileSync(path.join(ROOT, p)));
 
-test('Cold Storage: the shelf copies are the app\'s build, and the DAT is what the text packs to', () => {
-    for (const f of ['COLDSTOR.COM', 'COLDSTOR.DAT']) assert.deepEqual(fs.readFileSync(path.join(SHELF, f)), fs.readFileSync(path.join(APP, f)), f);
+// COLDSTOR.COM and COLDSTOR.DAT are not in the app's repository: the shelf holds the files of its
+// GitHub release (https://github.com/cstroie/cold-storage/releases, the tag in apps/coldstor).
+test('Cold Storage: the shelf has the release build, its DAT is what the text packs to, and the guide is the app\'s', () => {
+    assert.ok(fs.statSync(path.join(SHELF, 'COLDSTOR.COM')).size > 8000);
     assert.deepEqual(fs.readFileSync(path.join(SHELF, 'README.TXT')), fs.readFileSync(path.join(APP, 'docs/PLAYING.txt')));
-    assert.deepEqual(fs.readFileSync(path.join(APP, 'COLDSTOR.DAT')), pack(fs.readFileSync(path.join(APP, 'coldstor.txt'), 'utf8')).dat);
+    assert.deepEqual(fs.readFileSync(path.join(SHELF, 'COLDSTOR.DAT')), pack(fs.readFileSync(path.join(APP, 'coldstor.txt'), 'utf8')).dat);
 });
 
 test('Cold Storage: PLAY starts the voyage, Q saves it, the next run resumes it', async () => {

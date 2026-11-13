@@ -88,11 +88,12 @@ inserted again, but a snapshot (which keeps the disks) and *My disks* keep the s
 
 ## 4. A new build of an existing app
 
-Tidepool and Signal Seeker keep no binaries in their repositories: take the files from the GitHub
+Tidepool, Signal Seeker, Cold Storage and Ledger keep no binaries in their repositories: take the files from the GitHub
 release instead (`gh release download <tag> -R cstroie/tidepool -p TIDEPOOL.COM -D disks/shelf/tidepool`;
 for Signal Seeker `-R cstroie/signal-seeker -D disks/shelf/sigseek`, both `SIGSEEK.COM` and
-`SIGSEEK.DAT`), point the submodule at the same tag, and copy `docs/PLAYING.txt` as below; their
-tests compare only the guide (and, for Signal Seeker, that the `.DAT` is packed from `sigseek.txt`).
+`SIGSEEK.DAT`; likewise `cold-storage` into `coldstor` with `COLDSTOR.COM` and `COLDSTOR.DAT`, and
+`ledger` with `LEDGER.COM`), point the submodule at the same tag, and copy `docs/PLAYING.txt` as below; their
+tests compare only the guide (and, for Signal Seeker and Cold Storage, that the `.DAT` is packed from the text).
 
     sh apps/<name>/build.sh
     cp apps/<name>/<NAME>.COM disks/shelf/<id>/ ; cp apps/<name>/docs/PLAYING.txt disks/shelf/<id>/README.TXT

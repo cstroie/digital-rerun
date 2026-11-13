@@ -10,12 +10,14 @@ const { buildDisk } = require('../js/shelf.js');
 const ROOT = path.join(__dirname, '..');
 const APP = path.join(ROOT, 'apps/ledger');
 const SHELF = path.join(ROOT, 'disks/shelf/ledger');
-const haveApp = fs.existsSync(path.join(APP, 'LEDGER.COM'));
+const haveApp = fs.existsSync(path.join(APP, 'docs/PLAYING.txt'));
 const shelf = JSON.parse(fs.readFileSync(path.join(ROOT, 'disks/shelf.json'), 'utf8'));
 const read = async p => new Uint8Array(fs.readFileSync(path.join(ROOT, p)));
 
-test('Ledger: the shelf copies are the app\'s build', { skip: !haveApp && 'apps/ledger is not checked out' }, () => {
-    assert.deepEqual(fs.readFileSync(path.join(SHELF, 'LEDGER.COM')), fs.readFileSync(path.join(APP, 'LEDGER.COM')));
+// LEDGER.COM is not in the app's repository: the shelf holds the file of its GitHub release
+// (https://github.com/cstroie/ledger/releases, the tag in apps/ledger), so only the guide is compared.
+test('Ledger: the shelf has the release build and the app\'s guide', { skip: !haveApp && 'apps/ledger is not checked out' }, () => {
+    assert.ok(fs.statSync(path.join(SHELF, 'LEDGER.COM')).size > 8000);
     assert.deepEqual(fs.readFileSync(path.join(SHELF, 'README.TXT')), fs.readFileSync(path.join(APP, 'docs/PLAYING.txt')));
 });
 

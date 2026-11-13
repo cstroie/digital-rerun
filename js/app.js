@@ -992,19 +992,12 @@
         vga14:   { family: '"Px437 IBM VGA 9x14"', line: 1, cell: 14, shot: 14 },
         ega:     { family: '"Px437 IBM EGA 8x14"', line: 1, cell: 14, shot: 14 },
         mda:     { family: '"Px437 IBM MDA"', line: 1, cell: 14, shot: 14 },
-        cga:     { family: '"Px437 IBM CGA"', line: 1, cell: 8, shot: 8 },
         toshsat: { family: '"Px437 Toshiba Sat 8x14"', line: 1, cell: 14, shot: 14 },
         toshtx:  { family: '"Px437 Toshiba TxL1 8x16"', line: 1, cell: 16, shot: 16 },
         nec:     { family: '"Px437 NEC APC3 8x16"', line: 1, cell: 16, shot: 16 },
         compaq:  { family: '"Px437 Compaq Thin 8x16"', line: 1, cell: 16, shot: 16 },
-        phoenix: { family: '"Px437 Phoenix BIOS"', line: 1, cell: 8, shot: 8 },
-        eagle:   { family: '"Px437 Eagle Spirit CGA Alt2"', line: 1, cell: 8, shot: 8 },
         rainbow: { family: '"Px437 DEC Rainbow 100"', line: 1, cell: 20, shot: 20 },
-        kaypro:  { family: '"Px437 Kaypro 2000"', line: 1, cell: 8, shot: 8 },
         zenith:  { family: '"Px437 Zenith Z-100"', line: 1, cell: 18, shot: 18 },
-        sanyo:   { family: '"Px437 Sanyo MBC55x"', line: 1, cell: 8, shot: 8 },
-        apricot: { family: '"Px437 Apricot 256L"', line: 1, cell: 10, shot: 10 },
-        wyse:    { family: '"Px437 Wyse 700b"', line: 1, cell: 32, shot: 32 },
         vt323: { family: 'VT323',                  line: 1.06, cell: 0,  shot: 20 }
     };
     const fontNow = () => FONTS[settings.font] || FONTS.vga;

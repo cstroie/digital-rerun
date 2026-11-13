@@ -88,9 +88,11 @@ inserted again, but a snapshot (which keeps the disks) and *My disks* keep the s
 
 ## 4. A new build of an existing app
 
-Tidepool keeps no binary in its repository: take `TIDEPOOL.COM` from its GitHub release instead
-(`gh release download <tag> -R cstroie/tidepool -p TIDEPOOL.COM -D disks/shelf/tidepool`), point the
-submodule at the same tag, and copy `docs/PLAYING.txt` as below; its test compares only the guide.
+Tidepool and Signal Seeker keep no binaries in their repositories: take the files from the GitHub
+release instead (`gh release download <tag> -R cstroie/tidepool -p TIDEPOOL.COM -D disks/shelf/tidepool`;
+for Signal Seeker `-R cstroie/signal-seeker -D disks/shelf/sigseek`, both `SIGSEEK.COM` and
+`SIGSEEK.DAT`), point the submodule at the same tag, and copy `docs/PLAYING.txt` as below; their
+tests compare only the guide (and, for Signal Seeker, that the `.DAT` is packed from `sigseek.txt`).
 
     sh apps/<name>/build.sh
     cp apps/<name>/<NAME>.COM disks/shelf/<id>/ ; cp apps/<name>/docs/PLAYING.txt disks/shelf/<id>/README.TXT

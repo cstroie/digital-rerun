@@ -88,6 +88,10 @@ inserted again, but a snapshot (which keeps the disks) and *My disks* keep the s
 
 ## 4. A new build of an existing app
 
+Tidepool keeps no binary in its repository: take `TIDEPOOL.COM` from its GitHub release instead
+(`gh release download <tag> -R cstroie/tidepool -p TIDEPOOL.COM -D disks/shelf/tidepool`), point the
+submodule at the same tag, and copy `docs/PLAYING.txt` as below; its test compares only the guide.
+
     sh apps/<name>/build.sh
     cp apps/<name>/<NAME>.COM disks/shelf/<id>/ ; cp apps/<name>/docs/PLAYING.txt disks/shelf/<id>/README.TXT
     node tools/build.js && node tools/stamp.js && node --test

@@ -983,7 +983,7 @@
 
     /* ---------- the screen: 80 columns across, and pictures of it ---------- */
 
-    const COLS = 80, MIN_PX = 11, MAX_PX = 44;
+    const COLS = 80, MIN_PX = 11, MIN_PX_PHONE = 3, MAX_PX = 44;   // on a phone the 80 columns win over the size: a narrow screen must show all of them
     /** The screen fonts. line: the rows' line height; cell: the pixel height of a pixel font (0: a smooth font); shot: the size of the screenshot's text at 1x. */
     const FONTS = {
         vga:   { family: '"Px437 IBM VGA"',        line: 1,    cell: 16, shot: 16 },
@@ -999,6 +999,12 @@
         compaq:  { family: '"Px437 Compaq Thin 8x16"', line: 1, cell: 16, shot: 16 },
         phoenix: { family: '"Px437 Phoenix BIOS"', line: 1, cell: 8, shot: 8 },
         eagle:   { family: '"Px437 Eagle Spirit CGA Alt2"', line: 1, cell: 8, shot: 8 },
+        rainbow: { family: '"Px437 DEC Rainbow 100"', line: 1, cell: 20, shot: 20 },
+        kaypro:  { family: '"Px437 Kaypro 2000"', line: 1, cell: 8, shot: 8 },
+        zenith:  { family: '"Px437 Zenith Z-100"', line: 1, cell: 18, shot: 18 },
+        sanyo:   { family: '"Px437 Sanyo MBC55x"', line: 1, cell: 8, shot: 8 },
+        apricot: { family: '"Px437 Apricot 256L"', line: 1, cell: 10, shot: 10 },
+        wyse:    { family: '"Px437 Wyse 700b"', line: 1, cell: 32, shot: 32 },
         vt323: { family: 'VT323',                  line: 1.06, cell: 0,  shot: 20 }
     };
     const fontNow = () => FONTS[settings.font] || FONTS.vga;
@@ -1038,7 +1044,7 @@
         let px = width * 100 / at100;
         // a few pixels of slack under the screen: with the rounding of fractional sizes, fonts and zoom the bottom border must still show
         if (!phone.matches) px = Math.min(px, (wrap.clientHeight - padY - 8) / (term.rows * fontNow().line));
-        px = Math.max(MIN_PX, Math.min(MAX_PX, Math.floor(px * 100) / 100));
+        px = Math.max(phone.matches ? MIN_PX_PHONE : MIN_PX, Math.min(MAX_PX, Math.floor(px * 100) / 100));
         // a pixel font is sharp only at whole multiples of its height: snap to one when that costs under 15 % of the size
         const cell = fontNow().cell;
         const snap = cell ? Math.floor(px / cell) * cell : 0;

@@ -988,6 +988,17 @@
     const FONTS = {
         vga:   { family: '"Px437 IBM VGA"',        line: 1,    cell: 16, shot: 16 },
         iso9:  { family: '"Px437 IBM DOS ISO9"',   line: 1,    cell: 16, shot: 16 },
+        vga8:    { family: '"Px437 IBM VGA 8x16"', line: 1, cell: 16, shot: 16 },
+        vga14:   { family: '"Px437 IBM VGA 9x14"', line: 1, cell: 14, shot: 14 },
+        ega:     { family: '"Px437 IBM EGA 8x14"', line: 1, cell: 14, shot: 14 },
+        mda:     { family: '"Px437 IBM MDA"', line: 1, cell: 14, shot: 14 },
+        cga:     { family: '"Px437 IBM CGA"', line: 1, cell: 8, shot: 8 },
+        toshsat: { family: '"Px437 Toshiba Sat 8x14"', line: 1, cell: 14, shot: 14 },
+        toshtx:  { family: '"Px437 Toshiba TxL1 8x16"', line: 1, cell: 16, shot: 16 },
+        nec:     { family: '"Px437 NEC APC3 8x16"', line: 1, cell: 16, shot: 16 },
+        compaq:  { family: '"Px437 Compaq Thin 8x16"', line: 1, cell: 16, shot: 16 },
+        phoenix: { family: '"Px437 Phoenix BIOS"', line: 1, cell: 8, shot: 8 },
+        eagle:   { family: '"Px437 Eagle Spirit CGA Alt2"', line: 1, cell: 8, shot: 8 },
         vt323: { family: 'VT323',                  line: 1.06, cell: 0,  shot: 20 }
     };
     const fontNow = () => FONTS[settings.font] || FONTS.vga;

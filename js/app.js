@@ -72,7 +72,7 @@
 
     /* ---------- settings ---------- */
 
-    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', font: 'vga', tab: 'drives', resume: true, sound: true, online: false, lineDrawing: true, baud: 1200, modem: 'internal', serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
+    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', font: 'vga', shape: 'fit', tab: 'drives', resume: true, sound: true, online: false, lineDrawing: true, baud: 1200, modem: 'internal', serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
 
     function applySettings() {
         $('speed').value = String(settings.speed);
@@ -83,6 +83,9 @@
         $('arrows').value = settings.arrows;
         $('phosphor').value = settings.phosphor;
         applyFont();
+        $('shape').value = settings.shape === 'crt43' ? 'crt43' : 'fit';
+        document.body.dataset.shape = settings.shape === 'crt43' ? 'crt43' : 'fit';
+        if (typeof fitScreen === 'function') fitScreen();
         $('font').value = FONTS[settings.font] ? settings.font : 'vga';
         $('resume').checked = settings.resume;
         $('sound').checked = settings.sound;
@@ -200,7 +203,7 @@
         if (b) $(b.dataset.paper).click();
     });
 
-    for (const key of ['speed', 'terminal', 'arrows', 'phosphor', 'font']) {
+    for (const key of ['speed', 'terminal', 'arrows', 'phosphor', 'font', 'shape']) {
         $(key).addEventListener('change', () => {
             settings[key] = key === 'speed' ? Number($(key).value) : $(key).value;
             // Terminal arrow keys follow the terminal; WordStar keys stay.
@@ -1034,15 +1037,23 @@
         const at100 = probe.getBoundingClientRect().width;
         probe.remove();
         if (!at100) return;
-        let px = width * 100 / at100;
+        const crt43 = settings.shape === 'crt43' && !phone.matches;      // the 4:3 tube: desktop only
         // a few pixels of slack under the screen: with the rounding of fractional sizes, fonts and zoom the bottom border must still show
-        if (!phone.matches) px = Math.min(px, (wrap.clientHeight - padY - 8) / (term.rows * fontNow().line));
+        const room = wrap.clientHeight - padY - 8;
+        let px = (crt43 ? Math.min(width, room * 4 / 3) : width) * 100 / at100;
+        if (!phone.matches && !crt43) px = Math.min(px, room / (term.rows * fontNow().line));
         px = Math.max(phone.matches ? MIN_PX_PHONE : MIN_PX, Math.min(MAX_PX, Math.floor(px * 100) / 100));
         // a pixel font is sharp only at whole multiples of its height: snap to one when that costs under 15 % of the size
         const cell = fontNow().cell;
         const snap = cell ? Math.floor(px / cell) * cell : 0;
         if (snap >= cell && snap >= px * 0.85 && cell) px = snap;
         screen.style.fontSize = `${px}px`;
+        // the 4:3 tube: the text is stretched vertically until the 24 rows are three quarters as tall as the 80 columns are wide
+        const rowsH = term.rows * fontNow().line * px;
+        const sy = crt43 ? 0.75 * at100 / (100 * term.rows * fontNow().line) : 1;
+        screen.style.transformOrigin = 'top left';
+        screen.style.transform = crt43 ? `scaleY(${sy.toFixed(4)})` : '';
+        screen.style.marginBottom = crt43 ? `${(rowsH * (sy - 1)).toFixed(2)}px` : '';
     }
     new ResizeObserver(fitScreen).observe($('screen-wrap'));
     if (document.fonts) document.fonts.ready.then(fitScreen);
@@ -1071,8 +1082,9 @@
         const ctx = canvas.getContext('2d');
         ctx.font = font;
         const cw = ctx.measureText('M').width;
+        const sy = settings.shape === 'crt43' && !phone.matches ? 0.75 * COLS * cw / (term.rows * lineH) : 1;   // the 4:3 tube, as on the screen
         canvas.width = Math.ceil(pad * 2 + COLS * cw);
-        canvas.height = Math.ceil(pad * 2 + term.rows * lineH);
+        canvas.height = Math.ceil(pad * 2 + term.rows * lineH * sy);
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.font = font;
@@ -1082,19 +1094,21 @@
             for (let c = 0; c < term.cols; c++) {
                 const code = term.chars[r][c], attr = term.attrs[r][c];
                 const cursor = term.cursorVisible && r === term.y && c === term.x;
-                const x = pad + c * cw, y = pad + r * lineH;
+                const x = pad + c * cw, y = pad + r * lineH * sy;
+                ctx.setTransform(1, 0, 0, sy, x, y);
                 const inverse = !!(attr & REVERSE) !== cursor;
-                if (inverse) { ctx.shadowBlur = 0; ctx.fillStyle = fg; ctx.fillRect(x, y, Math.ceil(cw), lineH); }
+                if (inverse) { ctx.shadowBlur = 0; ctx.fillStyle = fg; ctx.fillRect(0, 0, Math.ceil(cw), lineH); }
                 if (code === 32 && !(attr & UNDERLINE)) continue;
                 ctx.globalAlpha = attr & DIM ? 0.6 : 1;
                 ctx.fillStyle = inverse ? bg : attr & BOLD ? '#e8ffe0' : fg;
                 ctx.shadowColor = glow;
                 ctx.shadowBlur = inverse ? 0 : (attr & BOLD ? 9 : 6) * scale;
-                ctx.fillText(TerminalView.glyph(code), x, y + (lineH - px) / 2);
-                if (attr & UNDERLINE) ctx.fillRect(x, y + lineH - 2 * scale, Math.ceil(cw), scale);
+                ctx.fillText(TerminalView.glyph(code), 0, (lineH - px) / 2);
+                if (attr & UNDERLINE) ctx.fillRect(0, lineH - 2 * scale, Math.ceil(cw), scale);
                 ctx.globalAlpha = 1;
             }
         }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
         for (let y = 0; y < canvas.height; y += 3 * scale) ctx.fillRect(0, y, canvas.width, scale);

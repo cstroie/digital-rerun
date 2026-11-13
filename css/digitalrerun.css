@@ -467,6 +467,7 @@ aside [data-tab].active { display: block; }
     .layout > main { min-height: 0; display: flex; }
     .keyrow { display: none; }
     .screen-wrap { flex: 1; min-width: 0; min-height: 0; overflow: hidden; display: grid; place-items: start center; }
+    body[data-shape="crt43"] .screen-wrap { place-items: center; }      /* the 4:3 tube sits in the middle of its place */
     .crt { container-type: normal; }
     .screen { width: 80ch; overflow: hidden; }       /* the 80 columns, empty or not: fitScreen sizes the font to the place */
     .glass { position: relative; max-width: 100%; }

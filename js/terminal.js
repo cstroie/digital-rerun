@@ -525,8 +525,15 @@
         /** DEC special graphics, 0x5F-0x7E (stored as 128 more). */
         static GRAPHICS = '\u00a0\u25c6\u2592\u2409\u240c\u240d\u240a\u00b0\u00b1\u2424\u240b\u2518\u2510\u250c\u2514\u253c\u23ba\u23bb\u2500\u23bc\u23bd\u251c\u2524\u2534\u252c\u2502\u2264\u2265\u03c0\u2260\u00a3\u00b7';
 
-        static escape(code) {
+        /** The Unicode character for a stored code (line drawing included), as plain text. */
+        static glyph(code) {
             if (code >= 0xDF && code <= 0xFE) return TerminalView.GRAPHICS[code - 0xDF];
+            if (code < 32 || code === 127) return ' ';
+            return String.fromCharCode(code);
+        }
+
+        static escape(code) {
+            if (code >= 0xDF && code <= 0xFE) return `<i class="g">${TerminalView.GRAPHICS[code - 0xDF]}</i>`;   // own cell: the fallback font's width must not shift the row
             if (code === 60) return '&lt;';
             if (code === 62) return '&gt;';
             if (code === 38) return '&amp;';

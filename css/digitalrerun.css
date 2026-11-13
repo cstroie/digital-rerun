@@ -102,6 +102,7 @@ header a { color: var(--text-dim); margin-left: auto; }
     user-select: text;
 }
 .screen .row { height: 1.06em; overflow: hidden; }
+.screen .g { font-style: normal; display: inline-block; width: 1ch; text-align: center; }   /* line-drawing glyphs come from a fallback font: pin each to one cell */
 .screen .b { color: #d6ffcc; text-shadow: 0 0 9px var(--glow); }
 .screen .d { opacity: 0.6; }
 .screen .u { text-decoration: underline; }

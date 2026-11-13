@@ -1055,7 +1055,7 @@
                 ctx.fillStyle = inverse ? bg : attr & BOLD ? '#e8ffe0' : fg;
                 ctx.shadowColor = glow;
                 ctx.shadowBlur = inverse ? 0 : (attr & BOLD ? 9 : 6) * scale;
-                ctx.fillText(String.fromCharCode(code), x, y + (lineH - px) / 2);
+                ctx.fillText(TerminalView.glyph(code), x, y + (lineH - px) / 2);
                 if (attr & UNDERLINE) ctx.fillRect(x, y + lineH - 2 * scale, Math.ceil(cw), scale);
                 ctx.globalAlpha = 1;
             }

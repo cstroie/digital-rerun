@@ -61,6 +61,10 @@ that right). Create an **empty** repository `cstroie/<name>` (no README, no lice
     git submodule add https://github.com/cstroie/<name>.git apps/<name>
     git submodule update --init system/dialtone     # tools/build.js needs it
 
+Dialtone (TERM and IRC, `system/dialtone`) is the exception to "ship the finished files": its repository
+keeps no `.COM` either (the releases carry them), but `tools/build.js` assembles `term.asm` and `irc.asm`
+itself, so the submodule only needs to be at a tag whose sources you want.
+
 `git submodule add` accepts a directory that is already a repository whose `origin` matches the
 URL, so the app can be written in place first. A submodule commit in DigitalRerun names an exact
 commit of the app: **push the app before pushing DigitalRerun**, or everyone else gets a dangling

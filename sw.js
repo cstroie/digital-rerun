@@ -17,6 +17,7 @@ const SHELL = [
     'fonts/Web437_IBM_VGA_9x16.woff',
     'fonts/Web437_Rainbow100_re_80.woff',
     'fonts/Web437_Zenith_Z-100.woff',
+    'fonts/Terminus-4.49.3.woff',
     'fonts/Web437_IBM_DOS_ISO9.woff',
     'fonts/Web437_IBM_VGA_8x16.woff',
     'fonts/Web437_IBM_VGA_9x14.woff',

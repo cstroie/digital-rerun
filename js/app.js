@@ -1001,6 +1001,7 @@
         compaq:  { family: '"Px437 Compaq Thin 8x16"', line: 1, cell: 16, shot: 16 },
         rainbow: { family: '"Px437 DEC Rainbow 100"', line: 1, cell: 20, shot: 20 },
         zenith:  { family: '"Px437 Zenith Z-100"', line: 1, cell: 18, shot: 18 },
+        terminus: { family: 'Terminus', line: 1, cell: 16, shot: 16 },
         vt323: { family: 'VT323',                  line: 1.06, cell: 0,  shot: 20 }
     };
     const fontNow = () => FONTS[settings.font] || FONTS.vga;

@@ -2,7 +2,7 @@
  "name": "Cold Storage",
  "format": "sssd8",
  "description": "Cold Storage: you are WREN, the last mind awake on a colony ship, with forty sleepers in the hall and a coolant reserve that is never quite enough. Wake one at a time, ask what they hope and fear and would take back, and what you ask becomes what they dream. Run the ship's tired systems, answer the year's small events (a visitor, a lullaby from Earth, a dream two strangers share), and cross the Veil. No hurry, no game over. Type PLAY, or COLDSTOR (COLDSTOR /52 or /ADM for a VT52 or an ADM-3A).",
- "credit": "Costin Stroie; MIT licence. Source in apps/coldstor; the program is its v1.0.0 release.",
+ "credit": "Costin Stroie; MIT licence. Source in apps/coldstor; the program is its v1.0.1 release.",
  "licence": "MIT",
  "category": "Games",
  "play": "COLDSTOR"

@@ -96,7 +96,7 @@ flow control: a byte nobody reads before the next arrives is lost (overrun), as 
   all, in the browser). **D**ownload and **U**pload by XMODEM; the board sends checksum or CRC, and asks for
   checksum. In TERM: `Ctrl-] R` receives (file name, then the board sends), `Ctrl-] S` sends; Ctrl-X stops.
   TERM times out through the machine's clock (port 20), so a transfer that gets no answer stops on its own.
-- **W** the weather desk, with the air of the same city (US air quality index, the main pollutants), needs DEVICES → *Online services* (off by default): the city name goes to open-meteo.com
+- **W** the weather desk, with the air of the same city (US air quality index, the main pollutants), needs DEVICES → *Online services* (off by default): with no city remembered yet, the city of your IP address is proposed as the default (ipwho.is sees the address; nothing else goes with it), then the city name goes to open-meteo.com
   (geocoding, then a 4-day forecast), nothing else. Off or unreachable: "the weather desk is not answering".
 - **C** chat with the sysop (below).
 - **G** games: WOPR (below). **O** a fortune. **S** services (below). **Q** quit (hangs up).

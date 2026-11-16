@@ -412,7 +412,7 @@
             this.mode = 'menu';
         }
 
-        moonPage(back = () => this.menu()) {
+        async moonPage(back = () => this.menu()) {
             const m = moon(this.s.now());
             this.page('MOON', 'press any key');
             const art = moonArt(m.phase);
@@ -421,8 +421,9 @@
             this.out('\n' + art.map((l, i) => `   ${l.padEnd(24)}${info[i] || ''}`).join('\n') + '\n');
             if (!this.s.online()) return this.pause(back);
             // the sunrise and sunset of a city, when the internet is allowed: the city name is the only thing sent
-            const last = this.s.store.get('city') || '';
-            this.out(`\n${DIM}Sunrise and sunset: a city${last ? ` (RETURN for ${last})` : ' (RETURN to skip)'}? The name is sent to open-meteo.com, nothing else.${OFF}\n? `);
+            this.mode = 'busy';
+            const [last, guessed] = await this.defaultCity();
+            this.out(`\n${DIM}Sunrise and sunset: a city${last ? ` (RETURN for ${last}${guessed ? ', guessed from your IP address' : ''})` : ' (RETURN to skip)'}? The name is sent to open-meteo.com, nothing else.${OFF}\n? `);
             this.ask('line', async text => {
                 const city = clean(text) || last;
                 if (city) {
@@ -785,13 +786,23 @@
             this.ask('key', onKey, 0, () => this.menu());
         }
 
+        /** The default of a city prompt: [the last city, false], or, with none yet, [the city of the IP address, true]. */
+        async defaultCity() {
+            const last = this.s.store.get('city') || '';
+            if (last || !this.s.locate) return [last, false];
+            this.mode = 'busy';
+            this.out(`\n${DIM}Looking for your city ...${OFF}\n`);
+            const guess = await this.s.locate();
+            return [guess, !!guess];
+        }
+
         /* --- the weather desk --- */
 
-        weather() {
+        async weather() {
             if (!this.s.online()) return this.menu('the weather desk is not answering (DEVICES, Online services)');
-            const last = this.s.store.get('city') || '';
             this.page('WEATHER', 'RETURN with no city: back');
-            this.out(`\nWhich city${last ? ` (RETURN for ${last})` : ''}?\n${DIM}The name is sent to open-meteo.com, nothing else.${OFF}\n\n? `);
+            const [last, guessed] = await this.defaultCity();
+            this.out(`\nWhich city${last ? ` (RETURN for ${last})` : ''}?\n${DIM}${guessed ? 'Guessed from your IP address (ipwho.is). ' : ''}The name is sent to open-meteo.com, nothing else.${OFF}\n\n? `);
             this.ask('line', async city => {
                 city = clean(city) || last;
                 if (!city) return this.menu();
@@ -909,7 +920,26 @@
 
     /** The function a directory entry is: dials make a Session. */
     function bbs(services) {
+        if (!services.locate) services = { ...services, locate: locator(services) };
         return link => new Session(link, services);
+    }
+
+    /**
+     * The city of the caller's IP address, for the default of a city prompt: ipwho.is sees the address (that is how it
+     * answers), nothing of ours goes with it. One lookup a call to the board; '' when it does not answer, or when the
+     * internet is not allowed.
+     */
+    function locator(s) {
+        let found = null;
+        return async () => {
+            if (found !== null) return found;
+            if (!s.online() || !s.fetchJson) return '';
+            try {
+                const r = await s.fetchJson('https://ipwho.is/?fields=success,city');
+                found = r && r.success !== false && typeof r.city === 'string' ? clean(r.city) : '';
+            } catch (e) { found = ''; }
+            return found;
+        };
     }
 
     const api = { bbs, Session, moon, moonArt, weatherPage, sky, MemoryBoard, StoredBoard, MemoryFiles, StoredFiles, BUILTIN_FILES, xmodemBlock, crc16, cpmName };

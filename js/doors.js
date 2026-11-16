@@ -374,9 +374,14 @@
     }
 
     /** The city prompt of a sky desk (the last city is the default); `then(place)` runs with the place, then the desk ends. */
-    function askCity(h, note, then) {
-        const last = h.s.store.get('city') || '';
-        h.out(`A city${last ? ` (RETURN for ${last})` : ''}?\n${DIM}${note}${OFF}\n? `);
+    async function askCity(h, note, then) {
+        let last = h.s.store.get('city') || '', guessed = false;
+        if (!last && h.s.locate) {
+            h.out(`${DIM}Looking for your city ...${OFF}\n`);
+            last = await h.s.locate();
+            guessed = !!last;
+        }
+        h.out(`A city${last ? ` (RETURN for ${last}${guessed ? ', guessed from your IP address' : ''})` : ''}?\n${DIM}${note}${OFF}\n? `);
         h.ask('line', async text => {
             const city = ascii(text).slice(0, 40) || last;
             if (!city) return h.leave();

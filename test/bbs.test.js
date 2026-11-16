@@ -173,33 +173,37 @@ test('W: online: asks only for the city, shows the forecast, remembers the city'
     const c = caller({ online: () => true, fetchJson: url => { urls.push(url); return Promise.resolve(url.includes('geocoding') ? GEO : FORECAST); } });
     c.take();
     c.type('w');
+    await c.settle();
     assert.match(c.out, /sent to open-meteo\.com, nothing else/);
     c.type('Cluj\r');
     await c.settle(); await c.settle();
-    assert.equal(urls.length, 3, 'the geocoding, the forecast, the air');
-    assert.match(urls[0], /^https:\/\/geocoding-api\.open-meteo\.com\/v1\/search\?name=Cluj&count=1$/);
-    assert.match(urls[1], /^https:\/\/api\.open-meteo\.com\/v1\/forecast\?latitude=46\.77&longitude=23\.6&/);
+    assert.equal(urls.length, 4, 'the IP lookup, the geocoding, the forecast, the air');
+    assert.match(urls[0], /^https:\/\/ipwho\.is\//);
+    assert.match(urls[1], /^https:\/\/geocoding-api\.open-meteo\.com\/v1\/search\?name=Cluj&count=1$/);
+    assert.match(urls[2], /^https:\/\/api\.open-meteo\.com\/v1\/forecast\?latitude=46\.77&longitude=23\.6&/);
     assert.match(c.out, /WEATHER DESK.*Cluj-Napoca, RO/s);
     assert.match(c.out, /Now {2}3\.2 C, Overcast, wind 2 km\/h, humidity 71%/);
     assert.match(c.out, /Sat 11-07 +-1 +8 +1\.2 .*Rain/);
     assert.equal(c.services.store.get('city'), 'Cluj-Napoca');
     c.type(' ');                                              // a key leaves the forecast
     c.take();
-    c.type('w');
+    c.type('w'); await c.settle();
     assert.match(c.out, /RETURN for Cluj-Napoca/);
     c.type('\r');
     await c.settle(); await c.settle();
-    assert.equal(urls.length, 6, 'and the same three again');
-    assert.match(urls[3], /name=Cluj-Napoca/);
+    assert.equal(urls.length, 7, 'and the same three again, with no second IP lookup');
+    assert.match(urls[4], /name=Cluj-Napoca/);
 });
 
 test('W: an unknown place, and a desk that does not answer', async () => {
     let c = caller({ online: () => true, fetchJson: () => Promise.resolve({}) });
-    c.type('wNowhereville\r');
+    c.type('w'); await c.settle();
+    c.type('Nowhereville\r');
     await c.settle(); await c.settle();
     assert.match(c.out, /no such place, Nowhereville/);
     c = caller({ online: () => true, fetchJson: () => Promise.reject(new Error('offline')) });
-    c.type('wCluj\r');
+    c.type('w'); await c.settle();
+    c.type('Cluj\r');
     await c.settle(); await c.settle();
     assert.match(c.out, /weather desk is not answering/);
     assert.match(plain(c.out), /\[B\] Bulletins/);
@@ -826,14 +830,14 @@ test('W: the forecast and the air of the city, on one page; the air missing, the
     const AIR = { current: { time: '2026-11-05T14:00', us_aqi: 42, pm2_5: 6.1, pm10: 9.8, ozone: null, nitrogen_dioxide: 11 } };
     const c = caller({ online: () => true, fetchJson: url => Promise.resolve(url.includes('geocoding') ? GEO : url.includes('air-quality') ? AIR : FORECAST) });
     c.take();
-    c.type('w');
+    c.type('w'); await c.settle();
     c.type('Cluj\r');
     await c.settle(); await c.settle();
     assert.match(plain(c.out), /AIR {2}US AQI 42, good/);
     assert.match(plain(c.out), /PM2\.5 6 {2}PM10 10 {2}ozone - {2}NO2 11/);
     const c2 = caller({ online: () => true, fetchJson: url => Promise.resolve(url.includes('geocoding') ? GEO : FORECAST) });
     c2.take();
-    c2.type('w');
+    c2.type('w'); await c2.settle();
     c2.type('Cluj\r');
     await c2.settle(); await c2.settle();
     assert.ok(!/AIR/.test(plain(c2.out)), 'no air, no air lines');
@@ -845,7 +849,7 @@ test('moon: the sunrise and sunset of a city, when online; RETURN skips it; offl
     const c = caller({ doors: require('../js/doors.js').DOORS, online: () => true, fetchJson: url => Promise.resolve(url.includes('geocoding') ? GEO : SUN) });
     c.take();
     c.type('k'); c.take();
-    c.type('m');
+    c.type('m'); await c.settle();
     assert.match(plain(c.out), /Sunrise and sunset: a city/);
     c.take();
     c.type('Cluj\r');
@@ -917,4 +921,32 @@ test('no line of a menu runs past the 80 columns of the screen (the cursor moves
         for (const ch of keys) c.session.send(ch.charCodeAt(0));
         assert.ok(widest(c.take() || c.out) <= 80, `screen after "${keys}"`);
     }
+});
+
+test('W: no city stored yet: the city of the IP address is proposed, asked once, and a stored city is not looked up', async () => {
+    const urls = [];
+    const c = caller({ online: () => true, fetchJson: url => { urls.push(url); return Promise.resolve(url.includes('ipwho') ? { success: true, city: 'Cluj-Napoca' } : url.includes('geocoding') ? GEO : FORECAST); } });
+    c.take();
+    c.type('w'); await c.settle();
+    assert.match(plain(c.out), /RETURN for Cluj-Napoca\)?\?/);
+    assert.match(plain(c.out), /Guessed from your IP address \(ipwho\.is\)/);
+    assert.equal(urls[0], 'https://ipwho.is/?fields=success,city');
+    c.type('\r'); await c.settle(); await c.settle();
+    assert.match(urls[1], /name=Cluj-Napoca/, 'RETURN takes the guess');
+    assert.equal(c.services.store.get('city'), 'Cluj-Napoca');
+    c.type(' '); c.take();
+    c.type('w');
+    assert.equal(urls.filter(u => u.includes('ipwho')).length, 1, 'the stored city: no second lookup');
+});
+
+test('W: the IP lookup fails, or the internet is off: no guess, no lookup, the plain question', async () => {
+    const c = caller({ online: () => true, fetchJson: url => (url.includes('ipwho') ? Promise.resolve({ success: false }) : Promise.resolve({})) });
+    c.take();
+    c.type('w'); await c.settle();
+    assert.match(plain(c.out), /Which city\?/);
+    assert.ok(!/RETURN for|Guessed/.test(plain(c.out)));
+    let asked = 0;
+    const off = caller({ fetchJson: () => { asked++; return Promise.resolve({}); } });
+    off.type('w');
+    assert.equal(asked, 0);
 });

@@ -12,8 +12,8 @@ const { Gateway } = require('../js/devices/gateway.js');
 
 const lighttpd = ['/usr/sbin/lighttpd', '/usr/local/sbin/lighttpd', '/usr/bin/lighttpd'].find(f => fs.existsSync(f));
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lighttpd-bridge-'));
-const BIN = path.join(dir, 'modem-bridge');
-const built = lighttpd && spawnSync('cc', ['-O2', '-o', BIN, path.join(__dirname, '../tools/modem-bridge/modem-bridge.c'), '-lpthread']).status === 0;
+const BIN = path.join(dir, 'coupler');
+const built = lighttpd && spawnSync('cc', ['-O2', '-o', BIN, path.join(__dirname, '../tools/coupler/coupler.c'), '-lpthread']).status === 0;
 const skip = !lighttpd ? 'no lighttpd' : !built ? 'no C compiler' : false;
 
 const freePort = () => new Promise(r => { const s = net.createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });

@@ -225,8 +225,8 @@ secret from someone who knows the machine name, the user and the port. Then DEVI
 *Bridge token*, and in TERM `ATDT bbs.example.org` (port 23) or `ATDT bbs.example.org:2323` (use `ATDT`: Hayes takes a lone `T` or
 `P` after `D` as a dial modifier). Anything that is not a number of the built-in directory (letters or dots) goes to the bridge.
 
-- **The bridge** (`tools/modem-bridge.js`, no dependencies; the same in C in `tools/modem-bridge/`, for a machine
-  without Node.js: `make -C tools/modem-bridge`, and `tools/bridge.sh` runs it from then on) is a WebSocket to TCP pipe. `--allow` is required and
+- **The bridge** (`tools/modem-bridge.js`, no dependencies; the same in C in `tools/coupler/`, for a machine
+  without Node.js: `make -C tools/coupler`, and `tools/bridge.sh` runs it from then on) is a WebSocket to TCP pipe. `--allow` is required and
   names what may be dialed (`host`, `host:port`, `*.domain`, an IPv4 block such as `192.168.0.0/16` or `10.0.0.0/8` (literal addresses, no DNS), `*` for any public host; `--allow-private` lets `*`
   reach private and loopback addresses, which can always be named). A token (worked out from the host, user and port by default, or `--token`)
   must come with every connection; `--origin` limits the pages; `--max` connections at once. It logs the host
@@ -237,7 +237,7 @@ secret from someone who knows the machine name, the user and the port. Then DEVI
   against authorities: the first one a host shows is trusted and kept (`host:port sha256`, a line in `--known`,
   default `~/.modem-bridge-known`), and a host that shows another one later is refused (close 4005, the modem says
   `NO CARRIER`), as ssh does; delete its line to trust the new one. The C bridge does this when built with
-  `make -C tools/modem-bridge TLS=1` (OpenSSL); built without, it refuses such a call (4004). `tools/bridge.sh` builds
+  `make -C tools/coupler TLS=1` (OpenSSL); built without, it refuses such a call (4004). `tools/bridge.sh` builds
   it with TLS when OpenSSL is there.
 - **Telnet** is the page's (`js/devices/telnet.js`): it agrees to ECHO and SUPPRESS-GO-AHEAD, announces itself
   as a VT100 (TERMINAL-TYPE) of 80x24 (NAWS), refuses the rest, doubles 255 and sends CR as CR NUL. The bridge
@@ -264,8 +264,8 @@ without one refuses every call), `ORIGIN`, `TIMEOUT`, `KNOWN`, `ALLOW_PRIVATE`, 
 which lighttpd writes to `server.breakagelog`.
 
 ```
-make -C tools/modem-bridge TLS=1          # TLS=1 for Gemini (OpenSSL); without it no dependencies
-install -D -m 755 tools/modem-bridge/modem-bridge /usr/local/lib/modem-bridge/modem-bridge
+make -C tools/coupler TLS=1          # TLS=1 for Gemini (OpenSSL); without it no dependencies
+install -D -m 755 tools/coupler/coupler /usr/local/lib/coupler/coupler
 install -d -o www-data /var/lib/modem-bridge                # the certificates of Gemini capsules
 ```
 
@@ -275,7 +275,7 @@ server.modules += ( "mod_alias", "mod_cgi", "mod_setenv" )
 server.breakagelog = "/var/log/lighttpd/modem-bridge.log"   # the bridge's log (a CGI's stderr)
 
 $HTTP["url"] =~ "^/connect" {
-    alias.url  = ( "/connect" => "/usr/local/lib/modem-bridge/modem-bridge" )
+    alias.url  = ( "/connect" => "/usr/local/lib/coupler/coupler" )
     cgi.assign = ( "" => "" )                    # run the file itself
     cgi.upgrade = "enable"                       # the WebSocket to its stdin and stdout
     setenv.add-environment = (

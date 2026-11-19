@@ -5,4 +5,4 @@ system/*.lst
 _private/
 _dist/
 _shots/
-tools/modem-bridge/modem-bridge
+tools/coupler/coupler

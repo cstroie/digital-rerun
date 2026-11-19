@@ -1,5 +1,5 @@
 # The modem bridge in C: tools/modem-bridge.js for a machine without Node.js.
-#   make            build ./modem-bridge (no TLS: no dependencies)
+#   make            build ./coupler (no TLS: no dependencies)
 #   make TLS=1      with TLS for Gemini (needs OpenSSL: libssl-dev, openssl-devel)
 #   make install    copy it to $(PREFIX)/bin (PREFIX=/usr/local)
 #   make clean
@@ -12,14 +12,14 @@ CFLAGS += -DWITH_TLS
 LDLIBS += -lssl -lcrypto
 endif
 
-modem-bridge: modem-bridge.c
+coupler: coupler.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
 
-install: modem-bridge
+install: coupler
 	install -d $(DESTDIR)$(PREFIX)/bin
-	install -m 755 modem-bridge $(DESTDIR)$(PREFIX)/bin/modem-bridge
+	install -m 755 coupler $(DESTDIR)$(PREFIX)/bin/coupler
 
 clean:
-	rm -f modem-bridge
+	rm -f coupler
 
 .PHONY: install clean

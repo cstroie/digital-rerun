@@ -1,5 +1,5 @@
 'use strict';
-// tools/modem-bridge/modem-bridge.c against what the page expects of the bridge: the same checks as
+// tools/coupler/coupler.c against what the page expects of the bridge: the same checks as
 // test/bridge.test.js makes of tools/modem-bridge.js, on a built binary. Skipped without a C compiler.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -11,8 +11,8 @@ const { execFileSync, spawn, spawnSync } = require('node:child_process');
 const { seedToken, DEFAULT_PORT } = require('../tools/modem-bridge.js');
 const { Gateway } = require('../js/devices/gateway.js');
 
-const SRC = path.join(__dirname, '../tools/modem-bridge/modem-bridge.c');
-const BIN = path.join(__dirname, '.cache/modem-bridge');
+const SRC = path.join(__dirname, '../tools/coupler/coupler.c');
+const BIN = path.join(__dirname, '.cache/coupler');
 let built = false;
 try {
     fs.mkdirSync(path.dirname(BIN), { recursive: true });
@@ -21,7 +21,7 @@ try {
     if (!built && r.error === undefined) throw new Error(r.stderr);
 } catch (e) { if (!/ENOENT/.test(String(e))) throw e; }
 const skip = !built && 'no C compiler (cc)';
-const BIN_TLS = path.join(__dirname, '.cache/modem-bridge-tls');
+const BIN_TLS = path.join(__dirname, '.cache/coupler-tls');
 let builtTls = false;
 if (built) {
     const r = spawnSync('cc', ['-O2', '-Wall', '-Wextra', '-Werror', '-DWITH_TLS', '-o', BIN_TLS, SRC, '-lpthread', '-lssl', '-lcrypto'], { encoding: 'utf8' });
@@ -233,7 +233,7 @@ test('C bridge: --show-token gives the token the JavaScript bridge gives; no --a
     assert.equal(show('--token=mine'), 'mine');
     const r = spawnSync(BIN, [], { encoding: 'utf8' });
     assert.equal(r.status, 2);
-    assert.match(r.stderr, /usage: modem-bridge --allow=/);
+    assert.match(r.stderr, /usage: coupler --allow=/);
 });
 
 test('C bridge: a question typed a byte at a time reaches a one-read server whole (the gateway sends the line)', { skip }, async () => {

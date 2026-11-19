@@ -11,21 +11,21 @@
 # modem-bridge.js). Then, in DEVICES, MODEM: the address and the token this prints; in
 # TERM: ATDT telehack.com
 #
-# The bridge is the C one (tools/modem-bridge/, about 2 MB in memory) when it is built,
+# The bridge is the C one (tools/coupler/, about 2 MB in memory) when it is built,
 # else modem-bridge.js with Node.js; with neither, but a C compiler and make, the C one is
 # built first.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
-bin="$here/modem-bridge/modem-bridge"
+bin="$here/coupler/coupler"
 if [ -z "${BRIDGE_NODE:-}" ] && [ ! -x "$bin" ] && ! command -v node >/dev/null 2>&1 && command -v make >/dev/null 2>&1 && command -v cc >/dev/null 2>&1; then
-  make -s -C "$here/modem-bridge" TLS=1 >&2 2>/dev/null || make -s -C "$here/modem-bridge" >&2     # with TLS (Gemini) if OpenSSL is there
+  make -s -C "$here/coupler" TLS=1 >&2 2>/dev/null || make -s -C "$here/coupler" >&2     # with TLS (Gemini) if OpenSSL is there
 fi
 if [ -z "${BRIDGE_NODE:-}" ] && [ -x "$bin" ]; then
   set -- "$bin" "$@"
 elif command -v node >/dev/null 2>&1; then
   set -- node "$here/modem-bridge.js" "$@"
 else
-  echo "bridge.sh: build the bridge (make -C tools/modem-bridge) or install Node.js (https://nodejs.org)" >&2
+  echo "bridge.sh: build the bridge (make -C tools/coupler) or install Node.js (https://nodejs.org)" >&2
   exit 1
 fi
 run=$1

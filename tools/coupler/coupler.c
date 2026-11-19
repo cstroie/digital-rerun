@@ -1,10 +1,10 @@
 /*
- * modem-bridge.c: the modem bridge of tools/modem-bridge.js in C, for a machine without
+ * coupler.c: the modem bridge of tools/modem-bridge.js in C, for a machine without
  * Node.js (a small Linux box, a Raspberry Pi, a router). The same options, the same
  * protocol, the same close codes, the same token: the page cannot tell them apart.
  *
- *   make -C tools/modem-bridge        (or: cc -O2 -o modem-bridge modem-bridge.c -lpthread)
- *   tools/modem-bridge/modem-bridge --allow=<hosts> [--port=1984] [--bind=127.0.0.1]
+ *   make -C tools/coupler        (or: cc -O2 -o coupler coupler.c -lpthread)
+ *   tools/coupler/coupler --allow=<hosts> [--port=1984] [--bind=127.0.0.1]
  *        [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<page origin>[,...]]
  *        [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30] [--cgi]
  *
@@ -829,7 +829,7 @@ int main(int argc, char **argv) {
     int help = opt(argc, argv, "help", NULL) != NULL;
     if (help || !allow || flag) {
         if (cgi_mode && !help) { logf_("no MODEM_BRIDGE_ALLOW (or --allow): every call is refused"); cgi_reply(500, "The modem bridge allows no host."); return 0; }
-        fprintf(stderr, "usage: modem-bridge --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30] [--cgi]\n");
+        fprintf(stderr, "usage: coupler --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30] [--cgi]\n");
         fprintf(stderr, "       every option may come from the environment instead: MODEM_BRIDGE_ALLOW, MODEM_BRIDGE_TOKEN ...\n");
         return help ? 0 : 2;
     }
@@ -863,12 +863,12 @@ int main(int argc, char **argv) {
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
-    if (getaddrinfo(bind_to, ports, &hints, &res)) { fprintf(stderr, "modem-bridge: cannot use the address %s\n", bind_to); return 1; }
+    if (getaddrinfo(bind_to, ports, &hints, &res)) { fprintf(stderr, "coupler: cannot use the address %s\n", bind_to); return 1; }
     int lfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     int one = 1;
     setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
     if (lfd < 0 || bind(lfd, res->ai_addr, res->ai_addrlen) < 0 || listen(lfd, 16) < 0) {
-        fprintf(stderr, "modem-bridge: cannot listen on %s:%d: %s\n", bind_to, listen_port, strerror(errno));
+        fprintf(stderr, "coupler: cannot listen on %s:%d: %s\n", bind_to, listen_port, strerror(errno));
         return 1;
     }
     freeaddrinfo(res);

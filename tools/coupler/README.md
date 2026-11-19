@@ -1,6 +1,6 @@
 # coupler (C)
 
-The modem bridge of [`../modem-bridge.js`](../modem-bridge.js), in C, for a machine without Node.js: a small
+The modem bridge of [`../coupler.js`](../coupler.js), in C, for a machine without Node.js: a small
 Linux box, a Raspberry Pi, a router. It lets the browser's modem dial telnet hosts, IRC servers and gopher
 holes (a page cannot open a TCP connection itself). Same options, same protocol, same close codes and the
 same token as the JavaScript one, so DEVICES does not change. One file, no dependencies, POSIX (Linux, the
@@ -10,7 +10,7 @@ BSDs, macOS): about 35K on disk, 2 MB in memory, where Node takes about 45.
 make                     build ./coupler  (or: cc -O2 -o coupler coupler.c -lpthread)
 make TLS=1               with TLS to the host, for Gemini (OpenSSL: libssl-dev, openssl-devel)
 make install             to /usr/local/bin  (PREFIX=, DESTDIR=)
-../bridge.sh             runs it, with the board's directory allowed, once it is built
+../coupler.sh             runs it, with the board's directory allowed, once it is built
 ```
 
 ```

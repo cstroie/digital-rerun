@@ -1,18 +1,18 @@
 #!/bin/sh
-# bridge.sh: run the modem bridge (WebSocket to TCP) for DigitalRerun's modem.
+# coupler.sh: run the modem bridge (WebSocket to TCP) for DigitalRerun's modem.
 #
-#   tools/bridge.sh                  allow the hosts of the board's dial directory, IRC.DIR, GOPHER.DIR, MUD.DIR, FINGER.DIR, GEMINI.DIR, NETTIME's clock
-#   tools/bridge.sh host,host:port   allow these instead (names, host:port, *.domain, *)
-#   tools/bridge.sh --show-token     print the token and exit
+#   tools/coupler.sh                  allow the hosts of the board's dial directory, IRC.DIR, GOPHER.DIR, MUD.DIR, FINGER.DIR, GEMINI.DIR, NETTIME's clock
+#   tools/coupler.sh host,host:port   allow these instead (names, host:port, *.domain, *)
+#   tools/coupler.sh --show-token     print the token and exit
 #
 # Environment: BRIDGE_PORT (default 1984), BRIDGE_SEED (a salt for the token),
 # BRIDGE_ALLOW (the list, if none is given), BRIDGE_NODE=1 (the JavaScript bridge even
 # when the C one is built). More options are passed on to the bridge (see the header of
-# modem-bridge.js). Then, in DEVICES, MODEM: the address and the token this prints; in
+# coupler.js). Then, in DEVICES, MODEM: the address and the token this prints; in
 # TERM: ATDT telehack.com
 #
 # The bridge is the C one (tools/coupler/, about 2 MB in memory) when it is built,
-# else modem-bridge.js with Node.js; with neither, but a C compiler and make, the C one is
+# else coupler.js with Node.js; with neither, but a C compiler and make, the C one is
 # built first.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
@@ -23,9 +23,9 @@ fi
 if [ -z "${BRIDGE_NODE:-}" ] && [ -x "$bin" ]; then
   set -- "$bin" "$@"
 elif command -v node >/dev/null 2>&1; then
-  set -- node "$here/modem-bridge.js" "$@"
+  set -- node "$here/coupler.js" "$@"
 else
-  echo "bridge.sh: build the bridge (make -C tools/coupler) or install Node.js (https://nodejs.org)" >&2
+  echo "coupler.sh: build the bridge (make -C tools/coupler) or install Node.js (https://nodejs.org)" >&2
   exit 1
 fi
 run=$1

@@ -147,7 +147,7 @@ test('GEMINI end to end: the modem, the gateway, the bridge speaking TLS, a caps
     const os = require('node:os');
     const path = require('node:path');
     const tls = require('node:tls');
-    const { createBridge } = require('../tools/modem-bridge.js');
+    const { createBridge } = require('../tools/coupler.js');
     const { Gateway } = require('../js/devices/gateway.js');
     const FIX = path.join(__dirname, 'fixtures');
     const asked = [];

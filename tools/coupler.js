@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /*
- * modem-bridge.js: a WebSocket to TCP gateway, so the browser's modem can dial
+ * coupler.js: a WebSocket to TCP gateway, so the browser's modem can dial
  * a telnet host (a browser cannot open a TCP connection itself).
  *
- *   node tools/modem-bridge.js --allow=<hosts> [--port=1984] [--bind=127.0.0.1]
+ *   node tools/coupler.js --allow=<hosts> [--port=1984] [--bind=127.0.0.1]
  *        [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<page origin>[,...]]
  *        [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30]
- *   tools/bridge.sh [hosts]      the same, with the board's directory allowed by default
+ *   tools/coupler.sh [hosts]      the same, with the board's directory allowed by default
  *
  *   --allow    which hosts may be dialed, comma separated: `bbs.example.org`,
  *              `bbs.example.org:2323`, `*.example.org`, an IPv4 block such as
@@ -40,8 +40,8 @@
  * file, and a host that shows another one later is refused (4005), as ssh does.
  * It speaks ws:, not wss:: for a page served over https use localhost or put
  * a TLS reverse proxy in front. It logs the host dialed and nothing of what
- * is said. No dependencies. tools/modem-bridge/ is the same bridge in C, for a machine
- * without Node.js (tools/bridge.sh runs it once it is built).
+ * is said. No dependencies. tools/coupler/ is the same bridge in C, for a machine
+ * without Node.js (tools/coupler.sh runs it once it is built).
  */
 'use strict';
 const http = require('http');
@@ -243,7 +243,7 @@ function main() {
     const token = typeof args.token === 'string' ? args.token : seedToken({ port, salt: typeof args.seed === 'string' ? args.seed : '' });
     if (args['show-token']) { console.log(token); return; }
     if (args.help || !args.allow || args.allow === true) {
-        console.error('usage: node tools/modem-bridge.js --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30]');
+        console.error('usage: node tools/coupler.js --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30]');
         process.exit(args.help ? 0 : 2);
     }
     const server = createBridge({

@@ -1,5 +1,5 @@
 /*
- * gateway.js: the way out to a telnet host, through tools/modem-bridge.js
+ * gateway.js: the way out to a telnet host, through tools/coupler.js
  * (a browser cannot open a TCP connection itself). `ATDT host:port` on the
  * modem comes here when the host is no number of the built-in directory.
  *

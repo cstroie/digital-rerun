@@ -1,5 +1,5 @@
 /*
- * coupler.c: the modem bridge of tools/modem-bridge.js in C, for a machine without
+ * coupler.c: the modem bridge of tools/coupler.js in C, for a machine without
  * Node.js (a small Linux box, a Raspberry Pi, a router). The same options, the same
  * protocol, the same close codes, the same token: the page cannot tell them apart.
  *
@@ -8,7 +8,7 @@
  *        [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<page origin>[,...]]
  *        [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30] [--cgi]
  *
- * See tools/modem-bridge.js for what each option means. The page connects to
+ * See tools/coupler.js for what each option means. The page connects to
  * ws://<bind>:<port>/connect?host=<h>&port=<p>&token=<t>; the bridge makes the TCP
  * connection, sends the text message "connected", then passes bytes both ways as binary
  * messages, untouched. If it cannot connect it closes the WebSocket with 4001 not

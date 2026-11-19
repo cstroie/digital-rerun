@@ -1,4 +1,4 @@
-# The modem bridge in C: tools/modem-bridge.js for a machine without Node.js.
+# The modem bridge in C: tools/coupler.js for a machine without Node.js.
 #   make            build ./coupler (no TLS: no dependencies)
 #   make TLS=1      with TLS for Gemini (needs OpenSSL: libssl-dev, openssl-devel)
 #   make install    copy it to $(PREFIX)/bin (PREFIX=/usr/local)

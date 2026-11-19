@@ -163,7 +163,7 @@
                     <input id="gatewayToken" type="password" placeholder="printed by the bridge" spellcheck="false" autocomplete="off">
                 </label>
                 <label class="check"><input type="checkbox" id="serialSignals"> Use the DTR and DCD lines (a USB board with an ESP chip resets when DTR changes)</label>
-                <p class="hint" id="serialNote">INTERNAL dials the BBS: <code>TERM</code>, then <code>ATDT5550100</code>, or a telnet host through a bridge you run (<code>node tools/modem-bridge.js --allow=host</code>, its address and token above). EXTERNAL uses a real modem on a USB serial port instead (Chrome or Edge); set the speed to match.</p>
+                <p class="hint" id="serialNote">INTERNAL dials the BBS: <code>TERM</code>, then <code>ATDT5550100</code>, or a telnet host through a bridge you run (<code>node tools/coupler.js --allow=host</code>, its address and token above). EXTERNAL uses a real modem on a USB serial port instead (Chrome or Edge); set the speed to match.</p>
                 <h2 class="sub">SYSOP CHAT</h2>
                 <label class="field">Endpoint
                     <input id="sysopUrl" type="url" placeholder="http://localhost:11434/v1" spellcheck="false" autocomplete="off">

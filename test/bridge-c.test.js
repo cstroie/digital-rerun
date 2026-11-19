@@ -1,6 +1,6 @@
 'use strict';
 // tools/coupler/coupler.c against what the page expects of the bridge: the same checks as
-// test/bridge.test.js makes of tools/modem-bridge.js, on a built binary. Skipped without a C compiler.
+// test/bridge.test.js makes of tools/coupler.js, on a built binary. Skipped without a C compiler.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const net = require('node:net');
@@ -8,7 +8,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync, spawn, spawnSync } = require('node:child_process');
-const { seedToken, DEFAULT_PORT } = require('../tools/modem-bridge.js');
+const { seedToken, DEFAULT_PORT } = require('../tools/coupler.js');
 const { Gateway } = require('../js/devices/gateway.js');
 
 const SRC = path.join(__dirname, '../tools/coupler/coupler.c');
@@ -285,7 +285,7 @@ test('C bridge with TLS: plain bytes to the page, TLS to the host; the certifica
         await c.done;
         const kept = fs.readFileSync(known, 'utf8');
         assert.match(kept, new RegExp(`^127\\.0\\.0\\.1:${tport} [0-9a-f]{64}\\n$`));
-        const { knownHost } = require('../tools/modem-bridge.js');
+        const { knownHost } = require('../tools/coupler.js');
         assert.equal(knownHost(known, `127.0.0.1:${tport}`, kept.trim().split(' ')[1]), 'same', 'the same file format as the JavaScript bridge');
         c = client(b.port, { host: '127.0.0.1', port: tport, tls: 1, token: 't' });
         assert.ok(await c.until(() => c.messages.includes('connected')));

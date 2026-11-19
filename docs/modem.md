@@ -62,7 +62,7 @@ Saver): add the page to the sites it keeps active.
 3. A terminal program in 8080 assembly on a shelf disk; the CP/M 3 BIOS AUX device.
 4. The built-in BBS: menu, clock, moon phase, bulletin board (IndexedDB), XMODEM file area (the shelf),
    SYSOP chat (Z80-μLM). Then the weather desk (Open-Meteo, behind the setting).
-5. `tools/modem-bridge.js`: a dependency-free Node WebSocket-to-TCP gateway (host allowlist, token); telnet
+5. `tools/coupler.js`: a dependency-free Node WebSocket-to-TCP gateway (host allowlist, token); telnet
    negotiation in the page. A gateway URL in DEVICES. A page served over https reaches only `wss://` or
    `ws://localhost`.
 6. Web Serial (Chromium only; needs a modem to test).
@@ -146,7 +146,7 @@ Leaving with `/bye` puts the modem's echo back (`ATE1`; IRC turns it off with `A
 `IRC.DIR` is a CP/M text file (listed in the disk's `text`, so the page makes it one), a server per line (`host[:port] name`, up to 16), written by `tools/build.js` from `IRCBOOK` in
 `js/devices/directory.js`, and yours to edit. **Plain TCP only**: the bridge does no TLS, so a server must accept it (6667 does on
 Libera.Chat, OFTC, Rizon, EFnet, DALnet, Undernet and QuakeNet). The gateway passes ports **6660–6669 raw**: no telnet in between
-(no CR NUL, no negotiation) and no local echo, which a telnet host's connection would otherwise get (`rawPorts` of the `Gateway`). `tools/bridge.sh` allows the
+(no CR NUL, no negotiation) and no local echo, which a telnet host's connection would otherwise get (`rawPorts` of the `Gateway`). `tools/coupler.sh` allows the
 `IRC.DIR` hosts by default. **Only ports 6660–6669 work for IRC**: on any other port the gateway speaks telnet, which sends CR NUL and echoes
 your lines back into IRC's input (`/connect host:7000` would not work). A real WiFi modem takes `ATDT host:port` itself, on any port.
 
@@ -190,7 +190,7 @@ of modem code (a ring for what comes, the dial, the hang-up), copied into each s
 
 The gateway passes ports 13, 37, 70 and 79 raw, as it does IRC's, and on the raw ports it sends a line in one piece
 (at LF, or after 50 ms with nothing more): the modem gives it a byte at a time, and a small server (graph.no's finger,
-a gopher hole) takes what its first read gets as the whole question, so `bucharest` in pieces would be asked as `b`; `tools/bridge.sh` allows the hosts of `GOPHER.DIR`,
+a gopher hole) takes what its first read gets as the whole question, so `bucharest` in pieces would be asked as `b`; `tools/coupler.sh` allows the hosts of `GOPHER.DIR`,
 `MUD.DIR`, `FINGER.DIR` and `time.nist.gov:13` by default. The command line comes in capitals from the CCP, so
 these programs take it in lower case: a selector with capitals is typed at GOPHER's G instead.
 
@@ -213,9 +213,9 @@ DTR instead (off by default: a USB board with an ESP chip resets when DTR change
 A browser cannot open a TCP connection, so `ATDT host:port` goes through a small program you run yourself:
 
 ```
-tools/bridge.sh                      # the board's directory allowed, port 1984
-tools/bridge.sh telehack.com,bbs.fozztexx.com     # or name your own hosts
-tools/bridge.sh --show-token         # just print the token
+tools/coupler.sh                      # the board's directory allowed, port 1984
+tools/coupler.sh telehack.com,bbs.fozztexx.com     # or name your own hosts
+tools/coupler.sh --show-token         # just print the token
 ```
 
 It prints its address (`ws://127.0.0.1:1984`) and a token. The token is not random: it is worked out from this machine's name, your
@@ -225,8 +225,8 @@ secret from someone who knows the machine name, the user and the port. Then DEVI
 *Bridge token*, and in TERM `ATDT bbs.example.org` (port 23) or `ATDT bbs.example.org:2323` (use `ATDT`: Hayes takes a lone `T` or
 `P` after `D` as a dial modifier). Anything that is not a number of the built-in directory (letters or dots) goes to the bridge.
 
-- **The bridge** (`tools/modem-bridge.js`, no dependencies; the same in C in `tools/coupler/`, for a machine
-  without Node.js: `make -C tools/coupler`, and `tools/bridge.sh` runs it from then on) is a WebSocket to TCP pipe. `--allow` is required and
+- **The bridge** (`tools/coupler.js`, no dependencies; the same in C in `tools/coupler/`, for a machine
+  without Node.js: `make -C tools/coupler`, and `tools/coupler.sh` runs it from then on) is a WebSocket to TCP pipe. `--allow` is required and
   names what may be dialed (`host`, `host:port`, `*.domain`, an IPv4 block such as `192.168.0.0/16` or `10.0.0.0/8` (literal addresses, no DNS), `*` for any public host; `--allow-private` lets `*`
   reach private and loopback addresses, which can always be named). A token (worked out from the host, user and port by default, or `--token`)
   must come with every connection; `--origin` limits the pages; `--max` connections at once. It logs the host
@@ -237,7 +237,7 @@ secret from someone who knows the machine name, the user and the port. Then DEVI
   against authorities: the first one a host shows is trusted and kept (`host:port sha256`, a line in `--known`,
   default `~/.modem-bridge-known`), and a host that shows another one later is refused (close 4005, the modem says
   `NO CARRIER`), as ssh does; delete its line to trust the new one. The C bridge does this when built with
-  `make -C tools/coupler TLS=1` (OpenSSL); built without, it refuses such a call (4004). `tools/bridge.sh` builds
+  `make -C tools/coupler TLS=1` (OpenSSL); built without, it refuses such a call (4004). `tools/coupler.sh` builds
   it with TLS when OpenSSL is there.
 - **Telnet** is the page's (`js/devices/telnet.js`): it agrees to ECHO and SUPPRESS-GO-AHEAD, announces itself
   as a VT100 (TERMINAL-TYPE) of 80x24 (NAWS), refuses the rest, doubles 255 and sends CR as CR NUL. The bridge
@@ -291,7 +291,7 @@ $HTTP["url"] =~ "^/connect" {
 **As a proxy** (either bridge, as a daemon on localhost):
 
 ```
-tools/bridge.sh --origin=https://where.the.page.is      # ws://127.0.0.1:1984, and its token
+tools/coupler.sh --origin=https://where.the.page.is      # ws://127.0.0.1:1984, and its token
 ```
 
 ```

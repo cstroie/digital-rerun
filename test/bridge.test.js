@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const net = require('node:net');
 const http = require('node:http');
-const { createBridge, allowed, isPrivate } = require('../tools/modem-bridge.js');
+const { createBridge, allowed, isPrivate } = require('../tools/coupler.js');
 const { Gateway } = require('../js/devices/gateway.js');
 
 test('isPrivate: loopback, private ranges, local names; public addresses are not', () => {
@@ -216,7 +216,7 @@ test('the gateway answers like a phone: no bridge, refused, busy', async () => {
 
 /* ---------- the token and the script ---------- */
 
-const { seedToken, DEFAULT_PORT } = require('../tools/modem-bridge.js');
+const { seedToken, DEFAULT_PORT } = require('../tools/coupler.js');
 const { execFileSync, spawn } = require('node:child_process');
 const path = require('node:path');
 
@@ -232,7 +232,7 @@ test('seedToken: three words and four hex digits, the same for the same inputs, 
 });
 
 test('--show-token prints the token the bridge would use, and exits', () => {
-    const script = path.join(__dirname, '../tools/modem-bridge.js');
+    const script = path.join(__dirname, '../tools/coupler.js');
     const out = execFileSync('node', [script, '--show-token'], { encoding: 'utf8' }).trim();
     assert.equal(out, seedToken({ port: DEFAULT_PORT }));
     assert.equal(execFileSync('node', [script, '--show-token', '--port=2600'], { encoding: 'utf8' }).trim(), seedToken({ port: 2600 }));
@@ -240,16 +240,16 @@ test('--show-token prints the token the bridge would use, and exits', () => {
     assert.equal(execFileSync('node', [script, '--show-token', '--token=mine'], { encoding: 'utf8' }).trim(), 'mine');
 });
 
-test('tools/bridge.sh: valid sh, executable, shows the same token, takes the port and a seed from the environment', () => {
-    const sh = path.join(__dirname, '../tools/bridge.sh');
+test('tools/coupler.sh: valid sh, executable, shows the same token, takes the port and a seed from the environment', () => {
+    const sh = path.join(__dirname, '../tools/coupler.sh');
     execFileSync('sh', ['-n', sh]);
     assert.ok(require('node:fs').statSync(sh).mode & 0o111, 'executable');
     assert.equal(execFileSync(sh, ['--show-token'], { encoding: 'utf8' }).trim(), seedToken({ port: 1984 }));
     assert.equal(execFileSync(sh, ['--show-token'], { encoding: 'utf8', env: { ...process.env, BRIDGE_PORT: '2600', BRIDGE_SEED: 'q' } }).trim(), seedToken({ port: 2600, salt: 'q' }));
 });
 
-test('tools/bridge.sh starts a bridge on the default port that the gateway can dial through, allowing the directory\'s hosts', async () => {
-    const sh = path.join(__dirname, '../tools/bridge.sh');
+test('tools/coupler.sh starts a bridge on the default port that the gateway can dial through, allowing the directory\'s hosts', async () => {
+    const sh = path.join(__dirname, '../tools/coupler.sh');
     const port = 20000 + Math.floor(Math.random() * 20000);
     const child = spawn(sh, [], { env: { ...process.env, BRIDGE_PORT: String(port) }, stdio: ['ignore', 'ignore', 'pipe'] });
     let err = '';

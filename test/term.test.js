@@ -10,7 +10,7 @@ const { Directory } = require('../js/devices/directory.js');
 const { bbs, MemoryBoard, MemoryFiles } = require('../js/bbs.js');
 const { CpmFs } = require('../js/cpmfs.js');
 const net = require('node:net');
-const { createBridge } = require('../tools/modem-bridge.js');
+const { createBridge } = require('../tools/coupler.js');
 const { Gateway } = require('../js/devices/gateway.js');
 
 function boot({ modem = true } = {}) {
@@ -90,7 +90,7 @@ test('TERM: Ctrl-] Q leaves the call up; Ctrl-] H hangs it up', async () => {
 test('TERM is on the system disk', () => {
     const { CpmFs } = require('../js/cpmfs.js');
 const net = require('node:net');
-const { createBridge } = require('../tools/modem-bridge.js');
+const { createBridge } = require('../tools/coupler.js');
 const { Gateway } = require('../js/devices/gateway.js');
     const files = new CpmFs(Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/cpm22.dsk'))))).list().map(f => f.name);
     assert.ok(files.includes('TERM.COM'));

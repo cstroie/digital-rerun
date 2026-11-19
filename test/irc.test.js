@@ -11,7 +11,7 @@ const { Terminal } = require('../js/terminal.js');
 const { CpmFs } = require('../js/cpmfs.js');
 const { shelfDisk } = require('./shelfdisk.js');
 const net = require('node:net');
-const { createBridge } = require('../tools/modem-bridge.js');
+const { createBridge } = require('../tools/coupler.js');
 const { Gateway } = require('../js/devices/gateway.js');
 
 /**

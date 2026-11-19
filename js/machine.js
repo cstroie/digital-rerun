@@ -170,6 +170,27 @@
         }
 
         /**
+         * Catch up with `tstates` of time that has passed (the tab was hidden, so no frames
+         * ran): run it in pieces, a waiting program's idle time skipped as run() does, but give
+         * the host back after `hostMs` of its time (a busy program then falls behind, as it
+         * would on a slow machine). Returns the T-states the machine moved on.
+         */
+        catchUp(tstates, hostMs = 200, now = () => Date.now()) {
+            const until = now() + hostMs;
+            const start = this.cycles;
+            let left = tstates;
+            while (left > 0 && this.state === 'running') {
+                const before = this.cycles;
+                this.run(Math.min(left, 4000000));
+                const moved = this.cycles - before;
+                if (moved <= 0) break;
+                left -= moved;
+                if (now() >= until) break;
+            }
+            return this.cycles - start;
+        }
+
+        /**
          * Run for about `budget` T-states. Returns the T-states used. Stops
          * early when the program sits in a tight loop waiting for a key (so
          * an idle machine costs nothing) or on HALT. Afterwards:

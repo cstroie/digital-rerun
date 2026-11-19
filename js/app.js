@@ -72,7 +72,7 @@
 
     /* ---------- settings ---------- */
 
-    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', font: 'vga', shape: 'fit', tab: 'drives', resume: true, sound: true, online: false, lineDrawing: true, baud: 1200, modem: 'internal', serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
+    const settings = { speed: 4, terminal: 'vt100', arrows: 'wordstar', phosphor: 'green', font: 'vga', shape: 'fit', tab: 'drives', resume: true, background: true, sound: true, online: false, lineDrawing: true, baud: 1200, modem: 'internal', serialSignals: false, gateway: '', gatewayToken: '', sysopUrl: '', sysopModel: '', sysopKey: '' };
 
     function applySettings() {
         $('speed').value = String(settings.speed);
@@ -88,6 +88,7 @@
         if (typeof fitScreen === 'function') fitScreen();
         $('font').value = FONTS[settings.font] ? settings.font : 'vga';
         $('resume').checked = settings.resume;
+        $('background').checked = settings.background;
         $('sound').checked = settings.sound;
         $('online').checked = settings.online;
         $('baud').value = String(settings.baud);
@@ -1176,6 +1177,33 @@
 
     function kick() { if (!raf) raf = requestAnimationFrame(frame); }
 
+    /*
+     * A hidden tab gets no frames, so the machine would stand still: a call would go
+     * unanswered (IRC's PING, an XMODEM block) and what comes in would pile up. While
+     * hidden, a timer catches the machine up with the real time that has passed: once a
+     * second, or once a minute when the browser throttles a page hidden for long. A waiting
+     * program's idle time is skipped, so that costs little; the bytes that came meanwhile
+     * are taken at the line's speed within each catch-up, as the modem times them.
+     */
+    const BG_MAX = 120000;              // ms of machine time one catch-up may make up
+    let bgTimer = 0, bgLast = 0;
+    function background() {
+        const now = performance.now();
+        const ms = Math.min(BG_MAX, now - bgLast);
+        bgLast = now;
+        if (machine.state === 'running') machine.catchUp(machine.clock.hz * ms / 1000, 250, () => performance.now());
+    }
+    function backgroundOn(on) {
+        if (bgTimer) { clearInterval(bgTimer); bgTimer = 0; }
+        if (!on) return;
+        bgLast = performance.now();
+        bgTimer = setInterval(background, 1000);
+    }
+    document.addEventListener('visibilitychange', () => {
+        backgroundOn(document.visibilityState === 'hidden' && settings.background);
+        if (document.visibilityState === 'visible') { last = 0; kick(); }
+    });
+
     function coldStart() {
         term.reset();
         if (!machine.fdc.drives[0]) {
@@ -1403,6 +1431,11 @@
     });
     // Audio may start only after a key or a tap.
     for (const ev of ['keydown', 'pointerdown']) addEventListener(ev, () => sound.unlock(), { capture: true });
+
+    $('background').addEventListener('change', () => {
+        settings.background = $('background').checked;
+        Storage.set('settings', settings).catch(() => {});
+    });
 
     $('resume').addEventListener('change', () => {
         settings.resume = $('resume').checked;

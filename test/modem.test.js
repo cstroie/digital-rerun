@@ -195,3 +195,38 @@ test('the other end hanging up: carrier drops only once what was on the wire has
     m.modem.lose();
     assert.equal(m.modem.carrier, false, 'nothing on the wire: at once');
 });
+
+test('a hidden tab caught up (catchUp): minutes of time made up at once, every byte that came taken, a busy program cut short', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { Disk } = require('../js/devices/fdc.js');
+    const m = new Machine();
+    m.clock.hz = 4000000;
+    let out = '';
+    m.console.output = b => { out += String.fromCharCode(b); };
+    m.fdc.mount(0, Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/cpm22.dsk')))));
+    const sent = [];
+    m.modem.attach({ attached(md) { md.carrier = true; }, send: b => sent.push(b), reset() {} });
+    assert.ok(m.reset());
+    for (let i = 0; i < 400 && !out.includes('A>'); i++) m.run(64000);
+    m.console.type('TERM\r');
+    for (let i = 0; i < 400 && !out.includes('ATDT'); i++) m.run(64000);
+    // the tab hidden for a minute: 600 bytes came meanwhile (5 s at 1200 baud), and a key was typed
+    const text = Array.from({ length: 20 }, (_, i) => `line ${String(i).padStart(2, '0')} of what came while hidden`).join('\r\n') + '\r\n';
+    const at = out.length;
+    m.modem.receive(text);
+    m.console.type('k');
+    const t0 = Date.now(), c0 = m.cycles;
+    const moved = m.catchUp(60 * 4000000, 5000);
+    assert.ok(Date.now() - t0 < 3000, `an idle minute is cheap (${Date.now() - t0} ms)`);
+    assert.ok(moved >= 60 * 4000000 && m.cycles - c0 === moved, 'the machine kept real time');
+    assert.equal(out.slice(at), text, 'every byte, in order, none overrun');
+    assert.deepEqual(sent, [107], 'the key went out on the line');
+    // a program that never waits: the host is given back on time, the machine falls behind
+    m.memory.set([0xC3, 0x00, 0x01], 0x100);          // JMP 100h
+    m.cpu.setState({ ...m.cpu.getState(), pc: 0x100 });
+    const t1 = Date.now();
+    const busy = m.catchUp(60 * 4000000, 50);
+    assert.ok(Date.now() - t1 < 1000, 'given back');
+    assert.ok(busy < 60 * 4000000, 'behind, as a slow machine would be');
+});

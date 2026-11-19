@@ -43,6 +43,17 @@ after 64 idle polls. The T-states it did not run pass as machine time (a waiting
 otherwise 1200 baud would crawl at an idle prompt. A byte already due but not yet read counts as an event now, so
 the skip never jumps over it (it did, now and then, and the bytes piled into the receive register and overran).
 
+## A background tab
+
+A hidden tab gets no animation frames, which drive the machine, so it would stand still: a call would go unanswered
+(IRC's PING, an XMODEM block) and what comes in would pile up. While the tab is hidden a timer catches the machine up
+with the real time that has passed (`Machine.catchUp`): once a second, or once a minute when the browser throttles a
+tab hidden for long, at most two minutes at a time. A waiting program's idle time is skipped as above, so an idle
+machine costs little; the bytes that came meanwhile are taken at the line's speed inside each catch-up, as the modem
+times them; a busy program gets a quarter of a second of the host each time and falls behind. SETUP → *Keep running in
+a background tab* (on by default) turns it off. A browser may still discard a tab left long enough (Chrome's Memory
+Saver): add the page to the sites it keeps active.
+
 ## Build order
 
 1. The UART (`js/devices/modem.js`), a loopback line, idle time, snapshots. `test/modem.test.js`.

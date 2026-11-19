@@ -318,6 +318,9 @@ $HTTP["url"] =~ "^/connect" {
 - **The known file** (Gemini's certificates) must be writable by lighttpd's user (`www-data`) as a CGI.
 - The bridge sees every call come from 127.0.0.1 (proxy) or from lighttpd (CGI) and logs the host dialed; lighttpd's
   access log has the callers. `test/lighttpd.test.js` runs the CGI recipe under a real lighttpd, when there is one.
+- **HTTP/2**: the recipes are tested with the WebSocket upgrade of HTTP/1.1. A browser talking HTTP/2 to lighttpd over
+  https may open a WebSocket the HTTP/2 way (RFC 8441), which is not tested here. If `wss://` fails where `ws://` works,
+  look there first (lighttpd's `server.feature-flags`, `"server.h2proto" => "disable"`, turns HTTP/2 off).
 
 ## The sysop (chat)
 

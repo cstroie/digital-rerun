@@ -33,7 +33,8 @@ modem-bridge --allow=<hosts> [--port=1984] [--bind=127.0.0.1] [--token=<secret> 
 runs it for each call, with the request in the environment and the WebSocket on stdin and stdout; lighttpd does this
 with `cgi.upgrade = "enable"`. It then takes its options from the environment (`MODEM_BRIDGE_TOKEN` is required: a
 CGI without one refuses every call) and logs to stderr (lighttpd's `server.breakagelog`). The recipe is in
-[docs/modem.md](../../docs/modem.md#behind-https-lighttpd); `test/lighttpd.test.js` runs it under a real lighttpd.
+[docs/modem.md](../../docs/modem.md#behind-https-lighttpd); `test/lighttpd.test.js` runs it under a real lighttpd
+(the WebSocket upgrade of HTTP/1.1; a browser's HTTP/2 WebSocket over https is not tested).
 
 The page connects to `ws://<bind>:<port>/connect?host=<h>&port=<p>&token=<t>`; the bridge makes the TCP
 connection, says `connected`, then passes bytes both ways untouched. It closes with 4001 (not allowed),

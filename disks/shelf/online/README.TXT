@@ -32,8 +32,7 @@ AARDWOLF (a word of a line of its directory, a number, or a host).
              NETTIME +2 under CP/M 3 sets the date and time, UTC+2.
 
 The sources are here too: with the system disk in A:, SUBMIT B:MAKEALL
-assembles TERM and IRC with ASM and LOAD, SUBMIT B:NETALL the other four
-(SUBMIT B:MAKE GOPHER for one).
+assembles all six with ASM and LOAD (SUBMIT B:MAKE GOPHER for one).
 
 The .DIR files are plain text, one place per line: edit them with ED.
 IRC.DIR, GOPHER.DIR and MUD.DIR hold host[:port] and a name (GOPHER.DIR

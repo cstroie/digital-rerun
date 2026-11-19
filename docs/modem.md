@@ -142,10 +142,11 @@ your lines back into IRC's input (`/connect host:7000` would not work). A real W
 The receiver is polled between every character the program prints and inside the loops that walk a line, and a 256-byte ring
 takes what comes meanwhile: nothing is lost up to 19200 baud (test/irc.test.js).
 
-## GOPHER, MUD, FINGER, NETTIME (`system/net`)
+## GOPHER, MUD, FINGER, NETTIME
 
-Four more programs for the modem, 8080 code in the dialect of CP/M's `ASM.COM` like TERM and IRC, on the **Online** shelf disk
-with their sources (`SUBMIT B:NETALL` builds the four on the machine; `SUBMIT B:MAKE GOPHER` one). Each sends `ATE0`, dials
+Four more programs for the modem, from dialtone like TERM and IRC (`system/dialtone/gopher.asm`, `mud.asm`, `finger.asm`,
+`nettime.asm`), on the **Online** shelf disk with their sources (`SUBMIT B:MAKEALL` builds all six on the machine;
+`SUBMIT B:MAKE GOPHER` one). Each sends `ATE0`, dials
 `host:port`, skips the modem's `CONNECT` line, and gives the echo back (`ATE1`) when it leaves, as IRC does. They share one block
 of modem code (a ring for what comes, the dial, the hang-up), copied into each source, since `ASM.COM` has no include.
 

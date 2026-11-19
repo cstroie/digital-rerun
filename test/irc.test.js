@@ -127,7 +127,7 @@ test('TERM runs from the Online disk too, and dials from the TERM.DIR beside it'
     const sw = say(m, 'B:\r');
     await until(m, 'B>', sw);
     let at = say(m, 'TERM\r');
-    await until(m, 'for the menu', at);
+    await until(m, 'Try ATDT0100.\r\n', at);         // the whole banner: a key typed while the BDOS prints is the BDOS's
     at = say(m, '\x1dd');
     await until(m, 'Which?', at);
     assert.ok(m.out.slice(at).includes('\x1b[15;1H1 0100 Digital Rerun BBS'));

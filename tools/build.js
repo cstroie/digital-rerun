@@ -12,10 +12,9 @@
  *   - system/cpm22/bdos.asm → BDOS at EC00h
  *   - system/bios.asm → BIOS at FA00h
  *   - system/sysgen.asm and prtdemo.asm → SYSGEN.COM and PRTDEMO.COM
- *   - system/dialtone/term.asm (the submodule cstroie/dialtone) → TERM.COM (with TERM.DIR) on the boot disk; with system/dialtone/irc.asm → IRC.COM (and IRC.DIR)
- *     it is also written to the shelf disk disks/shelf/online (the boot disk has no room for IRC)
- *   - system/net/finger.asm, nettime.asm, gopher.asm, mud.asm → FINGER.COM, NETTIME.COM, GOPHER.COM, MUD.COM
- *     (with GOPHER.DIR and MUD.DIR, the sources and NETALL.SUB) on disks/shelf/online too
+ *   - system/dialtone/term.asm (the submodule cstroie/dialtone) → TERM.COM (with TERM.DIR) on the boot disk; it and
+ *     the rest of dialtone (irc, gopher, mud, finger, nettime .asm → .COM, with IRC.DIR, GOPHER.DIR and MUD.DIR)
+ *     go to the shelf disk disks/shelf/online (the boot disk has no room for them)
  *
  * The system tracks (two 8" tracks, 256 sectors total) are written to:
  *   system/cpm22.bin (for the boot ROM) and disks/cpm22.dsk (the boot disk)
@@ -51,7 +50,7 @@ const SYSTEM_BYTES = 2 * 26 * 128;   // two 8" tracks
 function build(file, origin, length) {
     const src = fs.readFileSync(path.join(ROOT, 'system', file), 'latin1');
     const r = assemble(src, origin === null ? {} : { defines: { origin } });
-    fs.writeFileSync(path.join(ROOT, 'system', file.replace(/\.asm$/, '.lst').replace(/^(cpm22|dialtone|net)\//, '')), formatListing(r) + '\n');
+    fs.writeFileSync(path.join(ROOT, 'system', file.replace(/\.asm$/, '.lst').replace(/^(cpm22|dialtone)\//, '')), formatListing(r) + '\n');
     const lo = origin === null ? 0 : origin;
     const hi = length ? lo + length - 1 : r.high;
     return { result: r, image: r.image(lo, hi) };
@@ -77,7 +76,6 @@ function main() {
     const sysgenCom = com('sysgen.asm');
     const prtdemoCom = com('prtdemo.asm');
     const termCom = com('dialtone/term.asm');
-    const ircCom = com('dialtone/irc.asm');
     fs.writeFileSync(path.join(ROOT, 'system/boot.bin'), boot.image);
     fs.writeFileSync(path.join(ROOT, 'system/cpm22.bin'), system);
 
@@ -96,27 +94,23 @@ function main() {
     for (const f of ['bios.asm', 'boot.asm', 'sysgen.asm', 'prtdemo.asm']) fsys.write(f.toUpperCase(), toCpmText(fs.readFileSync(path.join(ROOT, 'system', f))));
     fs.writeFileSync(path.join(ROOT, 'disks/cpm22.dsk'), disk.data);
 
-    // the shelf disk of the modem programs: TERM and IRC, with their directories (the boot disk has no room for IRC)
+    // the shelf disk of the modem programs: all of dialtone (PROGRAMS of its build.js), with the directories made from
+    // this emulator's own lists (the boot disk has no room for them)
     const onlineDir = path.join(ROOT, 'disks/shelf/online');
-    const ircDir = IRCBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n';   // IRC.DIR: what /connect offers, host[:port] and a name per line
-    fs.writeFileSync(path.join(onlineDir, 'TERM.COM'), termCom);
-    fs.writeFileSync(path.join(onlineDir, 'IRC.COM'), ircCom);
-    fs.writeFileSync(path.join(onlineDir, 'TERM.DIR'), termDir);        // text: the page makes it CP/M text (disk.json lists it)
-    fs.writeFileSync(path.join(onlineDir, 'IRC.DIR'), ircDir);
-    // the sources and the submit files too: ASM, LOAD and SUBMIT of the boot disk build both programs on the machine itself
-    for (const f of ['term.asm', 'irc.asm', 'MAKE.SUB', 'MAKEALL.SUB'])
-        fs.copyFileSync(path.join(ROOT, 'system/dialtone', f), path.join(onlineDir, f.toUpperCase()));
-    // the network programs (system/net): their .COM and source, GOPHER.DIR and MUD.DIR (text, a place per line), and
-    // NETALL.SUB, which builds the four on the machine as MAKEALL builds TERM and IRC
-    const NET = ['finger', 'nettime', 'gopher', 'mud'];
-    for (const n of NET) {
-        fs.writeFileSync(path.join(onlineDir, `${n.toUpperCase()}.COM`), com(`net/${n}.asm`));
-        fs.copyFileSync(path.join(ROOT, 'system/net', `${n}.asm`), path.join(onlineDir, `${n.toUpperCase()}.ASM`));
+    const { PROGRAMS } = require('../system/dialtone/build.js');
+    for (const [src, name] of PROGRAMS) {
+        fs.writeFileSync(path.join(onlineDir, name), name === 'TERM.COM' ? termCom : com(`dialtone/${src}`));
+        fs.copyFileSync(path.join(ROOT, 'system/dialtone', src), path.join(onlineDir, src.toUpperCase()));
     }
+    // text, a place per line (the page makes them CP/M text: disk.json lists them)
     const at = e => `${e.host}${e.port === 70 ? '' : ':' + e.port}`;
+    fs.writeFileSync(path.join(onlineDir, 'TERM.DIR'), termDir);
+    fs.writeFileSync(path.join(onlineDir, 'IRC.DIR'), IRCBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
     fs.writeFileSync(path.join(onlineDir, 'GOPHER.DIR'), GOPHERBOOK.map(e => `${at(e)} ${e.text}`).join('\n') + '\n');
     fs.writeFileSync(path.join(onlineDir, 'MUD.DIR'), MUDBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
-    fs.writeFileSync(path.join(onlineDir, 'NETALL.SUB'), NET.map(n => `ASM ${n.toUpperCase()}.BBZ\nLOAD B:${n.toUpperCase()}\nERA B:${n.toUpperCase()}.HEX\n`).join(''));
+    // the submit files too: ASM, LOAD and SUBMIT of the boot disk build every program on the machine itself
+    for (const f of ['MAKE.SUB', 'MAKEALL.SUB'])
+        fs.copyFileSync(path.join(ROOT, 'system/dialtone', f), path.join(onlineDir, f));
 
     buildShelf();
 

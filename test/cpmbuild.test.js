@@ -1,6 +1,6 @@
 'use strict';
-// TERM and IRC build on the CP/M machine itself: ASM, LOAD and SUBMIT of the boot disk, the
-// sources and MAKE.SUB / MAKEALL.SUB of the Online disk (system/dialtone).
+// TERM, IRC, GOPHER, MUD, FINGER and NETTIME build on the CP/M machine itself: ASM, LOAD and SUBMIT of the
+// boot disk, the sources and MAKE.SUB / MAKEALL.SUB of the Online disk (system/dialtone).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -37,13 +37,26 @@ function sameCode(built, reference, name) {
     for (let i = 0; i < reference.length; i++) if (reference[i] !== 0) assert.equal(built[i], reference[i], `${name} differs at ${i}`);
 }
 
-test('SUBMIT B:MAKEALL builds TERM.COM and IRC.COM on the machine, the same code the host assembler makes', () => {
+const NAMES = ['TERM', 'IRC', 'GOPHER', 'MUD', 'FINGER', 'NETTIME'];
+
+test('the Online disk carries every program with its source, as the sources assemble now, and the directories', () => {
+    const { com } = require('./net.js');
+    const files = new CpmFs(shelfDisk('online')).list().map(f => f.name);
+    for (const n of NAMES) for (const t of ['COM', 'ASM']) assert.ok(files.includes(`${n}.${t}`), `${n}.${t}`);
+    for (const n of ['TERM.DIR', 'IRC.DIR', 'GOPHER.DIR', 'MUD.DIR', 'MAKE.SUB', 'MAKEALL.SUB']) assert.ok(files.includes(n), n);
+    for (const n of NAMES.slice(2)) {
+        const shipped = new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/shelf/online', `${n}.COM`)));
+        assert.deepEqual(shipped, new Uint8Array(com(n.toLowerCase()).image), `${n}.COM is out of date: node tools/build.js`);
+    }
+});
+
+test('SUBMIT B:MAKEALL builds all six on the machine, the same code the host assembler makes', { timeout: 600000 }, () => {
     const m = boot();
     const online = name => new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/shelf/online', name)));
-    const reference = { 'TERM.COM': online('TERM.COM'), 'IRC.COM': online('IRC.COM') };
+    const reference = Object.fromEntries(NAMES.map(n => [`${n}.COM`, online(`${n}.COM`)]));
     command(m, 'ERA B:*.COM');
     const out = command(m, 'SUBMIT B:MAKEALL');
-    assert.equal((out.match(/END OF ASSEMBLY/g) || []).length, 2, out);
+    assert.equal((out.match(/END OF ASSEMBLY/g) || []).length, NAMES.length, out);
     assert.doesNotMatch(out, /^[A-Z] ?[0-9A-F]{4} /m, 'no assembler errors');
     const fsB = new CpmFs(m.fdc.drives[1]);
     for (const name of Object.keys(reference)) sameCode(new Uint8Array(fsB.read(name)), reference[name], name);

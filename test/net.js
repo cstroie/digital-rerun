@@ -1,6 +1,6 @@
 'use strict';
 /*
- * The machine for the tests of the network programs (system/net): the system disk in A:,
+ * The machine for the tests of dialtone's network programs (system/dialtone: GOPHER, MUD, FINGER, NETTIME): the system disk in A:,
  * in B: the programs assembled from their sources (and any files given), a Hayes modem
  * whose directory sends every host to `hosts[host:port]`: a function of the link that
  * returns the other end, as the gateway would (or a reason, 'BUSY' ...).
@@ -16,9 +16,9 @@ const { assemble } = require('../js/asm8080.js');
 
 const ROOT = path.join(__dirname, '..');
 
-/** The .COM of system/net/<name>.asm. */
+/** The .COM of system/dialtone/<name>.asm. */
 function com(name) {
-    const r = assemble(fs.readFileSync(path.join(ROOT, 'system/net', `${name}.asm`), 'latin1'), {});
+    const r = assemble(fs.readFileSync(path.join(ROOT, 'system/dialtone', `${name}.asm`), 'latin1'), {});
     return { image: r.image(0x100, r.high), high: r.high, symbols: r.symbols };
 }
 
@@ -31,7 +31,7 @@ function boot({ hosts = {}, files = {}, modem = true, system = null } = {}) {
     const b = new Disk('sssd8');
     const fsys = new CpmFs(b);
     for (const n of ['finger', 'nettime', 'gopher', 'mud']) {
-        if (fs.existsSync(path.join(ROOT, 'system/net', `${n}.asm`))) fsys.write(`${n.toUpperCase()}.COM`, com(n).image);
+        fsys.write(`${n.toUpperCase()}.COM`, com(n).image);
     }
     for (const [n, text] of Object.entries(files)) fsys.write(n, toCpmText(Buffer.from(text, 'latin1')));
     m.fdc.mount(1, b);

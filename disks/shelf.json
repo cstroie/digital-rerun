@@ -971,6 +971,18 @@
     "path": "disks/shelf/online/NETTIME.COM"
    },
    {
+    "name": "NEWS.ASM",
+    "path": "disks/shelf/online/NEWS.ASM"
+   },
+   {
+    "name": "NEWS.COM",
+    "path": "disks/shelf/online/NEWS.COM"
+   },
+   {
+    "name": "NEWS.DIR",
+    "path": "disks/shelf/online/NEWS.DIR"
+   },
+   {
     "name": "README.TXT",
     "path": "disks/shelf/online/README.TXT"
    },
@@ -987,8 +999,8 @@
     "path": "disks/shelf/online/TERM.DIR"
    }
   ],
-  "size": 205879,
-  "free": 155648
+  "size": 252947,
+  "free": 102400
  },
  {
   "id": "photopia",

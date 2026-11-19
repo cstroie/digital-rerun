@@ -2291,7 +2291,7 @@ upper:	cpi	'a'
 	sui	20h
 	ret
 
-;	---- the modem (the same in FINGER, NETTIME, GOPHER and MUD) ----
+;	---- the modem (the same in FINGER, NETTIME, GOPHER, MUD, GEMINI and NEWS) ----
 
 ;	HL (0-999) three wide, blanks before it
 pnum3:	mvi	a,' '

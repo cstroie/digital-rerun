@@ -1,6 +1,6 @@
 'use strict';
 /*
- * The machine for the tests of dialtone's network programs (system/dialtone: GOPHER, MUD, FINGER, NETTIME): the system disk in A:,
+ * The machine for the tests of dialtone's network programs (system/dialtone: GOPHER, GEMINI, NEWS, MUD, FINGER, NETTIME): the system disk in A:,
  * in B: the programs assembled from their sources (and any files given), a Hayes modem
  * whose directory sends every host to `hosts[host:port]`: a function of the link that
  * returns the other end, as the gateway would (or a reason, 'BUSY' ...).
@@ -30,7 +30,7 @@ function boot({ hosts = {}, files = {}, modem = true, system = null, gateway = n
     m.fdc.mount(0, system || Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(ROOT, 'disks/cpm22.dsk')))));
     const b = new Disk('sssd8');
     const fsys = new CpmFs(b);
-    for (const n of ['finger', 'nettime', 'gopher', 'gemini', 'mud']) {
+    for (const n of ['finger', 'nettime', 'gopher', 'gemini', 'news', 'mud']) {
         fsys.write(`${n.toUpperCase()}.COM`, com(n).image);
     }
     for (const [n, text] of Object.entries(files)) fsys.write(n, toCpmText(Buffer.from(text, 'latin1')));

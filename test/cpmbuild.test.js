@@ -1,5 +1,5 @@
 'use strict';
-// TERM, IRC, GOPHER, MUD, FINGER and NETTIME build on the CP/M machine itself: ASM, LOAD and SUBMIT of the
+// TERM, IRC, GOPHER, GEMINI, NEWS, MUD, FINGER and NETTIME build on the CP/M machine itself: ASM, LOAD and SUBMIT of the
 // boot disk, the sources and MAKE.SUB / MAKEALL.SUB of the Online disk (system/dialtone).
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -37,20 +37,20 @@ function sameCode(built, reference, name) {
     for (let i = 0; i < reference.length; i++) if (reference[i] !== 0) assert.equal(built[i], reference[i], `${name} differs at ${i}`);
 }
 
-const NAMES = ['TERM', 'IRC', 'GOPHER', 'GEMINI', 'MUD', 'FINGER', 'NETTIME'];
+const NAMES = ['TERM', 'IRC', 'GOPHER', 'GEMINI', 'MUD', 'FINGER', 'NETTIME', 'NEWS'];
 
 test('the Online disk carries every program with its source, as the sources assemble now, and the directories', () => {
     const { com } = require('./net.js');
     const files = new CpmFs(shelfDisk('online')).list().map(f => f.name);
     for (const n of NAMES) for (const t of ['COM', 'ASM']) assert.ok(files.includes(`${n}.${t}`), `${n}.${t}`);
-    for (const n of ['TERM.DIR', 'IRC.DIR', 'GOPHER.DIR', 'GEMINI.DIR', 'MUD.DIR', 'FINGER.DIR', 'MAKE.SUB', 'MAKEALL.SUB']) assert.ok(files.includes(n), n);
+    for (const n of ['TERM.DIR', 'IRC.DIR', 'GOPHER.DIR', 'GEMINI.DIR', 'NEWS.DIR', 'MUD.DIR', 'FINGER.DIR', 'MAKE.SUB', 'MAKEALL.SUB']) assert.ok(files.includes(n), n);
     for (const n of NAMES.slice(2)) {
         const shipped = new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/shelf/online', `${n}.COM`)));
         assert.deepEqual(shipped, new Uint8Array(com(n.toLowerCase()).image), `${n}.COM is out of date: node tools/build.js`);
     }
 });
 
-test('SUBMIT B:MAKEALL builds all seven on the machine, the same code the host assembler makes', { timeout: 600000 }, () => {
+test('SUBMIT B:MAKEALL builds all eight on the machine, the same code the host assembler makes', { timeout: 600000 }, () => {
     const m = boot();
     const online = name => new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/shelf/online', name)));
     const reference = Object.fromEntries(NAMES.map(n => [`${n}.COM`, online(`${n}.COM`)]));

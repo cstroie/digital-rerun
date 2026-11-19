@@ -77,6 +77,18 @@
         { ask: '@sdf.org', text: 'Who is on SDF' }
     ];
 
+    /** The groups NEWS.DIR offers (NEWS.COM, its home menu): host[:port][/group]; 119 raw, 563 TLS by the bridge. */
+    const NEWSBOOK = [
+        { at: 'freenews.netfront.net/comp.os.cpm', text: 'comp.os.cpm: CP/M, still spoken here' },
+        { at: 'freenews.netfront.net/comp.sys.cbm', text: 'comp.sys.cbm: the Commodore machines' },
+        { at: 'freenews.netfront.net/alt.folklore.computers', text: 'alt.folklore.computers: the old days' },
+        { at: 'freenews.netfront.net', text: 'Netfront: free Usenet, every group (L asks which)' },
+        { at: 'news.gmane.io/gmane.comp.emulators.simh', text: 'Gmane: the SIMH mailing list' },
+        { at: 'nntp.lore.kernel.org:563/org.kernel.vger.linux-kernel', text: 'lore.kernel.org: the Linux kernel list (TLS)' },
+        { at: 'news.tilde.club/tilde.club', text: 'tilde.club: the tildes talk' },
+        { at: 'news.tilde.team/tilde.team', text: 'tilde.team: more tildes' }
+    ];
+
     /** The capsules GEMINI.DIR offers (GEMINI.COM, its home page): port 1965, TLS spoken by the bridge. */
     const GEMINIBOOK = [
         { url: 'gemini://geminiprotocol.net/', text: 'Project Gemini: the protocol and its software' },
@@ -118,7 +130,7 @@
         }
     }
 
-    const api = { Directory, echoService, sometimesBusy, PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK, FINGERBOOK, GEMINIBOOK, TIMEHOST };
+    const api = { Directory, echoService, sometimesBusy, PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK, FINGERBOOK, GEMINIBOOK, NEWSBOOK, TIMEHOST };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

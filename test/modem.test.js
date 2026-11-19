@@ -147,3 +147,30 @@ test('polling an empty modem is waiting: the run loop stops early', () => {
     assert.equal(m.waiting, true);
     assert.equal(m.cycles, 200000, 'the rest of the budget passed as time');
 });
+
+test('TERM run in 16 ms frames loses no byte of dense screens (a byte due before an idle skip is not jumped over)', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { Disk } = require('../js/devices/fdc.js');
+    const m = new Machine();
+    m.clock.hz = 4000000;
+    let out = '';
+    m.console.output = b => { out += String.fromCharCode(b); };
+    m.fdc.mount(0, Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/cpm22.dsk')))));
+    const line = { attached(md) { md.carrier = true; }, send() {}, reset() {} };
+    m.modem.attach(line);
+    assert.ok(m.reset());
+    const frames = (n, done) => { for (let i = 0; i < n; i++) { m.run(64000); if (done()) return; } };
+    frames(400, () => out.includes('A>'));
+    m.console.type('TERM\r');
+    frames(400, () => out.includes('ATDT'));
+    let screen = '';
+    for (let r = 0; r < 24; r++) screen += `\x1b[${r + 1};1H` + `row${r} `.padEnd(78, 'ABCDEFGHIJ'[r % 10]);
+    for (let k = 0; k < 5; k++) {
+        const at = out.length;
+        m.modem.receive(screen);
+        frames(4000, () => !m.modem.inbox.length && !m.modem.ready);
+        frames(5, () => false);
+        assert.equal(out.slice(at), screen, `screen ${k} arrived whole`);
+    }
+});

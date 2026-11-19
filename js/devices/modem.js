@@ -112,6 +112,7 @@
         untilEvent() {
             if (!this.line) return null;
             const now = this.now();
+            if (this.inbox.length && this.inbox[0].at <= now) return 0;   // a byte is due, not yet pumped: look now
             let at = null;
             const soon = t => { if (t > now && (at === null || t < at)) at = t; };
             if (this.inbox.length) soon(this.inbox[0].at);

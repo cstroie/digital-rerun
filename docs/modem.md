@@ -40,7 +40,8 @@ A character takes 10 bit times: 120 a second at 1200 baud, about 33 000 T-states
 A program polling the modem at an empty prompt is idle, like one polling the console: `Machine.run()` stops
 after 64 idle polls. The T-states it did not run pass as machine time (a waiting loop would have spent them:
 `Modem.idle` adds them to `machine.cycles`, so the clock, the modem and TERM's timeouts all keep real time),
-otherwise 1200 baud would crawl at an idle prompt.
+otherwise 1200 baud would crawl at an idle prompt. A byte already due but not yet read counts as an event now, so
+the skip never jumps over it (it did, now and then, and the bytes piled into the receive register and overran).
 
 ## Build order
 

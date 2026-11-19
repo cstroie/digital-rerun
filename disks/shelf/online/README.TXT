@@ -12,21 +12,25 @@ AARDWOLF (a word of a line of its directory, a number, or a host).
 
   IRC        an IRC client. /connect dials a server (no argument lists
              IRC.DIR), /join #chan, then type to talk. /help lists the
-             commands, /quit hangs up, /bye leaves.
+             commands, /quit hangs up, /bye leaves. Ctrl-P and Ctrl-N
+             bring back the last 10 lines; ? is the help.
 
   GOPHER     a Gopher client. Alone it shows GOPHER.DIR as a menu;
              GOPHER host[:port][/type/selector] goes there. A number and
              Return follows an item; Space and - page, B back, G go to an
-             address, H home, R again, W saves the page to a file, Q quits.
+             address (Ctrl-P, Ctrl-N: the ones before), H home, R again,
+             W saves the page to a file, Q quits. ? lists the keys.
 
   GEMINI     a Gemini client, as GOPHER: alone GEMINI.DIR as a home page;
              GEMINI host[:port][/path] goes there. Links are numbered
              (a number and Return); headings, lists and quotes laid out,
              paragraphs wrapped. The bridge speaks TLS for it (port 1965).
+             ? lists the keys.
 
   MUD        a client for text worlds: what the world says above, your
              line below. /connect (no argument lists MUD.DIR), then type;
-             Ctrl-P and Ctrl-N bring back lines, /quit hangs up, /bye
+             Ctrl-P and Ctrl-N bring back the last 10 lines, /quit hangs
+             up, /bye
              leaves. A password is shown as stars.
 
   FINGER     FINGER user@host or FINGER @host: who is there, or what

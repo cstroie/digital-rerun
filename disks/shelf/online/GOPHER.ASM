@@ -6,7 +6,8 @@
 ;	A menu shows its items numbered: type the number and Return to follow
 ;	one (a text, another menu, a search). Space and N the next page, P or
 ;	- the one before, B back, G go to an address, H home, R again, W saves
-;	what is shown to a file, Q quits. Esc stops a page that is coming.
+;	what is shown to a file, Q quits, ? lists the keys. Esc stops a page that
+;	is coming; at a G or search prompt Ctrl-P and Ctrl-N bring back the last 10.
 ;	A page is read whole (at the line's speed), then shown; nothing is kept
 ;	but the way back, so B reads the page before again.
 ;
@@ -36,6 +37,7 @@ rmask	equ	03h		;the ring is 1K: its offsets wrap at 0400h
 rows	equ	22		;rows of a page (2 to 23)
 maxent	equ	1500		;lines of a page that can be shown
 hmax	equ	8		;the way back: so many places
+nhst	equ	10		;lines typed at a prompt kept for Ctrl-P (G, the searches)
 ;	a place: its type, port, the first row shown, the host, the selector
 ltype	equ	0
 lport	equ	1
@@ -96,6 +98,8 @@ vk1:	cpi	cr
 	jz	vbksp
 	cpi	1bh
 	jz	vesc
+	cpi	'?'		;before the upper case below: ? is the help
+	jz	vhelp
 	cpi	' '
 	jz	vnext
 	cpi	'-'
@@ -147,6 +151,39 @@ vbksp:	lda	nlen
 vesc:	xra	a
 	sta	nlen
 	jmp	vprom
+
+;	?: the keys, on a page of their own; any key goes back to the page
+vhelp:	xra	a
+	sta	nlen
+	lxi	h,scls
+	call	pz
+	lxi	h,hgoph
+	call	hlines
+	call	anykey
+	jmp	vdraw
+
+;	a table of lines (0-ended, each a string), each on a row of its own
+hlines:	mov	e,m
+	inx	h
+	mov	d,m
+	inx	h
+	mov	a,d
+	ora	e
+	rz
+	push	h
+	xchg
+	call	pz
+	lxi	h,scrlf
+	call	pz
+	pop	h
+	jmp	hlines
+
+;	wait for a key
+anykey:	call	poll
+	call	keyin
+	ora	a
+	jz	anykey
+	ret
 
 ;	Return: follow the item numbered; with no number, the next page
 venter:	lda	nlen
@@ -888,7 +925,10 @@ rowmsg:	lxi	h,srow
 	jmp	pz
 
 ;	a line typed on the bottom row after the text at HL, into IBUF: CY set if Esc, Z set if empty
-input:	push	h
+input:	shld	ipr		;the prompt: Ctrl-P redraws the line after it
+	xra	a
+	sta	ihpos
+	push	h
 	call	rowmsg
 	pop	h
 	call	pz
@@ -901,6 +941,10 @@ in2:	call	poll
 	pop	b
 	cpi	cr
 	jz	in9
+	cpi	10h		;Ctrl-P: the line before, Ctrl-N: the one after
+	jz	ihprev
+	cpi	0eh
+	jz	ihnext
 	cpi	1bh
 	jz	in8
 	cpi	8
@@ -942,7 +986,96 @@ in9:	mov	e,b
 	mvi	m,0
 	mov	a,b
 	ora	a		;Z: nothing typed
+	push	psw
+	call	ihsave
+	pop	psw
 	ret
+
+;	the line typed kept for Ctrl-P (not an empty one, not a file name: noh)
+ihsave:	lda	noh
+	ora	a
+	rnz
+	lda	ibuf
+	ora	a
+	rz
+	lxi	h,ihist+(nhst-1)*80	;all move down one (from the end: the copy overlaps)
+	lxi	d,ihist+nhst*80-1
+	lxi	b,(nhst-1)*80
+ihs1:	dcx	h
+	mov	a,m
+	stax	d
+	dcx	d
+	dcx	b
+	mov	a,b
+	ora	c
+	jnz	ihs1
+	lxi	h,ibuf
+	lxi	d,ihist
+ihs2:	mov	a,m
+	stax	d
+	inx	h
+	inx	d
+	ora	a
+	jnz	ihs2
+	lda	ihcnt
+	cpi	nhst
+	rnc
+	inr	a
+	sta	ihcnt
+	ret
+
+;	Ctrl-P: the line before (the empty line after the newest); Ctrl-N: the one after
+ihprev:	lda	ihpos
+	lxi	h,ihcnt
+	cmp	m
+	jnc	in1
+	inr	a
+	sta	ihpos
+	jmp	ihget
+ihnext:	lda	ihpos
+	ora	a
+	jz	in1
+	dcr	a
+	sta	ihpos
+;	the line ihpos (1 the newest; 0 the empty one) into IBUF, the line redrawn, B its length
+ihget:	lda	ihpos
+	mvi	b,0
+	ora	a
+	jnz	ihg0
+	lxi	h,ibuf
+	mvi	m,0
+	jmp	ihg3
+ihg0:	dcr	a
+	mov	l,a
+	mvi	h,0
+	dad	h
+	dad	h
+	dad	h
+	dad	h
+	push	h
+	dad	h
+	dad	h
+	pop	d
+	dad	d		;* 80
+	lxi	d,ihist
+	dad	d
+	lxi	d,ibuf
+ihg1:	mov	a,m
+	stax	d
+	ora	a
+	jz	ihg3
+	inx	h
+	inx	d
+	inr	b
+	jmp	ihg1
+ihg3:	push	b
+	call	rowmsg
+	lhld	ipr
+	call	pz
+	lxi	h,ibuf
+	call	pz
+	pop	b
+	jmp	in1
 
 ;	---- the home menu: GOPHER.DIR made a menu ----
 
@@ -1326,8 +1459,12 @@ pg2:	mvi	a,'0'
 ;	W: what is shown to a file, as CP/M text
 vwrite:	xra	a
 	sta	nlen
+	mvi	a,1
+	sta	noh		;a file name is not kept for Ctrl-P
 	lxi	h,psave
 	call	input
+	mvi	a,0
+	sta	noh
 	jc	vprom
 	jz	vprom
 	call	mkfcb
@@ -1877,7 +2014,7 @@ shome:	db	'home (GOPHER.DIR)',0
 srow:	db	27,'[24;1H',27,'[K',0
 srev:	db	27,'[7m',0
 snorm:	db	27,'[0m  ',0
-skeys:	db	']  # Ret, Spc - B G H R W Q> ',0
+skeys:	db	'] # Ret  Spc next  B back  G go  ? help  Q quit> ',0
 s6sp:	db	'      ',0
 s2sp:	db	'  ',0
 sopen:	db	'  (',0
@@ -1907,6 +2044,26 @@ dirp:	dw	0
 scan:	dw	0
 mode:	db	'1'
 nlen:	db	0
+ipr:	dw	0		;the prompt of the line being typed
+ihpos:	db	0		;the line of the history shown (0: the one being typed)
+ihcnt:	db	0		;lines kept (nhst at most)
+noh:	db	0		;1 while a file name is typed: not kept
+ihist:	ds	nhst*80
+;	?: the keys
+hgoph:	dw	hg0,hg1,hg2,hg3,hg4,hg5,hg6,hg7,hg8,hg9,hg10,hg11,hg12,0
+hg0:	db	27,'[1m','GOPHER: the keys (any key goes back to the page)',27,'[0m',0
+hg1:	db	'  a number, then Return: follow that item (text, menu, search)',0
+hg2:	db	'  Space, N, or Return: the next page     P, -: the page before',0
+hg3:	db	'  B, U: back to the place before (its page is read again)',0
+hg4:	db	'  G: go to an address   Ctrl-P, Ctrl-N: the ones typed before',0
+hg5:	db	'  H: home (GOPHER.DIR)      R: this page again',0
+hg6:	db	'  W: save the page shown as CP/M text (d:name.typ)',0
+hg7:	db	'  Esc: stop a page that is coming     Q: quit',0
+hg8:	db	'  ?: this help',0
+hg9:	db	0
+hg10:	db	27,'[1m','THE ROWS',27,'[0m',0
+hg11:	db	'  The top row: the server and where you are.',0
+hg12:	db	'  The bottom row: [first-last/total] of this page, the keys.',0
 hcnt:	db	0
 rcnt:	db	0
 room:	db	0

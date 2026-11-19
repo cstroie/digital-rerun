@@ -14,6 +14,8 @@
 ;	  /topic [text]   /mode ...   /away [text]   /raw line
 ;	  /quit [text]  hangs up,  /bye [text]  hangs up and leaves,  /help,  /clear
 ;
+;	Ctrl-P, Ctrl-N (or the arrows) bring back the last 10 lines typed; ? is help.
+;
 ;	IRC.DIR holds the servers, one per line: host[:port] and a name. Plain
 ;	TCP only: the bridge does no TLS, so a server must listen on 6667 or so.
 ;	B>IRC		(it lives on the Online shelf disk, with TERM)
@@ -36,6 +38,7 @@ mdat	equ	7		;modem data
 cr	equ	13
 lf	equ	10
 imax	equ	76		;the longest line you can type (the bottom row)
+nhist	equ	10		;lines kept to bring back (Ctrl-P, Ctrl-N, the arrows)
 
 	org	100h
 	call	getarg		;the command line first: the file calls below overwrite it
@@ -538,7 +541,34 @@ lkn:	stc
 ;	---- what you type ----
 
 ;	a key (in A)
-key:	cpi	cr
+key:	mov	b,a
+	lda	kesc		;the arrows: ESC [ A and ESC [ B (kesc: 1 after ESC, 2 after ESC [)
+	ora	a
+	jz	ky1
+	cpi	1
+	jnz	ky0
+	mov	a,b
+	cpi	'['
+	mvi	a,2
+	jz	ky00
+	xra	a
+ky00:	sta	kesc
+	ret
+ky0:	xra	a
+	sta	kesc
+	mov	a,b
+	cpi	'A'
+	jz	hprev
+	cpi	'B'
+	jz	hnext
+	ret
+ky1:	mov	a,b
+	cpi	1bh
+	jnz	ky2
+	mvi	a,1
+	sta	kesc
+	ret
+ky2:	cpi	cr
 	jz	enter
 	cpi	8
 	jz	bksp
@@ -548,6 +578,10 @@ key:	cpi	cr
 	jz	kill
 	cpi	18h
 	jz	kill
+	cpi	10h		;Ctrl-P: the line before, Ctrl-N: the one after
+	jz	hprev
+	cpi	0eh
+	jz	hnext
 	cpi	20h
 	rc
 	cpi	7fh
@@ -582,11 +616,24 @@ bksp:	lda	ilen
 kill:	xra	a
 	sta	ilen
 	sta	ibuf
+	sta	hpos
 	lxi	h,sclrin
 	jmp	pz
 enter:	lda	ilen
 	ora	a
 	rz
+	lda	ibuf		;a line of just ? is the help, as /help is (not kept)
+	cpi	'?'
+	jnz	en0
+	lda	ilen
+	cpi	1
+	jnz	en0
+	xra	a
+	sta	ilen
+	sta	ibuf
+	call	chelp
+	jmp	en9
+en0:	call	hsave		;kept for Ctrl-P before a command takes the line apart
 	lda	ibuf
 	cpi	'/'
 	jnz	en1
@@ -602,8 +649,81 @@ en3:	call	saytext
 en9:	xra	a
 	sta	ilen
 	sta	ibuf
+	sta	hpos
 	lxi	h,sclrin
 	jmp	pz
+
+;	the line typed kept for Ctrl-P: the newest first, nhist lines of 80 bytes
+hsave:	lda	ilen
+	ora	a
+	rz
+	lxi	h,hist+(nhist-1)*80	;all move down one (from the end: the copy overlaps)
+	lxi	d,hist+nhist*80-1
+	lxi	b,(nhist-1)*80
+hs1:	dcx	h
+	mov	a,m
+	stax	d
+	dcx	d
+	dcx	b
+	mov	a,b
+	ora	c
+	jnz	hs1
+	lxi	h,ibuf
+	lxi	d,hist
+hs2:	mov	a,m
+	stax	d
+	inx	h
+	inx	d
+	ora	a
+	jnz	hs2
+	lda	hcnt
+	cpi	nhist
+	rnc
+	inr	a
+	sta	hcnt
+	ret
+
+;	Ctrl-P: the line before (the arrow up too); Ctrl-N: the one after (the arrow down)
+hprev:	lda	hpos
+	lxi	h,hcnt
+	cmp	m
+	rnc
+	inr	a
+	sta	hpos
+	jmp	hget
+hnext:	lda	hpos
+	ora	a
+	rz
+	dcr	a
+	sta	hpos
+	jz	kill
+hget:	dcr	a		;line HPOS (1 the newest) into IBUF
+	mov	l,a
+	mvi	h,0
+	dad	h
+	dad	h
+	dad	h
+	dad	h
+	push	h
+	dad	h
+	dad	h
+	pop	d
+	dad	d		;* 80
+	lxi	d,hist
+	dad	d
+	lxi	d,ibuf
+	mvi	b,0
+hg1:	mov	a,m
+	stax	d
+	ora	a
+	jz	hg2
+	inx	h
+	inx	d
+	inr	b
+	jmp	hg1
+hg2:	mov	a,b
+	sta	ilen
+	jmp	drawin
 
 ;	CY set (and a word said) if there is no connection
 needc:	lda	dcd
@@ -775,6 +895,8 @@ cmdtab:	db	'CONNECT',0
 	db	'EXIT',0
 	dw	cbye
 	db	'HELP',0
+	dw	chelp
+	db	'?',0
 	dw	chelp
 	db	'CLEAR',0
 	dw	cclear
@@ -2110,7 +2232,7 @@ mdial:	db	'Dialing ',0
 mtaken:	db	'That nick is taken, trying another.',0
 helptab:dw	hl0,hl1,hl2,hl3,hl4,hl5,hl6,hl7
 	dw	hl8,hl9,hl10,hl11,hl12,hl13,hl14,hl15
-	dw	hl16,0
+	dw	hl16,hl17,0
 hl0:	db	27,'[1m','CONNECTING',27,'[0m',0
 hl1:	db	'  /connect [host[:port]|n]  dial a serve','r; with nothing, list IRC.DIR',0
 hl2:	db	'  /nick name                your nick, b','efore you connect or to change it',0
@@ -2128,6 +2250,7 @@ hl13:	db	0
 hl14:	db	27,'[1m','OTHER',27,'[0m',0
 hl15:	db	'  /raw line   /clear   /help        // s','ends a line that begins with a slash',0
 hl16:	db	'  Ctrl-U clears your line.   Plain TCP o','nly: ports 6660-6669, no TLS.',0
+hl17:	db	'  Ctrl-P, Ctrl-N (or the arrows): the last 10 lines typed','   ?: this help',0
 sstar:	db	'*** ',0
 sdash:	db	'-- ',0
 sstar1:	db	'* ',0
@@ -2225,6 +2348,10 @@ dialbuf:db	'ATDT'		;the rest is reserved below: host, :6667, CR, 0
 	ds	52
 snick:	ds	32		;the nick of the prefix of the line being handled
 ibuf:	ds	imax+2
+hpos:	db	0		;the history line shown (0: the one being typed)
+hcnt:	db	0		;lines kept (nhist at most)
+kesc:	db	0		;after ESC (1), after ESC [ (2): the arrow keys
+hist:	ds	nhist*80
 fcb:	ds	36
 	ds	256
 stktop	equ	$

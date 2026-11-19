@@ -55,7 +55,8 @@
         { host: 'sdf.org', port: 70, text: 'SDF Public Access Unix System' },
         { host: 'gopher.quux.org', port: 70, text: 'quux.org: the old Gopher archives' },
         { host: 'gopherpedia.com', port: 70, text: 'Gopherpedia: Wikipedia over gopher' },
-        { host: 'bitreich.org', port: 70, text: 'Bitreich: suckless people and their phlogs' }
+        { host: 'bitreich.org', port: 70, text: 'Bitreich: suckless people and their phlogs' },
+        { host: 'koremoon.duckdns.org', port: 70, text: 'Kore Moon: my own gopher hole' }
     ];
 
     /** The MUDs MUD.DIR offers (MUD.COM): telnet, so any port but the raw ones. */
@@ -81,7 +82,8 @@
         { url: 'gemini://geminiprotocol.net/', text: 'Project Gemini: the protocol and its software' },
         { url: 'gemini://kennedy.gemi.dev/', text: 'Kennedy: a search engine for Geminispace' },
         { url: 'gemini://gemi.dev/', text: 'gemi.dev: news, Wikipedia and more, made gemtext' },
-        { url: 'gemini://bbs.geminispace.org/', text: 'Bubble: a bulletin board of Geminispace' }
+        { url: 'gemini://bbs.geminispace.org/', text: 'Bubble: a bulletin board of Geminispace' },
+        { url: 'gemini://koremoon.duckdns.org/', text: 'Kore Moon: my own capsule' }
     ];
 
     /** The clocks NETTIME.COM asks: the daytime service (port 13, raw), in NIST's format. */

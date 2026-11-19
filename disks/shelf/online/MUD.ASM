@@ -33,7 +33,7 @@ lf	equ	10
 tab	equ	9
 rmask	equ	07h		;the ring is 2K: its offsets wrap at 0800h
 imax	equ	76		;the longest line you can type (the bottom row)
-nhist	equ	8		;lines kept to bring back
+nhist	equ	10		;lines kept to bring back
 
 	org	100h
 	lxi	h,0

@@ -174,3 +174,24 @@ test('TERM run in 16 ms frames loses no byte of dense screens (a byte due before
         assert.equal(out.slice(at), screen, `screen ${k} arrived whole`);
     }
 });
+
+test('the other end hanging up: carrier drops only once what was on the wire has arrived', () => {
+    const m = new Machine();
+    m.clock.hz = 4000000;
+    const line = { attached(md) { md.carrier = true; }, send() {}, reset() {} };
+    m.modem.attach(line);
+    m.modem.receive('bye');
+    m.modem.lose();
+    assert.equal(m.modem.carrier, true, 'three characters still coming');
+    let got = '';
+    for (let i = 0; i < 3; i++) {
+        m.modem.idle(m.modem.untilEvent());
+        assert.ok(status(m) & 4, 'carrier while the data arrives');
+        got += String.fromCharCode(m.input(7));
+    }
+    assert.equal(got, 'bye');
+    m.modem.idle(m.modem.untilEvent());
+    assert.equal(status(m) & 4, 0, 'then carrier is gone');
+    m.modem.lose();
+    assert.equal(m.modem.carrier, false, 'nothing on the wire: at once');
+});

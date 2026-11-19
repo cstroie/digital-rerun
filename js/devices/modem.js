@@ -39,8 +39,24 @@
             this.overrun = false;
             this.txAt = 0;                 // the transmitter is busy until then
             this.carrier = false;
+            this.dropAt = 0;               // the line is gone: carrier drops then (see lose)
             this.dtr = false;
             this.dropped = 0;              // bytes lost: written while busy
+        }
+
+        get carrier() {
+            if (this.dropAt && this.now() >= this.dropAt) { this.dcd = false; this.dropAt = 0; }
+            return this.dcd;
+        }
+        set carrier(on) { this.dcd = on; this.dropAt = 0; }
+
+        /**
+         * The other end hung up: carrier drops once what is already on the wire has
+         * arrived, as a modem's buffer empties (the data, then DCD, then NO CARRIER).
+         */
+        lose() {
+            if (this.inbox.length && this.free > this.now()) this.dropAt = this.free + 1;   // just after the last byte
+            else this.carrier = false;
         }
 
         /** T-states one character takes at the baud rate. */
@@ -117,6 +133,7 @@
             const soon = t => { if (t > now && (at === null || t < at)) at = t; };
             if (this.inbox.length) soon(this.inbox[0].at);
             soon(this.txAt);
+            if (this.dropAt) soon(this.dropAt);
             if (this.line.nextAt) soon(this.line.nextAt());
             return at === null ? null : at - now;
         }

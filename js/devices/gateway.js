@@ -15,9 +15,9 @@
  *   4004 anything else          NO CARRIER
  * An https page can reach only wss:// or ws://localhost.
  *
- * Ports 6660-6669 are IRC's: there the bytes go through raw, with no telnet in
- * between (no CR NUL, no doubled 255, no negotiation) and no local echo, since
- * an IRC server is no telnet host and never offers to echo.
+ * Ports 6660-6669 (IRC), 13 (daytime), 37 (time), 70 (gopher) and 79 (finger) are
+ * no telnet hosts: there the bytes go through raw, with no telnet in between (no
+ * CR NUL, no doubled 255, no negotiation) and no local echo.
  */
 (function (root) {
     'use strict';
@@ -26,10 +26,10 @@
     const { Telnet } = node ? require('./telnet.js') : root.DigitalRerun;
 
     const REASONS = { 4002: 'BUSY', 4003: 'NO ANSWER' };
-    const RAW_PORTS = [6660, 6661, 6662, 6663, 6664, 6665, 6666, 6667, 6668, 6669];
+    const RAW_PORTS = [13, 37, 70, 79, 6660, 6661, 6662, 6663, 6664, 6665, 6666, 6667, 6668, 6669];
 
     class Gateway {
-        /** `url`: the bridge, e.g. ws://localhost:1984; `token`: its secret; `rawPorts`: the ports whose bytes go through untouched (IRC's). */
+        /** `url`: the bridge, e.g. ws://localhost:1984; `token`: its secret; `rawPorts`: the ports whose bytes go through untouched (IRC, daytime, time, gopher, finger). */
         constructor({ url, token = '', WebSocketClass = root.WebSocket, rawPorts = RAW_PORTS } = {}) {
             this.url = url;
             this.rawPorts = rawPorts;

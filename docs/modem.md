@@ -142,6 +142,39 @@ your lines back into IRC's input (`/connect host:7000` would not work). A real W
 The receiver is polled between every character the program prints and inside the loops that walk a line, and a 256-byte ring
 takes what comes meanwhile: nothing is lost up to 19200 baud (test/irc.test.js).
 
+## GOPHER, MUD, FINGER, NETTIME (`system/net`)
+
+Four more programs for the modem, 8080 code in the dialect of CP/M's `ASM.COM` like TERM and IRC, on the **Online** shelf disk
+with their sources (`SUBMIT B:NETALL` builds the four on the machine; `SUBMIT B:MAKE GOPHER` one). Each sends `ATE0`, dials
+`host:port`, skips the modem's `CONNECT` line, and gives the echo back (`ATE1`) when it leaves, as IRC does. They share one block
+of modem code (a ring for what comes, the dial, the hang-up), copied into each source, since `ASM.COM` has no include.
+
+- **GOPHER** (port 70): `GOPHER` shows `GOPHER.DIR` as a menu (a hole per line: `host[:port][/type/selector] name`, from
+  `GOPHERBOOK` in `js/devices/directory.js`); `GOPHER host[:port][/type/selector]` goes there (`gopher://` may lead; the
+  selector is what follows the type, as RFC 4266 has it). A page is read whole at the line's speed (the count of bytes on the
+  bottom row; Esc stops it), then shown: menus with their items numbered (type the number and Return), texts cut at 79
+  columns. Space or N the next page, P or - the one before, B back (the page before is read again: only the way is kept, 8
+  places), G an address, H home, R again, W saves the page as a CP/M text file, Q quits. Searches (type 7) ask for the words.
+  Other kinds (binaries, pictures, the web) are listed but not followed. The page may take up to about 45K.
+- **MUD** (telnet, any port but the raw ones): IRC's screen without IRC: a status bar, what the world says in rows 2-23,
+  your line on row 24. Return sends the line (an empty one too) with a CR, which the bridge makes a telnet end of line;
+  Ctrl-P and Ctrl-N (or the arrows) bring back the last 8 lines; ANSI colour and other escape codes are left out. After
+  a prompt with `password` in it, the next line shows as stars and is not kept. `/connect [host[:port] | n | a word]`,
+  `MUD.DIR` (from `MUDBOOK`), `/quit`, `/bye`, `/clear`, `/help`. The world's text never breaks the line being typed.
+- **FINGER** (port 79): `FINGER user@host`, `FINGER @host`, `host:port`; the answer a page at a time (`--More--`).
+- **NETTIME** (port 13, NIST's daytime format): `NETTIME [host[:port]] [+h | -h | +h:mm]`. It shows the UTC time it is
+  given and how far this machine's clock (port 20) is from it (on this machine: the host's offset from UTC). Under CP/M 3
+  it sets the date and the time (UTC and the offset) and reads them back: this BIOS keeps the host's clock, so it says it
+  was not set; a machine with no clock of its own keeps what NETTIME gives it.
+
+The gateway passes ports 13, 37, 70 and 79 raw, as it does IRC's; `tools/bridge.sh` allows the hosts of `GOPHER.DIR`,
+`MUD.DIR`, a few finger hosts and `time.nist.gov:13` by default. The command line comes in capitals from the CCP, so
+these programs take it in lower case: a selector with capitals is typed at GOPHER's G instead.
+
+**The carrier and the data.** When the other end hangs up, carrier drops once the bytes already on the wire have arrived
+(`Modem.lose`), then the modem says `NO CARRIER`, as a modem's buffer empties. So a program that reads until the carrier
+goes (FINGER, NETTIME, a GOPHER page) has all of the answer, and what comes after is the modem's.
+
 ## A real modem (Web Serial, step 6)
 
 DEVICES → MODEM → *EXTERNAL* opens the browser's port chooser (Chrome, Edge or another browser with Web Serial;

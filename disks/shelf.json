@@ -881,15 +881,37 @@
   "id": "online",
   "name": "Online",
   "format": "sssd8",
-  "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM), and IRC, an IRC client (/connect, /join, /msg, /query ...), each with its directory of numbers and servers (TERM.DIR, IRC.DIR). Put it in B:, then B: and IRC or TERM.",
-  "credit": "Costin Stroie; MIT licence. Source: github.com/cstroie/dialtone (system/dialtone).",
+  "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM); IRC, an IRC client; GOPHER, a Gopher client (menus, texts, searches, the way back, save to a file); MUD, a client for text worlds; FINGER, who is on a host or what someone's plan says; NETTIME, the time from a clock on the net. Each with its directory where it has one (TERM.DIR, IRC.DIR, GOPHER.DIR, MUD.DIR). Put it in B:, then B: and the program.",
+  "credit": "Costin Stroie; MIT licence. Source: TERM and IRC github.com/cstroie/dialtone (system/dialtone); GOPHER, MUD, FINGER, NETTIME system/net.",
   "licence": "MIT",
   "category": "Comm",
   "text": [
    "TERM.DIR",
-   "IRC.DIR"
+   "IRC.DIR",
+   "GOPHER.DIR",
+   "MUD.DIR"
   ],
   "files": [
+   {
+    "name": "FINGER.ASM",
+    "path": "disks/shelf/online/FINGER.ASM"
+   },
+   {
+    "name": "FINGER.COM",
+    "path": "disks/shelf/online/FINGER.COM"
+   },
+   {
+    "name": "GOPHER.ASM",
+    "path": "disks/shelf/online/GOPHER.ASM"
+   },
+   {
+    "name": "GOPHER.COM",
+    "path": "disks/shelf/online/GOPHER.COM"
+   },
+   {
+    "name": "GOPHER.DIR",
+    "path": "disks/shelf/online/GOPHER.DIR"
+   },
    {
     "name": "IRC.ASM",
     "path": "disks/shelf/online/IRC.ASM"
@@ -911,6 +933,30 @@
     "path": "disks/shelf/online/MAKEALL.SUB"
    },
    {
+    "name": "MUD.ASM",
+    "path": "disks/shelf/online/MUD.ASM"
+   },
+   {
+    "name": "MUD.COM",
+    "path": "disks/shelf/online/MUD.COM"
+   },
+   {
+    "name": "MUD.DIR",
+    "path": "disks/shelf/online/MUD.DIR"
+   },
+   {
+    "name": "NETALL.SUB",
+    "path": "disks/shelf/online/NETALL.SUB"
+   },
+   {
+    "name": "NETTIME.ASM",
+    "path": "disks/shelf/online/NETTIME.ASM"
+   },
+   {
+    "name": "NETTIME.COM",
+    "path": "disks/shelf/online/NETTIME.COM"
+   },
+   {
     "name": "README.TXT",
     "path": "disks/shelf/online/README.TXT"
    },
@@ -927,8 +973,8 @@
     "path": "disks/shelf/online/TERM.DIR"
    }
   ],
-  "size": 63590,
-  "free": 174080
+  "size": 147363,
+  "free": 77824
  },
  {
   "id": "photopia",

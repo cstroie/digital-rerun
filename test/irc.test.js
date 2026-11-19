@@ -108,7 +108,7 @@ test('the Online shelf disk holds IRC and TERM with their directories (the boot 
     for (const n of ['IRC.COM', 'IRC.DIR', 'TERM.COM', 'TERM.DIR', 'README.TXT']) assert.ok(files.includes(n), n);
     const sys = new CpmFs(Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/cpm22.dsk'))))).list().map(f => f.name);
     assert.ok(!sys.includes('IRC.COM'), 'the system disk keeps its room for rebuilding the BIOS');
-    assert.ok(new CpmFs(shelfDisk('online')).freeBytes() > 100 * 1024);
+    assert.ok(new CpmFs(shelfDisk('online')).freeBytes() > 64 * 1024, 'room to build on it (IRC.HEX and IRC.COM take about 25K)');
 });
 
 test('IRC without a modem says so and leaves', async () => {
@@ -438,7 +438,7 @@ test('IRC with a name on the command line connects at once: a number, a word of 
         const sw = say(b.m, 'B:\r');
         await until(b.m, 'B>', sw);
         say(b.m, `IRC ${arg}\r`);
-        await untilTrue(b.m, () => has(b.m, '*** Dialing'), 'dialing');
+        await untilTrue(b.m, () => screen(b.m).some(row => /\*\*\* Dialing \S+:\d+/.test(row)), 'dialing');   // the whole line, not one half printed
         return screen(b.m).find(row => row.includes('*** Dialing'));
     };
     assert.match(await dialing('3'), /\*\*\* Dialing irc\.rizon\.net:6667/);

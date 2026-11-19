@@ -245,7 +245,7 @@
             this.online = false;
             this.plus = 0;
             this.held = [];
-            this.modem.carrier = false;
+            if (told) this.modem.lose(); else this.modem.carrier = false;
             if (remote && !told) { try { remote.close(); } catch (e) { /* gone */ } }
             if (told) this.result('NO CARRIER');
         }

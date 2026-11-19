@@ -291,3 +291,14 @@ test('the gateway: the IRC ports (6660-6669) are raw: no telnet, no CR NUL, no l
     assert.deepEqual(WS2.last.sent, [13, 0]);
     assert.deepEqual(got2, [13, 10]);
 });
+
+test('the gateway: daytime (13), time (37), gopher (70) and finger (79) are raw too', async () => {
+    for (const port of [13, 37, 70, 79]) {
+        const WS = fakeSocket();
+        const got = [];
+        const remote = await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS }).dial('host.example.org', port, { receive: b => got.push(...b), hangup() {} });
+        for (const b of [47, 13, 10]) remote.send(b);
+        assert.deepEqual(WS.last.sent, [47, 13, 10], `port ${port}: untouched`);
+        assert.deepEqual(got, [], `port ${port}: no echo`);
+    }
+});

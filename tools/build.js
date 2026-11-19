@@ -14,6 +14,8 @@
  *   - system/sysgen.asm and prtdemo.asm → SYSGEN.COM and PRTDEMO.COM
  *   - system/dialtone/term.asm (the submodule cstroie/dialtone) → TERM.COM (with TERM.DIR) on the boot disk; with system/dialtone/irc.asm → IRC.COM (and IRC.DIR)
  *     it is also written to the shelf disk disks/shelf/online (the boot disk has no room for IRC)
+ *   - system/net/finger.asm, nettime.asm, gopher.asm, mud.asm → FINGER.COM, NETTIME.COM, GOPHER.COM, MUD.COM
+ *     (with GOPHER.DIR and MUD.DIR, the sources and NETALL.SUB) on disks/shelf/online too
  *
  * The system tracks (two 8" tracks, 256 sectors total) are written to:
  *   system/cpm22.bin (for the boot ROM) and disks/cpm22.dsk (the boot disk)
@@ -36,7 +38,7 @@ const path = require('path');
 const { assemble, formatListing } = require('../js/asm8080.js');
 const { Disk } = require('../js/devices/fdc.js');
 const { CpmFs, toCpmText } = require('../js/cpmfs.js');
-const { PHONEBOOK, IRCBOOK } = require('../js/devices/directory.js');
+const { PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK } = require('../js/devices/directory.js');
 const { playCom } = require('./play.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -49,7 +51,7 @@ const SYSTEM_BYTES = 2 * 26 * 128;   // two 8" tracks
 function build(file, origin, length) {
     const src = fs.readFileSync(path.join(ROOT, 'system', file), 'latin1');
     const r = assemble(src, origin === null ? {} : { defines: { origin } });
-    fs.writeFileSync(path.join(ROOT, 'system', file.replace(/\.asm$/, '.lst').replace(/^(cpm22|dialtone)\//, '')), formatListing(r) + '\n');
+    fs.writeFileSync(path.join(ROOT, 'system', file.replace(/\.asm$/, '.lst').replace(/^(cpm22|dialtone|net)\//, '')), formatListing(r) + '\n');
     const lo = origin === null ? 0 : origin;
     const hi = length ? lo + length - 1 : r.high;
     return { result: r, image: r.image(lo, hi) };
@@ -104,6 +106,17 @@ function main() {
     // the sources and the submit files too: ASM, LOAD and SUBMIT of the boot disk build both programs on the machine itself
     for (const f of ['term.asm', 'irc.asm', 'MAKE.SUB', 'MAKEALL.SUB'])
         fs.copyFileSync(path.join(ROOT, 'system/dialtone', f), path.join(onlineDir, f.toUpperCase()));
+    // the network programs (system/net): their .COM and source, GOPHER.DIR and MUD.DIR (text, a place per line), and
+    // NETALL.SUB, which builds the four on the machine as MAKEALL builds TERM and IRC
+    const NET = ['finger', 'nettime', 'gopher', 'mud'];
+    for (const n of NET) {
+        fs.writeFileSync(path.join(onlineDir, `${n.toUpperCase()}.COM`), com(`net/${n}.asm`));
+        fs.copyFileSync(path.join(ROOT, 'system/net', `${n}.asm`), path.join(onlineDir, `${n.toUpperCase()}.ASM`));
+    }
+    const at = e => `${e.host}${e.port === 70 ? '' : ':' + e.port}`;
+    fs.writeFileSync(path.join(onlineDir, 'GOPHER.DIR'), GOPHERBOOK.map(e => `${at(e)} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(onlineDir, 'MUD.DIR'), MUDBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(onlineDir, 'NETALL.SUB'), NET.map(n => `ASM ${n.toUpperCase()}.BBZ\nLOAD B:${n.toUpperCase()}\nERA B:${n.toUpperCase()}.HEX\n`).join(''));
 
     buildShelf();
 

@@ -120,7 +120,7 @@ test('TERM: dial the bulletin board, leave a bulletin, say goodbye', async () =>
     await until(m, 'bulletin posted', at);
     assert.deepEqual((await board.list()).map(p => [p.name, p.text]), [['Ana', 'hello']]);
     at = say(m, 'q');
-    await until(m, 'NO CARRIER', at);
+    await until(m, '\r\nNO CARRIER\r\n', at);      // the modem's, after the board's farewell: carrier drops once that has arrived
     assert.equal(m.modem.carrier, false);
     assert.ok(m.out.includes('\x1b[r\x1b[0m\x1b[?25h'), 'the BBS put the terminal right again');
 });

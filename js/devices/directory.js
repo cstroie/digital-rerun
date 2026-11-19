@@ -49,6 +49,28 @@
         { host: 'irc.quakenet.org', port: 6667, text: 'QuakeNet: games' }
     ];
 
+    /** The gopher holes GOPHER.DIR offers (GOPHER.COM, its home menu): port 70, passed raw by the gateway. */
+    const GOPHERBOOK = [
+        { host: 'gopher.floodgap.com', port: 70, text: 'Floodgap: the hub of gopherspace, Veronica-2 search' },
+        { host: 'sdf.org', port: 70, text: 'SDF Public Access Unix System' },
+        { host: 'gopher.quux.org', port: 70, text: 'quux.org: the old Gopher archives' },
+        { host: 'gopherpedia.com', port: 70, text: 'Gopherpedia: Wikipedia over gopher' },
+        { host: 'bitreich.org', port: 70, text: 'Bitreich: suckless people and their phlogs' }
+    ];
+
+    /** The MUDs MUD.DIR offers (MUD.COM): telnet, so any port but the raw ones. */
+    const MUDBOOK = [
+        { host: 'aardmud.org', port: 4000, text: 'Aardwolf: a big, friendly, long-running MUD' },
+        { host: 'batmud.bat.org', port: 23, text: 'BatMUD: since 1990' },
+        { host: 'discworld.starturtle.net', port: 4242, text: 'Discworld MUD: after the novels' },
+        { host: 'alteraeon.com', port: 3000, text: 'Alter Aeon: fantasy, many classes' },
+        { host: 'ancient.anguish.org', port: 2222, text: 'Ancient Anguish: an LPMud since 1992' },
+        { host: '3k.org', port: 3000, text: '3Kingdoms: an LPMud' }
+    ];
+
+    /** The clocks NETTIME.COM asks: the daytime service (port 13, raw), in NIST's format. */
+    const TIMEHOST = 'time.nist.gov';
+
     /** An entry that is busy now and then (another caller has the one line): `make` is the real answer. */
     function sometimesBusy(make, chance = 0.1, random = Math.random) {
         return link => (random() < chance ? 'BUSY' : make(link));
@@ -78,7 +100,7 @@
         }
     }
 
-    const api = { Directory, echoService, sometimesBusy, PHONEBOOK, IRCBOOK };
+    const api = { Directory, echoService, sometimesBusy, PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK, TIMEHOST };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

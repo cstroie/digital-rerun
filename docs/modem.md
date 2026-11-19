@@ -153,11 +153,11 @@ your lines back into IRC's input (`/connect host:7000` would not work). A real W
 The receiver is polled between every character the program prints and inside the loops that walk a line, and a 256-byte ring
 takes what comes meanwhile: nothing is lost up to 19200 baud (test/irc.test.js).
 
-## GOPHER, MUD, FINGER, NETTIME
+## GOPHER, GEMINI, MUD, FINGER, NETTIME
 
-Four more programs for the modem, from dialtone like TERM and IRC (`system/dialtone/gopher.asm`, `mud.asm`, `finger.asm`,
-`nettime.asm`), on the **Online** shelf disk with their sources (`SUBMIT B:MAKEALL` builds all six on the machine;
-`SUBMIT B:MAKE GOPHER` one). Each sends `ATE0`, dials
+Five more programs for the modem, from dialtone like TERM and IRC (`system/dialtone/gopher.asm`, `gemini.asm`, `mud.asm`,
+`finger.asm`, `nettime.asm`), on the **Online** shelf disk with their sources (`SUBMIT B:MAKEALL` builds all seven on the
+machine; `SUBMIT B:MAKE GOPHER` one). The Online disk is a 5¼" DSDD 400K: an 8" 250K had no room left to build on. Each sends `ATE0`, dials
 `host:port`, skips the modem's `CONNECT` line, and gives the echo back (`ATE1`) when it leaves, as IRC does. They share one block
 of modem code (a ring for what comes, the dial, the hang-up), copied into each source, since `ASM.COM` has no include.
 
@@ -168,6 +168,14 @@ of modem code (a ring for what comes, the dial, the hang-up), copied into each s
   columns. Space or N the next page, P or - the one before, B back (the page before is read again: only the way is kept, 8
   places), G an address, H home, R again, W saves the page as a CP/M text file, Q quits. Searches (type 7) ask for the words.
   Other kinds (binaries, pictures, the web) are listed but not followed. The page may take up to about 45K.
+- **GEMINI** (port 1965, TLS by the bridge): GOPHER's way for Geminispace. `GEMINI` shows `GEMINI.DIR` (from `GEMINIBOOK`)
+  as a home page of links; `GEMINI [gemini://]host[:port][/path]` goes there. A page is read whole, then laid out: `#`
+  headings bold, paragraphs wrapped at the words, `* ` lists and `>` quotes set in, preformatted blocks as they are, `=>`
+  links numbered (a link with no name shows its address). The answer's status is followed: `1x` asks for words and
+  sends them percent-encoded after `?`, `3x` redirects (five at most), `4x`/`5x`/`6x` show what the capsule says on a page
+  of their own; other text types are shown as they are, anything else is said not to be text. Relative links are
+  resolved against the page (`..`, `.`, `?query`, `//host`); other schemes are refused. The keys are GOPHER's (W saves
+  the gemtext). Gemini is TLS only, which an 8080 cannot do: the gateway asks the bridge for it on port 1965 (below).
 - **MUD** (telnet, any port but the raw ones): IRC's screen without IRC: a status bar, what the world says in rows 2-23,
   your line on row 24. Return sends the line (an empty one too) with a CR, which the bridge makes a telnet end of line;
   Ctrl-P and Ctrl-N (or the arrows) bring back the last 8 lines; ANSI colour and other escape codes are left out. After
@@ -224,6 +232,13 @@ secret from someone who knows the machine name, the user and the port. Then DEVI
   must come with every connection; `--origin` limits the pages; `--max` connections at once. It logs the host
   dialed and nothing of what is said. It speaks `ws:`: an https page reaches it only on localhost, or through a
   TLS reverse proxy (`wss:`).
+- **TLS to the host** (for Gemini): with `&tls=1` in its request the bridge speaks TLS to the host and plain bytes to
+  the page; the gateway asks for it on port 1965. Gemini capsules sign their own certificates, so none is checked
+  against authorities: the first one a host shows is trusted and kept (`host:port sha256`, a line in `--known`,
+  default `~/.modem-bridge-known`), and a host that shows another one later is refused (close 4005, the modem says
+  `NO CARRIER`), as ssh does; delete its line to trust the new one. The C bridge does this when built with
+  `make -C tools/modem-bridge TLS=1` (OpenSSL); built without, it refuses such a call (4004). `tools/bridge.sh` builds
+  it with TLS when OpenSSL is there.
 - **Telnet** is the page's (`js/devices/telnet.js`): it agrees to ECHO and SUPPRESS-GO-AHEAD, announces itself
   as a VT100 (TERMINAL-TYPE) of 80x24 (NAWS), refuses the rest, doubles 255 and sends CR as CR NUL. The bridge
   passes bytes untouched, so a raw TCP service works too if it never sends 255.

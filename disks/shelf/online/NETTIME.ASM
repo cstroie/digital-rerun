@@ -878,7 +878,7 @@ sc4:	lxi	h,mset3
 sc9:	lxi	h,mkeeps
 	jmp	pz
 
-;	---- the modem (the same in FINGER, NETTIME, GOPHER and MUD) ----
+;	---- the modem (the same in FINGER, NETTIME, GOPHER, MUD and GEMINI) ----
 
 ;	move what the modem has into the ring (all registers kept); a full ring waits
 poll:	push	psw

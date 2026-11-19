@@ -23,21 +23,21 @@ function com(name) {
 }
 
 /** A machine running at the frame size of the page, the network programs on B:. `files`: {NAME: text}. */
-function boot({ hosts = {}, files = {}, modem = true, system = null } = {}) {
+function boot({ hosts = {}, files = {}, modem = true, system = null, gateway = null } = {}) {
     const m = new Machine();
     m.out = '';
     m.console.output = b => { m.out += String.fromCharCode(b); };
     m.fdc.mount(0, system || Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(ROOT, 'disks/cpm22.dsk')))));
     const b = new Disk('sssd8');
     const fsys = new CpmFs(b);
-    for (const n of ['finger', 'nettime', 'gopher', 'mud']) {
+    for (const n of ['finger', 'nettime', 'gopher', 'gemini', 'mud']) {
         fsys.write(`${n.toUpperCase()}.COM`, com(n).image);
     }
     for (const [n, text] of Object.entries(files)) fsys.write(n, toCpmText(Buffer.from(text, 'latin1')));
     m.fdc.mount(1, b);
     const dir = new Directory();
     const dialed = [];
-    dir.gateway = {
+    dir.gateway = gateway || {
         dial(host, port, link) {
             dialed.push(`${host}:${port}`);
             const make = hosts[`${host}:${port}`];

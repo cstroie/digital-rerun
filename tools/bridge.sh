@@ -1,7 +1,7 @@
 #!/bin/sh
 # bridge.sh: run the modem bridge (WebSocket to TCP) for DigitalRerun's modem.
 #
-#   tools/bridge.sh                  allow the hosts of the board's dial directory, IRC.DIR, GOPHER.DIR, MUD.DIR, NETTIME's clock
+#   tools/bridge.sh                  allow the hosts of the board's dial directory, IRC.DIR, GOPHER.DIR, MUD.DIR, FINGER.DIR, GEMINI.DIR, NETTIME's clock
 #   tools/bridge.sh host,host:port   allow these instead (names, host:port, *.domain, *)
 #   tools/bridge.sh --show-token     print the token and exit
 #
@@ -18,7 +18,7 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 bin="$here/modem-bridge/modem-bridge"
 if [ -z "${BRIDGE_NODE:-}" ] && [ ! -x "$bin" ] && ! command -v node >/dev/null 2>&1 && command -v make >/dev/null 2>&1 && command -v cc >/dev/null 2>&1; then
-  make -s -C "$here/modem-bridge" >&2
+  make -s -C "$here/modem-bridge" TLS=1 >&2 2>/dev/null || make -s -C "$here/modem-bridge" >&2     # with TLS (Gemini) if OpenSSL is there
 fi
 if [ -z "${BRIDGE_NODE:-}" ] && [ -x "$bin" ]; then
   set -- "$bin" "$@"
@@ -34,7 +34,7 @@ script=
 if [ "$run" = node ]; then script=$1; shift; fi
 
 port=${BRIDGE_PORT:-1984}
-allow_default='telehack.com,bbs.fozztexx.com,towel.blinkenlights.nl,nethack.alt.org,bbs.retrocampus.com,bbs.hispamsx.org,particlesbbs.dyndns.org:6400,aardmud.org:4000,batmud.bat.org,sdf.org,irc.sdf.org:6667,irc.libera.chat:6667,irc.oftc.net:6667,irc.rizon.net:6667,irc.efnet.org:6667,irc.dal.net:6667,us.undernet.org:6667,irc.quakenet.org:6667,gopher.floodgap.com:70,graph.no:79,gopher.quux.org:70,gopherpedia.com:70,bitreich.org:70,discworld.starturtle.net:4242,alteraeon.com:3000,ancient.anguish.org:2222,3k.org:3000,time.nist.gov:13,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12'
+allow_default='telehack.com,bbs.fozztexx.com,towel.blinkenlights.nl,nethack.alt.org,bbs.retrocampus.com,bbs.hispamsx.org,particlesbbs.dyndns.org:6400,aardmud.org:4000,batmud.bat.org,sdf.org,irc.sdf.org:6667,irc.libera.chat:6667,irc.oftc.net:6667,irc.rizon.net:6667,irc.efnet.org:6667,irc.dal.net:6667,us.undernet.org:6667,irc.quakenet.org:6667,gopher.floodgap.com:70,graph.no:79,gopher.quux.org:70,gopherpedia.com:70,bitreich.org:70,discworld.starturtle.net:4242,alteraeon.com:3000,ancient.anguish.org:2222,3k.org:3000,time.nist.gov:13,geminiprotocol.net:1965,kennedy.gemi.dev:1965,gemi.dev:1965,bbs.geminispace.org:1965,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12'
 allow=${BRIDGE_ALLOW:-$allow_default}
 
 # a first argument that is not an option is the list of hosts (after the bridge chosen above)

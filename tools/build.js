@@ -13,7 +13,7 @@
  *   - system/bios.asm → BIOS at FA00h
  *   - system/sysgen.asm and prtdemo.asm → SYSGEN.COM and PRTDEMO.COM
  *   - system/dialtone/term.asm (the submodule cstroie/dialtone) → TERM.COM (with TERM.DIR) on the boot disk; it and
- *     the rest of dialtone (irc, gopher, mud, finger, nettime .asm → .COM, with IRC.DIR, GOPHER.DIR and MUD.DIR)
+ *     the rest of dialtone (irc, gopher, gemini, mud, finger, nettime .asm → .COM, with their .DIR files)
  *     go to the shelf disk disks/shelf/online (the boot disk has no room for them)
  *
  * The system tracks (two 8" tracks, 256 sectors total) are written to:
@@ -37,7 +37,7 @@ const path = require('path');
 const { assemble, formatListing } = require('../js/asm8080.js');
 const { Disk } = require('../js/devices/fdc.js');
 const { CpmFs, toCpmText } = require('../js/cpmfs.js');
-const { PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK, FINGERBOOK } = require('../js/devices/directory.js');
+const { PHONEBOOK, IRCBOOK, GOPHERBOOK, GEMINIBOOK, MUDBOOK, FINGERBOOK } = require('../js/devices/directory.js');
 const { playCom } = require('./play.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -108,6 +108,7 @@ function main() {
     fs.writeFileSync(path.join(onlineDir, 'IRC.DIR'), IRCBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
     fs.writeFileSync(path.join(onlineDir, 'GOPHER.DIR'), GOPHERBOOK.map(e => `${at(e)} ${e.text}`).join('\n') + '\n');
     fs.writeFileSync(path.join(onlineDir, 'MUD.DIR'), MUDBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(onlineDir, 'GEMINI.DIR'), GEMINIBOOK.map(e => `${e.url} ${e.text}`).join('\n') + '\n');
     fs.writeFileSync(path.join(onlineDir, 'FINGER.DIR'), FINGERBOOK.map(e => `${e.ask} ${e.text}`).join('\n') + '\n');
     // the submit files too: ASM, LOAD and SUBMIT of the boot disk build every program on the machine itself
     for (const f of ['MAKE.SUB', 'MAKEALL.SUB'])

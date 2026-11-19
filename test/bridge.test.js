@@ -350,3 +350,72 @@ test('the gateway through the bridge: a question typed a byte at a time reaches 
     assert.equal(Buffer.from(received).toString('latin1'), 'asked: bucharest\r\n');
     await closeAll(bridge, tcp);
 });
+
+/* ---------- TLS: for Gemini (the page speaks plain bytes, the bridge speaks TLS) ---------- */
+
+const tlsMod = require('node:tls');
+const fsMod = require('node:fs');
+const osMod = require('node:os');
+const FIX = path.join(__dirname, 'fixtures');
+
+/** A TLS server with test certificate `n` (1 or 2) on `port` (0: any): says hello, answers each chunk with `got: ...`. */
+function tlsServer(n, port = 0) {
+    const server = tlsMod.createServer({ key: fsMod.readFileSync(path.join(FIX, `tls${n}.key`)), cert: fsMod.readFileSync(path.join(FIX, `tls${n}.crt`)) }, s => {
+        s.write('hello over tls\r\n');
+        s.on('data', d => s.write(`got: ${d.toString('latin1')}`));
+        s.on('error', () => {});
+    });
+    return new Promise(r => server.listen(port, '127.0.0.1', () => r({ server, port: server.address().port })));
+}
+
+test('TLS: &tls=1 talks TLS to the host and plain bytes to the page; the certificate is kept, and a changed one refused (4005)', async () => {
+    const known = path.join(fsMod.mkdtempSync(path.join(osMod.tmpdir(), 'bridge-')), 'known');
+    let { server: srv, port: tport } = await tlsServer(1);
+    const bridge = createBridge({ allow: [`127.0.0.1:${tport}`], known });
+    const bport = await listen(bridge);
+    let c = client(bport, { host: '127.0.0.1', port: tport, tls: 1 });
+    assert.ok(await c.until(() => c.messages.length >= 2), String(c.messages));
+    assert.equal(c.messages[0], 'connected');
+    assert.equal(c.messages[1].toString(), 'hello over tls\r\n');
+    c.ws.send(Buffer.from('gemini://x/\r\n'));
+    assert.ok(await c.until(() => c.messages.some(m => typeof m !== 'string' && m.toString().includes('got: gemini://x/'))));
+    c.ws.close();
+    await c.done;
+    const kept = fsMod.readFileSync(known, 'utf8');
+    assert.match(kept, new RegExp(`^127\\.0\\.0\\.1:${tport} [0-9a-f]{64}\\n$`));
+    c = client(bport, { host: '127.0.0.1', port: tport, tls: 1 });
+    assert.ok(await c.until(() => c.messages.includes('connected')), 'the same certificate again: fine');
+    c.ws.close();
+    await c.done;
+    await closeAll(srv);
+    ({ server: srv } = await tlsServer(2, tport));
+    c = client(bport, { host: '127.0.0.1', port: tport, tls: 1 });
+    await c.done;
+    assert.equal(c.code, 4005, 'another certificate on the same host:port');
+    assert.equal(fsMod.readFileSync(known, 'utf8'), kept, 'the kept one stays');
+    await closeAll(bridge, srv);
+});
+
+test('TLS: a host that does not speak it closes with 4004; without &tls the bytes are the TLS handshake, untouched', async () => {
+    const { server: tcp, got, port: tport } = await tcpServer();
+    const bridge = createBridge({ allow: [`127.0.0.1:${tport}`] });
+    const bport = await listen(bridge);
+    const timer = setTimeout(() => tcp.last && tcp.last.destroy(), 300);    // a plain server never answers the hello
+    const c = client(bport, { host: '127.0.0.1', port: tport, tls: 1 });
+    await c.done;
+    clearTimeout(timer);
+    assert.equal(c.code, 4004);
+    assert.equal(got[0], 0x16, 'what it got was a TLS hello');
+    await closeAll(bridge, tcp);
+});
+
+test('the gateway asks for TLS on port 1965 (Gemini), raw: no telnet, a line in one piece', async () => {
+    const WS = fakeSocket();
+    const remote = await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS }).dial('geminiprotocol.net', 1965, { receive() {}, hangup() {} });
+    assert.match(WS.last.url, /[?&]tls=1(&|$)/);
+    for (const ch of 'gemini://geminiprotocol.net/\r\n') remote.send(ch.charCodeAt(0));
+    assert.deepEqual(WS.last.messages.map(m => Buffer.from(m).toString('latin1')), ['gemini://geminiprotocol.net/\r\n']);
+    const WS2 = fakeSocket();
+    await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS2 }).dial('gopher.example', 70, { receive() {}, hangup() {} });
+    assert.doesNotMatch(WS2.last.url, /tls=/);
+});

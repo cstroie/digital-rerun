@@ -5,7 +5,7 @@
  *
  *   node tools/modem-bridge.js --allow=<hosts> [--port=1984] [--bind=127.0.0.1]
  *        [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<page origin>[,...]]
- *        [--timeout=10] [--max=8] [--allow-private]
+ *        [--timeout=10] [--max=8] [--allow-private] [--known=<file>]
  *   tools/bridge.sh [hosts]      the same, with the board's directory allowed by default
  *
  *   --allow    which hosts may be dialed, comma separated: `bbs.example.org`,
@@ -22,12 +22,20 @@
  *   --allow-private  let `*` reach private and loopback addresses too (they
  *              can always be named in --allow).
  *   --max      connections at once (default 8). --timeout: seconds to connect.
+ *   --known    where the certificates of TLS hosts are kept (default ~/.modem-bridge-known).
  *
  * The page connects to ws://<bind>:<port>/connect?host=<h>&port=<p>&token=<t>.
  * The bridge makes the TCP connection and sends the text message "connected",
  * then passes bytes as binary messages both ways, untouched (the telnet
  * protocol is the page's). If it cannot connect it closes the WebSocket with
- * 4001 not allowed, 4002 refused, 4003 no answer in time, 4004 other.
+ * 4001 not allowed, 4002 refused, 4003 no answer in time, 4004 other, 4005 the
+ * host's certificate is not the one it had.
+ *
+ * With &tls=1 the bridge makes a TLS connection to the host and the page still
+ * speaks plain bytes (an 8080 cannot do TLS): Gemini (port 1965) needs it. The
+ * certificate is not checked against authorities (Gemini hosts sign their own):
+ * it is trusted the first time and kept, a line `host:port sha256` in the known
+ * file, and a host that shows another one later is refused (4005), as ssh does.
  * It speaks ws:, not wss:: for a page served over https use localhost or put
  * a TLS reverse proxy in front. It logs the host dialed and nothing of what
  * is said. No dependencies. tools/modem-bridge/ is the same bridge in C, for a machine
@@ -36,6 +44,9 @@
 'use strict';
 const http = require('http');
 const net = require('net');
+const tls = require('tls');
+const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
 
 const os = require('os');
@@ -96,6 +107,21 @@ function allowed(list, host, port, allowPrivate) {
     return false;
 }
 
+/* ---------- the certificates of TLS hosts: trusted the first time, kept ---------- */
+
+/** 'new' (now kept), 'same', or 'changed' for the fingerprint of host:port; `file` null keeps nothing. */
+function knownHost(file, hostport, fingerprint) {
+    if (!file) return 'new';
+    let lines = [];
+    try { lines = fs.readFileSync(file, 'utf8').split('\n'); } catch (e) { /* none yet */ }
+    for (const line of lines) {
+        const [hp, fp] = line.trim().split(/\s+/);
+        if (hp === hostport) return fp === fingerprint ? 'same' : 'changed';
+    }
+    try { fs.appendFileSync(file, `${hostport} ${fingerprint}\n`, { mode: 0o600 }); } catch (e) { /* not kept: trusted this time */ }
+    return 'new';
+}
+
 /* ---------- WebSocket frames ---------- */
 
 function frame(opcode, payload) {
@@ -133,10 +159,10 @@ class FrameReader {
 /* ---------- the bridge ---------- */
 
 /**
- * @param options { allow: [..], token, origins: [..]|null, timeout (s), max, allowPrivate, log(text) }
+ * @param options { allow: [..], token, origins: [..]|null, timeout (s), max, allowPrivate, known (file|null), log(text) }
  * @returns an http.Server (call listen)
  */
-function createBridge({ allow = [], token = '', origins = null, timeout = 10, max = 8, allowPrivate = false, log = () => {} } = {}) {
+function createBridge({ allow = [], token = '', origins = null, timeout = 10, max = 8, allowPrivate = false, known = null, log = () => {} } = {}) {
     let active = 0;
     const server = http.createServer((req, res) => { res.writeHead(426, { 'Content-Type': 'text/plain' }); res.end('This is a modem bridge: connect with a WebSocket.\n'); });
 
@@ -179,18 +205,29 @@ function createBridge({ allow = [], token = '', origins = null, timeout = 10, ma
             log(`refused ${host}:${port}`);
             return close(4001);
         }
-        tcp = net.connect({ host, port });
+        const secure = url.searchParams.get('tls') === '1';
+        tcp = secure
+            ? tls.connect({ host, port, servername: net.isIP(host) ? undefined : host, rejectUnauthorized: false, minVersion: 'TLSv1.2' })
+            : net.connect({ host, port });
         tcp.setTimeout(timeout * 1000);
-        tcp.once('connect', () => {
+        let up = false;
+        tcp.once(secure ? 'secureConnect' : 'connect', () => {
+            up = true;
             tcp.setTimeout(0);
-            log(`connected ${host}:${port}`);
+            if (secure) {
+                const fp = (tcp.getPeerCertificate().fingerprint256 || '').replace(/:/g, '').toLowerCase();
+                const seen = knownHost(known, `${host}:${port}`, fp);
+                if (seen === 'changed') { log(`certificate changed ${host}:${port} ${fp.slice(0, 16)}`); return close(4005); }
+                log(`connected ${host}:${port} tls ${fp.slice(0, 16)}${seen === 'new' ? ' (new)' : ''}`);
+            } else log(`connected ${host}:${port}`);
             socket.write(frame(1, Buffer.from('connected')));
         });
         tcp.on('data', d => { if (closed) return; for (let i = 0; i < d.length; i += 65536) socket.write(frame(2, d.subarray(i, i + 65536))); });
         tcp.once('timeout', () => { log(`no answer ${host}:${port}`); close(4003); });
         tcp.once('error', e => { log(`failed ${host}:${port} ${e.code || ''}`); close(e.code === 'ECONNREFUSED' ? 4002 : 4004); });
-        tcp.once('end', () => close(1000));
-        tcp.once('close', () => close(1000));
+        // closed before it was up (a host that dropped the TLS handshake): a failure, not a hang-up
+        tcp.once('end', () => close(up ? 1000 : 4004));
+        tcp.once('close', () => close(up ? 1000 : 4004));
     });
     return server;
 }
@@ -201,7 +238,7 @@ function main() {
     const token = typeof args.token === 'string' ? args.token : seedToken({ port, salt: typeof args.seed === 'string' ? args.seed : '' });
     if (args['show-token']) { console.log(token); return; }
     if (args.help || !args.allow || args.allow === true) {
-        console.error('usage: node tools/modem-bridge.js --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private]');
+        console.error('usage: node tools/modem-bridge.js --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>]');
         process.exit(args.help ? 0 : 2);
     }
     const server = createBridge({
@@ -211,6 +248,7 @@ function main() {
         timeout: Number(args.timeout) || 10,
         max: Number(args.max) || 8,
         allowPrivate: !!args['allow-private'],
+        known: typeof args.known === 'string' ? (args.known || null) : path.join(os.homedir(), '.modem-bridge-known'),
         log: t => console.error(new Date().toISOString().slice(11, 19), t)
     });
     const bind = typeof args.bind === 'string' ? args.bind : '127.0.0.1';
@@ -223,4 +261,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { createBridge, allowed, isPrivate, frame, FrameReader, seedToken, DEFAULT_PORT };
+module.exports = { createBridge, allowed, isPrivate, frame, FrameReader, seedToken, knownHost, DEFAULT_PORT };

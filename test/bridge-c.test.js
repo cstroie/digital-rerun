@@ -21,13 +21,20 @@ try {
     if (!built && r.error === undefined) throw new Error(r.stderr);
 } catch (e) { if (!/ENOENT/.test(String(e))) throw e; }
 const skip = !built && 'no C compiler (cc)';
+const BIN_TLS = path.join(__dirname, '.cache/modem-bridge-tls');
+let builtTls = false;
+if (built) {
+    const r = spawnSync('cc', ['-O2', '-Wall', '-Wextra', '-Werror', '-DWITH_TLS', '-o', BIN_TLS, SRC, '-lpthread', '-lssl', '-lcrypto'], { encoding: 'utf8' });
+    builtTls = r.status === 0;
+}
+const skipTls = !builtTls && 'no OpenSSL to build with (make TLS=1)';
 
 const children = new Set();
 process.on('exit', () => { for (const c of children) c.kill(); });     // none left running, even after a failure
 
-/** Start the binary on a free port; resolves { port, stop, log }. */
-function start(args) {
-    const child = spawn(BIN, ['--port=0', ...args], { stdio: ['ignore', 'ignore', 'pipe'] });
+/** Start the binary (the TLS one if asked) on a free port; resolves { port, stop, log }. */
+function start(args, bin = BIN) {
+    const child = spawn(bin, ['--port=0', ...args], { stdio: ['ignore', 'ignore', 'pipe'] });
     children.add(child);
     child.on('exit', () => children.delete(child));
     let log = '';
@@ -247,4 +254,65 @@ test('C bridge: a question typed a byte at a time reaches a one-read server whol
         assert.deepEqual(firsts, ['bucharest\r\n']);
         assert.equal(Buffer.from(received).toString('latin1'), 'asked: bucharest\r\n');
     } finally { b.stop(); await close(tcp); }
+});
+
+/* ---------- TLS (make TLS=1) ---------- */
+
+const tlsMod = require('node:tls');
+const os = require('node:os');
+const FIX = path.join(__dirname, 'fixtures');
+function tlsServer(n, port = 0) {
+    const server = tlsMod.createServer({ key: fs.readFileSync(path.join(FIX, `tls${n}.key`)), cert: fs.readFileSync(path.join(FIX, `tls${n}.crt`)) }, s => {
+        s.write('hello over tls\r\n');
+        s.on('data', d => s.write(`got: ${d.toString('latin1')}`));
+        s.on('error', () => {});
+    });
+    return new Promise(r => server.listen(port, '127.0.0.1', () => r({ server, port: server.address().port })));
+}
+
+test('C bridge with TLS: plain bytes to the page, TLS to the host; the certificate kept, a changed one refused (4005)', { skip: skipTls }, async () => {
+    const known = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bridge-c-')), 'known');
+    let { server: srv, port: tport } = await tlsServer(1);
+    const b = await start([`--allow=127.0.0.1:${tport}`, '--token=t', `--known=${known}`], BIN_TLS);
+    try {
+        let c = client(b.port, { host: '127.0.0.1', port: tport, tls: 1, token: 't' });
+        assert.ok(await c.until(() => c.messages.length >= 2), String(c.messages));
+        assert.equal(c.messages[0], 'connected');
+        assert.equal(c.messages[1].toString(), 'hello over tls\r\n');
+        c.ws.send(Buffer.from('gemini://x/\r\n'));
+        assert.ok(await c.until(() => c.messages.some(m => typeof m !== 'string' && m.toString().includes('got: gemini://x/'))));
+        c.ws.close();
+        await c.done;
+        const kept = fs.readFileSync(known, 'utf8');
+        assert.match(kept, new RegExp(`^127\\.0\\.0\\.1:${tport} [0-9a-f]{64}\\n$`));
+        const { knownHost } = require('../tools/modem-bridge.js');
+        assert.equal(knownHost(known, `127.0.0.1:${tport}`, kept.trim().split(' ')[1]), 'same', 'the same file format as the JavaScript bridge');
+        c = client(b.port, { host: '127.0.0.1', port: tport, tls: 1, token: 't' });
+        assert.ok(await c.until(() => c.messages.includes('connected')));
+        c.ws.close();
+        await c.done;
+        await close(srv);
+        ({ server: srv } = await tlsServer(2, tport));
+        c = client(b.port, { host: '127.0.0.1', port: tport, tls: 1, token: 't' });
+        await c.done;
+        assert.equal(c.code, 4005);
+        assert.match(b.log(), /certificate changed 127\.0\.0\.1/);
+    } finally { b.stop(); await close(srv); }
+});
+
+test('C bridge with TLS: a host that does not speak it is 4004; built without TLS, a TLS call is refused (4004)', { skip: skipTls }, async () => {
+    const { server: tcp, port: tport } = await tcpServer();
+    const b = await start([`--allow=127.0.0.1:${tport}`, '--token=t', '--known='], BIN_TLS);
+    const plain = await start([`--allow=127.0.0.1:${tport}`, '--token=t'], BIN);
+    try {
+        const timer = setTimeout(() => tcp.last && tcp.last.destroy(), 300);
+        const c = client(b.port, { host: '127.0.0.1', port: tport, tls: 1, token: 't' });
+        await c.done;
+        clearTimeout(timer);
+        assert.equal(c.code, 4004);
+        const p = client(plain.port, { host: '127.0.0.1', port: tport, tls: 1, token: 't' });
+        await p.done;
+        assert.equal(p.code, 4004);
+        assert.match(plain.log(), /not built in \(make TLS=1\)/);
+    } finally { b.stop(); plain.stop(); await close(tcp); }
 });

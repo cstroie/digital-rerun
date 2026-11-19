@@ -23,6 +23,9 @@
  * server (graph.no's finger, a gopher hole) reads its question with one read, so
  * a question in pieces would be a question cut short. Telnet ports go a byte at
  * a time: a key of a game or a menu must go at once.
+ *
+ * Port 1965 is Gemini's: raw too, and the bridge is asked to speak TLS to the host
+ * (&tls=1), since the 8080 cannot; the page and the program see plain bytes.
  */
 (function (root) {
     'use strict';
@@ -30,15 +33,17 @@
     const node = typeof module !== 'undefined' && module.exports;
     const { Telnet } = node ? require('./telnet.js') : root.DigitalRerun;
 
-    const REASONS = { 4002: 'BUSY', 4003: 'NO ANSWER' };
+    const REASONS = { 4002: 'BUSY', 4003: 'NO ANSWER' };      // 4001 not allowed, 4004 failed, 4005 a changed certificate: NO CARRIER
     const QUIET = 50, LINE_MAX = 1024;
-    const RAW_PORTS = [13, 37, 70, 79, 6660, 6661, 6662, 6663, 6664, 6665, 6666, 6667, 6668, 6669];
+    const TLS_PORTS = [1965];
+    const RAW_PORTS = [13, 37, 70, 79, 1965, 6660, 6661, 6662, 6663, 6664, 6665, 6666, 6667, 6668, 6669];
 
     class Gateway {
         /** `url`: the bridge, e.g. ws://localhost:1984; `token`: its secret; `rawPorts`: the ports whose bytes go through untouched (IRC, daytime, time, gopher, finger). */
-        constructor({ url, token = '', WebSocketClass = root.WebSocket, rawPorts = RAW_PORTS } = {}) {
+        constructor({ url, token = '', WebSocketClass = root.WebSocket, rawPorts = RAW_PORTS, tlsPorts = TLS_PORTS } = {}) {
             this.url = url;
             this.rawPorts = rawPorts;
+            this.tlsPorts = tlsPorts;
             this.token = token;
             this.WebSocketClass = WebSocketClass;
         }
@@ -50,7 +55,7 @@
                 try {
                     const u = new URL(this.url);
                     u.pathname = '/connect';
-                    u.search = new URLSearchParams({ host, port: String(port), ...(this.token ? { token: this.token } : {}) }).toString();
+                    u.search = new URLSearchParams({ host, port: String(port), ...(this.token ? { token: this.token } : {}), ...(this.tlsPorts.includes(Number(port)) ? { tls: '1' } : {}) }).toString();
                     ws = new this.WebSocketClass(u.href);
                 } catch (e) { return resolve('NO DIALTONE'); }
                 ws.binaryType = 'arraybuffer';

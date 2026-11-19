@@ -1,11 +1,16 @@
 # The modem bridge in C: tools/modem-bridge.js for a machine without Node.js.
-#   make            build ./modem-bridge
+#   make            build ./modem-bridge (no TLS: no dependencies)
+#   make TLS=1      with TLS for Gemini (needs OpenSSL: libssl-dev, openssl-devel)
 #   make install    copy it to $(PREFIX)/bin (PREFIX=/usr/local)
 #   make clean
 CC ?= cc
 CFLAGS ?= -O2 -Wall -Wextra
 LDLIBS = -lpthread
 PREFIX ?= /usr/local
+ifeq ($(TLS),1)
+CFLAGS += -DWITH_TLS
+LDLIBS += -lssl -lcrypto
+endif
 
 modem-bridge: modem-bridge.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)

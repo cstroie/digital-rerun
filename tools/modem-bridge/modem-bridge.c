@@ -6,7 +6,7 @@
  *   make -C tools/modem-bridge        (or: cc -O2 -o modem-bridge modem-bridge.c -lpthread)
  *   tools/modem-bridge/modem-bridge --allow=<hosts> [--port=1984] [--bind=127.0.0.1]
  *        [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<page origin>[,...]]
- *        [--timeout=10] [--max=8] [--allow-private]
+ *        [--timeout=10] [--max=8] [--allow-private] [--known=<file>]
  *
  * See tools/modem-bridge.js for what each option means. The page connects to
  * ws://<bind>:<port>/connect?host=<h>&port=<p>&token=<t>; the bridge makes the TCP
@@ -15,6 +15,11 @@
  * allowed, 4002 refused, 4003 no answer in time, 4004 other. It logs the host dialed
  * and nothing of what is said. --port=0 takes any free port (the line it prints says which).
  *
+ * With &tls=1 it speaks TLS to the host (Gemini, port 1965) and plain bytes to the page:
+ * built with `make TLS=1` (OpenSSL), else such a call is refused (4004). The certificate
+ * is trusted the first time and kept in the --known file (default ~/.modem-bridge-known,
+ * `host:port sha256` a line); another one later is refused with 4005.
+ *
  * POSIX only (Linux, the BSDs, macOS): a thread for each connection, blocking sockets.
  * No dependencies; SHA-1 (the handshake) and SHA-256 (the token) are here.
  *
@@ -22,6 +27,7 @@
  */
 #define _GNU_SOURCE
 #include <errno.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -40,6 +46,11 @@
 #include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef WITH_TLS
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
+#include <openssl/evp.h>
+#endif
 
 #define DEFAULT_PORT 1984
 #define MAX_FRAME (1 << 20)
@@ -59,6 +70,10 @@ static char **origin_list = NULL;  /* --origin, or NULL for any */
 static int origin_n = 0;
 static char token[256] = "";
 static int timeout_s = 10, max_conn = 8, allow_private = 0;
+static char known_file[1024] = "";  /* the certificates of TLS hosts; empty: none kept */
+#ifdef WITH_TLS
+static pthread_mutex_t known_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 static int active = 0;
 static pthread_mutex_t active_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -356,11 +371,110 @@ static int dial(const char *host, int port, int *code, char *why, size_t whysize
 
 struct conn {
     int ws, tcp;
+#ifdef WITH_TLS
+    SSL *ssl;                       /* TLS to the host, if asked for */
+#endif
     int counted;                    /* it holds one of the `max` places */
     unsigned char *buf;             /* what the page sent, not yet a whole frame */
     size_t len, cap;
     int part_op;                    /* the opcode of a message coming in pieces */
 };
+
+/* ---------- the host's side: plain TCP, or TLS ---------- */
+
+/* bytes from the host: their count, 0 or -1 when it is gone, -2 when TLS had nothing for us yet
+   (a record of its own, such as a session ticket: the socket is non-blocking then) */
+static ssize_t tcp_read(struct conn *c, void *buf, size_t len) {
+#ifdef WITH_TLS
+    if (c->ssl) {
+        int n = SSL_read(c->ssl, buf, (int)len);
+        if (n > 0) return n;
+        int e = SSL_get_error(c->ssl, n);
+        return e == SSL_ERROR_WANT_READ || e == SSL_ERROR_WANT_WRITE ? -2 : -1;
+    }
+#endif
+    return recv(c->tcp, buf, len, 0);
+}
+
+static int tcp_write(struct conn *c, const void *buf, size_t len) {
+#ifdef WITH_TLS
+    if (c->ssl) {
+        const unsigned char *p = buf;
+        while (len) {
+            int n = SSL_write(c->ssl, p, (int)len);
+            if (n > 0) { p += n; len -= (size_t)n; continue; }
+            int e = SSL_get_error(c->ssl, n);
+            if (e != SSL_ERROR_WANT_READ && e != SSL_ERROR_WANT_WRITE) return -1;
+            struct pollfd pf = { c->tcp, e == SSL_ERROR_WANT_READ ? POLLIN : POLLOUT, 0 };
+            if (poll(&pf, 1, timeout_s * 1000) <= 0) return -1;
+        }
+        return 0;
+    }
+#endif
+    return write_all(c->tcp, buf, len);
+}
+
+/* bytes TLS has decrypted already, which poll() cannot see */
+static int tcp_pending(struct conn *c) {
+#ifdef WITH_TLS
+    if (c->ssl) return SSL_pending(c->ssl) > 0;
+#endif
+    (void)c;
+    return 0;
+}
+
+#ifdef WITH_TLS
+/* 'n' new (now kept), 's' the same, 'c' changed: the fingerprint of host:port in the known file */
+static int known_host(const char *hostport, const char *fp) {
+    if (!known_file[0]) return 'n';
+    int r = 'n';
+    pthread_mutex_lock(&known_lock);
+    FILE *f = fopen(known_file, "r");
+    if (f) {
+        char line[512], hp[300], kfp[200];
+        while (fgets(line, sizeof line, f))
+            if (sscanf(line, "%299s %199s", hp, kfp) == 2 && !strcmp(hp, hostport)) { r = strcmp(kfp, fp) ? 'c' : 's'; break; }
+        fclose(f);
+    }
+    if (r == 'n') {
+        int fd = open(known_file, O_WRONLY | O_CREAT | O_APPEND, 0600);
+        if (fd >= 0) { dprintf(fd, "%s %s\n", hostport, fp); close(fd); }
+    }
+    pthread_mutex_unlock(&known_lock);
+    return r;
+}
+
+static SSL_CTX *tls_ctx;
+
+/* TLS over the connected socket within the timeout: 0, or the close code (4004 failed, 4005 another certificate) */
+static int tls_start(struct conn *c, const char *host, int port, char *fp, size_t fpsize) {
+    c->ssl = SSL_new(tls_ctx);
+    if (!c->ssl) return 4004;
+    SSL_set_fd(c->ssl, c->tcp);
+    struct in6_addr a6;
+    struct in_addr a4;
+    if (inet_pton(AF_INET, host, &a4) != 1 && inet_pton(AF_INET6, host, &a6) != 1) SSL_set_tlsext_host_name(c->ssl, host);
+    struct timeval tv = { timeout_s, 0 }, none = { 0, 0 };
+    setsockopt(c->tcp, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+    setsockopt(c->tcp, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+    int ok = SSL_connect(c->ssl) == 1;
+    setsockopt(c->tcp, SOL_SOCKET, SO_RCVTIMEO, &none, sizeof none);
+    setsockopt(c->tcp, SOL_SOCKET, SO_SNDTIMEO, &none, sizeof none);
+    if (!ok) return 4004;
+    X509 *cert = SSL_get_peer_certificate(c->ssl);
+    unsigned char md[EVP_MAX_MD_SIZE];
+    unsigned int mdlen = 0;
+    if (!cert || !X509_digest(cert, EVP_sha256(), md, &mdlen)) { if (cert) X509_free(cert); return 4004; }
+    X509_free(cert);
+    for (unsigned i = 0; i < mdlen && 2 * i + 2 < fpsize; i++) snprintf(fp + 2 * i, 3, "%02x", md[i]);
+    char hp[300];
+    snprintf(hp, sizeof hp, "%s:%d", host, port);
+    int seen = known_host(hp, fp);
+    if (seen == 'c') return 4005;
+    fcntl(c->tcp, F_SETFL, fcntl(c->tcp, F_GETFL, 0) | O_NONBLOCK);       /* see tcp_read */
+    return seen == 'n' ? 1 : 0;
+}
+#endif
 
 static void release(struct conn *c) {
     if (!c->counted) return;
@@ -376,6 +490,9 @@ static void finish(struct conn *c, int code) {
         unsigned char b[2] = { (unsigned char)(code >> 8), (unsigned char)code };
         send_frame(c->ws, 8, b, 2);
     }
+#ifdef WITH_TLS
+    if (c->ssl) { SSL_shutdown(c->ssl); SSL_free(c->ssl); c->ssl = NULL; }
+#endif
     if (c->tcp >= 0) close(c->tcp);
     c->tcp = -1;
     shutdown(c->ws, SHUT_WR);
@@ -411,7 +528,7 @@ static int frames(struct conn *c) {
         } else {
             if (op != 0) c->part_op = op;
             else if (!c->part_op) return 1002;
-            if ((c->part_op == 1 || c->part_op == 2) && c->tcp >= 0 && len) write_all(c->tcp, data, (size_t)len);
+            if ((c->part_op == 1 || c->part_op == 2) && c->tcp >= 0 && len) tcp_write(c, data, (size_t)len);
             if (fin) c->part_op = 0;
         }
         size_t used = at + 4 + (size_t)len;
@@ -538,7 +655,21 @@ static void *serve(void *arg) {
         finish(c, code);
         return NULL;
     }
-    logf_("connected %s:%d", host, port);
+    char tlsq[8];
+    param(query, "tls", tlsq, sizeof tlsq);
+    if (!strcmp(tlsq, "1")) {
+#ifdef WITH_TLS
+        char fp[2 * EVP_MAX_MD_SIZE + 1] = "";
+        int r = tls_start(c, host, port, fp, sizeof fp);
+        if (r == 4005) { logf_("certificate changed %s:%d %.16s", host, port, fp); finish(c, 4005); return NULL; }
+        if (r > 1) { logf_("failed %s:%d tls", host, port); finish(c, r); return NULL; }
+        logf_("connected %s:%d tls %.16s%s", host, port, fp, r == 1 ? " (new)" : "");
+#else
+        logf_("failed %s:%d tls: not built in (make TLS=1)", host, port);
+        finish(c, 4004);
+        return NULL;
+#endif
+    } else logf_("connected %s:%d", host, port);
     setsockopt(c->tcp, IPPROTO_TCP, TCP_NODELAY, &one, sizeof one);
     if (send_frame(c->ws, 1, (const unsigned char *)"connected", 9) < 0) { finish(c, 0); return NULL; }
     if (c->len) { int r = frames(c); if (r) { finish(c, r); return NULL; } }
@@ -547,11 +678,13 @@ static void *serve(void *arg) {
     static __thread unsigned char data[65536];
     for (;;) {
         struct pollfd pf[2] = { { c->ws, POLLIN, 0 }, { c->tcp, POLLIN, 0 } };
-        if (poll(pf, 2, -1) < 0) { if (errno == EINTR) continue; finish(c, 1011); return NULL; }
-        if (pf[1].revents & (POLLIN | POLLHUP | POLLERR)) {
-            ssize_t n = recv(c->tcp, data, sizeof data, 0);
-            if (n <= 0) { finish(c, 1000); return NULL; }       /* the far end hung up */
-            if (send_frame(c->ws, 2, data, (size_t)n) < 0) { finish(c, 0); return NULL; }
+        int pending = tcp_pending(c);
+        if (poll(pf, 2, pending ? 0 : -1) < 0) { if (errno == EINTR) continue; finish(c, 1011); return NULL; }
+        if (pending || (pf[1].revents & (POLLIN | POLLHUP | POLLERR))) {
+            ssize_t n = tcp_read(c, data, sizeof data);
+            if (n == -2) n = 0;                                 /* TLS: nothing for the page this time */
+            else if (n <= 0) { finish(c, 1000); return NULL; }  /* the far end hung up */
+            if (n && send_frame(c->ws, 2, data, (size_t)n) < 0) { finish(c, 0); return NULL; }
         }
         if (pf[0].revents & (POLLIN | POLLHUP | POLLERR)) {
             if (!take(c)) { finish(c, 0); return NULL; }        /* the page went */
@@ -607,7 +740,7 @@ int main(int argc, char **argv) {
     const char *allow = opt(argc, argv, "allow", &flag);
     int help = opt(argc, argv, "help", NULL) != NULL;
     if (help || !allow || flag) {
-        fprintf(stderr, "usage: modem-bridge --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private]\n");
+        fprintf(stderr, "usage: modem-bridge --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>]\n");
         return help ? 0 : 2;
     }
     allow_list = split(allow, &allow_n, 1);
@@ -618,6 +751,15 @@ int main(int argc, char **argv) {
     const char *m = opt(argc, argv, "max", NULL);
     if (m && atoi(m) > 0) max_conn = atoi(m);
     allow_private = opt(argc, argv, "allow-private", NULL) != NULL;
+    const char *k = opt(argc, argv, "known", &flag);
+    if (k && !flag) snprintf(known_file, sizeof known_file, "%s", k);                 /* --known= (empty) keeps none */
+    else if (getenv("HOME")) snprintf(known_file, sizeof known_file, "%s/.modem-bridge-known", getenv("HOME"));
+#ifdef WITH_TLS
+    tls_ctx = SSL_CTX_new(TLS_client_method());
+    SSL_CTX_set_min_proto_version(tls_ctx, TLS1_2_VERSION);
+    SSL_CTX_set_verify(tls_ctx, SSL_VERIFY_NONE, NULL);       /* Gemini hosts sign their own: the known file is the check */
+    SSL_CTX_clear_mode(tls_ctx, SSL_MODE_AUTO_RETRY);
+#endif
     const char *b = opt(argc, argv, "bind", &flag);
     const char *bind_to = b && !flag && *b ? b : "127.0.0.1";
 

@@ -76,6 +76,14 @@
         { ask: '@sdf.org', text: 'Who is on SDF' }
     ];
 
+    /** The capsules GEMINI.DIR offers (GEMINI.COM, its home page): port 1965, TLS spoken by the bridge. */
+    const GEMINIBOOK = [
+        { url: 'gemini://geminiprotocol.net/', text: 'Project Gemini: the protocol and its software' },
+        { url: 'gemini://kennedy.gemi.dev/', text: 'Kennedy: a search engine for Geminispace' },
+        { url: 'gemini://gemi.dev/', text: 'gemi.dev: news, Wikipedia and more, made gemtext' },
+        { url: 'gemini://bbs.geminispace.org/', text: 'Bubble: a bulletin board of Geminispace' }
+    ];
+
     /** The clocks NETTIME.COM asks: the daytime service (port 13, raw), in NIST's format. */
     const TIMEHOST = 'time.nist.gov';
 
@@ -108,7 +116,7 @@
         }
     }
 
-    const api = { Directory, echoService, sometimesBusy, PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK, FINGERBOOK, TIMEHOST };
+    const api = { Directory, echoService, sometimesBusy, PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK, FINGERBOOK, GEMINIBOOK, TIMEHOST };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

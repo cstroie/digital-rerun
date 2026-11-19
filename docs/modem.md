@@ -231,7 +231,7 @@ secret from someone who knows the machine name, the user and the port. Then DEVI
   reach private and loopback addresses, which can always be named). A token (worked out from the host, user and port by default, or `--token`)
   must come with every connection; `--origin` limits the pages; `--max` connections at once. It logs the host
   dialed and nothing of what is said. It speaks `ws:`: an https page reaches it only on localhost, or through a
-  TLS reverse proxy (`wss:`).
+  TLS reverse proxy (`wss:`; lighttpd below).
 - **TLS to the host** (for Gemini): with `&tls=1` in its request the bridge speaks TLS to the host and plain bytes to
   the page; the gateway asks for it on port 1965. Gemini capsules sign their own certificates, so none is checked
   against authorities: the first one a host shows is trusted and kept (`host:port sha256`, a line in `--known`,
@@ -249,6 +249,39 @@ secret from someone who knows the machine name, the user and the port. Then DEVI
   Colour BBSes send ANSI colour and CP437 line drawing, which the VT100 screen does not draw (ASCII only, by
   decision); most say VT100 and send plain text. The DEC line-drawing set (`ESC ( 0`, `ESC ) 0`, SO/SI, the box and line characters
   of curses programs) is drawn in VT100 mode; SETUP → *DEC line drawing* turns it off (the sequences are then ignored).
+
+### Behind https: lighttpd
+
+A page served over https (GitHub Pages, your own site) may open only `wss:` WebSockets, and the bridge speaks `ws:`. Put
+a web server that has the certificate in front of it: lighttpd ends TLS and passes the WebSocket on to the bridge on
+localhost. Neither bridge changes.
+
+```
+tools/bridge.sh --origin=https://where.the.page.is      # ws://127.0.0.1:1984, and its token
+```
+
+```
+# /etc/lighttpd/lighttpd.conf (or a file in conf-enabled/): lighttpd 1.4.46 or later
+server.modules += ( "mod_proxy" )
+
+$HTTP["url"] =~ "^/connect" {
+    proxy.server = ( "" => ( ( "host" => "127.0.0.1", "port" => 1984 ) ) )
+    proxy.header = ( "upgrade" => "enable" )        # pass the WebSocket upgrade on
+}
+```
+
+Then DEVICES → MODEM: *Bridge* `wss://your.host` (no path: the page asks for `/connect` itself) and the token.
+
+- **`--origin`**: once the bridge is on the internet, name the page that may use it (its scheme, host and port, as the
+  browser sends them in `Origin`). The token is not a secret from someone who knows the machine's name, the user and
+  the port; give `--token` a random one too.
+- **`--allow`**: keep it to the hosts you mean. Never `*` with `--allow-private` on a public machine: that reaches your LAN.
+- **The site's root**: the gateway puts `/connect` in place of the URL's path, so the bridge cannot sit under a prefix
+  (`wss://your.host/modem/`); give it a host name of its own if the site's root is taken.
+- **Idle calls**: a long quiet call (IRC at night) may be closed by the server's idle timeout; if so, raise
+  `server.max-read-idle` and `server.max-write-idle` (seconds) in the same `$HTTP["url"]` block.
+- The bridge sees every call come from 127.0.0.1 and logs the host dialed, as before; lighttpd's access log has the
+  callers.
 
 ## The sysop (chat)
 

@@ -35,7 +35,8 @@ asks for it on Gemini's port, 1965. Capsules sign their own certificates, so non
 the first one a host shows is kept in `--known` (default `~/.modem-bridge-known`, a line `host:port sha256`, the
 same file as the JavaScript bridge's) and another one later is refused with 4005, as ssh does. Built without TLS,
 such a call is refused (4004) and the log says to build with `TLS=1`. It speaks `ws:`: an https page reaches
-it on localhost only, or through a TLS reverse proxy. It logs the host dialed, never what is said.
+it on localhost only, or through a TLS reverse proxy (the lighttpd recipe is in
+[docs/modem.md](../../docs/modem.md#behind-https-lighttpd)). It logs the host dialed, never what is said.
 
 A thread per connection, blocking sockets (the TLS one non-blocking once it is up: a TLS record without data
 must not stall it); SHA-1 (the handshake) and SHA-256 (the token) are in the file, TLS is OpenSSL's.

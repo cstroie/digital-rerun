@@ -17,7 +17,12 @@
  *
  * Ports 6660-6669 (IRC), 13 (daytime), 37 (time), 70 (gopher) and 79 (finger) are
  * no telnet hosts: there the bytes go through raw, with no telnet in between (no
- * CR NUL, no doubled 255, no negotiation) and no local echo.
+ * CR NUL, no doubled 255, no negotiation) and no local echo. What the program
+ * sends there goes out a line at a time (at LF, or after QUIET ms with nothing
+ * more, or LINE_MAX bytes): the modem gives it a byte at a time, and a small
+ * server (graph.no's finger, a gopher hole) reads its question with one read, so
+ * a question in pieces would be a question cut short. Telnet ports go a byte at
+ * a time: a key of a game or a menu must go at once.
  */
 (function (root) {
     'use strict';
@@ -26,6 +31,7 @@
     const { Telnet } = node ? require('./telnet.js') : root.DigitalRerun;
 
     const REASONS = { 4002: 'BUSY', 4003: 'NO ANSWER' };
+    const QUIET = 50, LINE_MAX = 1024;
     const RAW_PORTS = [13, 37, 70, 79, 6660, 6661, 6662, 6663, 6664, 6665, 6666, 6667, 6668, 6669];
 
     class Gateway {
@@ -51,15 +57,27 @@
                 const raw = this.rawPorts.includes(Number(port));
                 const telnet = new Telnet({ send: bytes => { if (ws.readyState === 1) ws.send(Uint8Array.from(bytes)); } });
                 let reached = false, up = false;
+                let held = [], timer = null;
+                const flush = () => {
+                    if (timer) { clearTimeout(timer); timer = null; }
+                    if (held.length && ws.readyState === 1) ws.send(Uint8Array.from(held));
+                    held = [];
+                };
                 const remote = {
                     send: byte => {
                         if (ws.readyState !== 1) return;
-                        if (raw) { ws.send(Uint8Array.of(byte)); return; }
+                        if (raw) {
+                            held.push(byte);
+                            if (byte === 10 || held.length >= LINE_MAX) return flush();
+                            if (timer) clearTimeout(timer);
+                            timer = setTimeout(flush, QUIET);
+                            return;
+                        }
                         ws.send(Uint8Array.from(telnet.encode(byte)));
                         // a server that has not taken over the echo (a MUD such as Aardwolf) leaves it to us
                         if (!telnet.serverEchoes()) link.receive(byte === 13 ? [13, 10] : [byte]);
                     },
-                    close: () => { try { ws.close(1000); } catch (e) { /* gone */ } }
+                    close: () => { flush(); try { ws.close(1000); } catch (e) { /* gone */ } }
                 };
                 ws.onopen = () => { reached = true; };
                 ws.onmessage = ev => {
@@ -68,10 +86,12 @@
                     if (data.length) link.receive(data);
                 };
                 ws.onclose = ev => {
+                    if (timer) { clearTimeout(timer); timer = null; }
                     if (up) link.hangup();
                     else resolve(!reached ? 'NO DIALTONE' : REASONS[ev.code] || 'NO CARRIER');
                 };
-                ws.onerror = () => { /* the close that follows says it */ };
+                // before it opened: no bridge there (some WebSockets never send the close after it); after, the close says it
+                ws.onerror = () => { if (!reached) resolve('NO DIALTONE'); };
             });
         }
     }

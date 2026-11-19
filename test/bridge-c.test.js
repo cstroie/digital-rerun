@@ -202,6 +202,7 @@ test('C bridge: the gateway dials through it, telnet answered, data clean; refus
         assert.equal(typeof remote, 'object');
         for (let i = 0; i < 200 && received.length < 9; i++) await new Promise(r => setTimeout(r, 10));
         assert.equal(Buffer.from(received).toString('latin1'), 'Welcome\r\n');
+        for (let i = 0; i < 200 && got.length < 6; i++) await new Promise(r => setTimeout(r, 10));     // the page's answers, on their way
         assert.deepEqual(got.slice(0, 6), [IAC, 251, 24, IAC, 253, 1]);
         got.length = 0;
         remote.send(104); remote.send(255); remote.send(13);
@@ -213,6 +214,7 @@ test('C bridge: the gateway dials through it, telnet answered, data clean; refus
         const link = { receive() {}, hangup() {} };
         assert.equal(await gw.dial('127.0.0.1', dead, link), 'BUSY');
         assert.equal(await gw.dial('example.org', 23, link), 'NO CARRIER');
+        assert.equal(await new Gateway({ url: `ws://127.0.0.1:${b.port}`, token: 'bad' }).dial('127.0.0.1', tport, link), 'NO DIALTONE', 'a wrong token: refused before it opens');
     } finally { b.stop(); await close(tcp); }
 });
 
@@ -225,4 +227,24 @@ test('C bridge: --show-token gives the token the JavaScript bridge gives; no --a
     const r = spawnSync(BIN, [], { encoding: 'utf8' });
     assert.equal(r.status, 2);
     assert.match(r.stderr, /usage: modem-bridge --allow=/);
+});
+
+test('C bridge: a question typed a byte at a time reaches a one-read server whole (the gateway sends the line)', { skip }, async () => {
+    const firsts = [];
+    const tcp = net.createServer(s => {
+        s.once('data', d => { firsts.push(d.toString('latin1')); s.end(`asked: ${d.toString('latin1').trim()}\r\n`); });
+        s.on('error', () => {});
+    });
+    const tport = await new Promise(r => tcp.listen(0, '127.0.0.1', () => r(tcp.address().port)));
+    const b = await start([`--allow=127.0.0.1:${tport}`, '--token=t']);
+    try {
+        const received = [];
+        let hung = false;
+        const remote = await new Gateway({ url: `ws://127.0.0.1:${b.port}`, token: 't', rawPorts: [tport] })
+            .dial('127.0.0.1', tport, { receive: x => received.push(...x), hangup: () => { hung = true; } });
+        for (const ch of 'bucharest\r\n') { remote.send(ch.charCodeAt(0)); await new Promise(r => setTimeout(r, 8)); }
+        for (let i = 0; i < 200 && !hung; i++) await new Promise(r => setTimeout(r, 10));
+        assert.deepEqual(firsts, ['bucharest\r\n']);
+        assert.equal(Buffer.from(received).toString('latin1'), 'asked: bucharest\r\n');
+    } finally { b.stop(); await close(tcp); }
 });

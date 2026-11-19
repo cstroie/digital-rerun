@@ -188,6 +188,7 @@ test('the gateway: dials through the bridge, telnet negotiation answered, data c
     assert.equal(typeof remote, 'object');
     for (let i = 0; i < 100 && received.length < 9; i++) await new Promise(r => setTimeout(r, 10));
     assert.equal(Buffer.from(received).toString('latin1'), 'Welcome\r\n');
+    for (let i = 0; i < 200 && got.length < 6; i++) await new Promise(r => setTimeout(r, 10));         // the page's answers, on their way
     assert.deepEqual(got.slice(0, 6), [IAC, 251, 24, IAC, 253, 1], 'WILL TTYPE, DO ECHO');
     got.length = 0;
     remote.send(104); remote.send(255); remote.send(13);
@@ -268,8 +269,8 @@ test('tools/bridge.sh starts a bridge on the default port that the gateway can d
 /** A WebSocket that records what is sent and lets the test say what comes. */
 function fakeSocket() {
     class FakeWS {
-        constructor(url) { FakeWS.last = this; this.url = url; this.sent = []; this.readyState = 1; setImmediate(() => { this.onopen && this.onopen(); this.onmessage({ data: 'connected' }); }); }
-        send(d) { this.sent.push(...d); }
+        constructor(url) { FakeWS.last = this; this.url = url; this.sent = []; this.messages = []; this.readyState = 1; setImmediate(() => { this.onopen && this.onopen(); this.onmessage({ data: 'connected' }); }); }
+        send(d) { this.sent.push(...d); this.messages.push([...d]); }
         close() { this.readyState = 3; }
     }
     return FakeWS;
@@ -304,4 +305,48 @@ test('the gateway: daytime (13), time (37), gopher (70) and finger (79) are raw 
         assert.deepEqual(WS.last.sent, [47, 13, 10], `port ${port}: untouched`);
         assert.deepEqual(got, [], `port ${port}: no echo`);
     }
+});
+
+test('the gateway: on a raw port a line goes out in one piece (at LF), the rest after a quiet moment or at the close', async () => {
+    const WS = fakeSocket();
+    const remote = await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS }).dial('graph.no', 79, { receive() {}, hangup() {} });
+    for (const ch of 'bucharest\r\n') remote.send(ch.charCodeAt(0));
+    assert.deepEqual(WS.last.messages.map(m => Buffer.from(m).toString('latin1')), ['bucharest\r\n'], 'one message, not eleven');
+    remote.send(65); remote.send(66);
+    assert.equal(WS.last.messages.length, 1, 'held a moment');
+    await new Promise(r => setTimeout(r, 120));
+    assert.deepEqual(WS.last.messages[1], [65, 66], 'then sent: a key in IRC still goes');
+    remote.send(67);
+    remote.close();
+    assert.deepEqual(WS.last.messages[2], [67], 'the close sends what is held');
+    // a telnet port still sends each key at once
+    const WS2 = fakeSocket();
+    const r2 = await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS2 }).dial('mud.example.org', 4000, { receive() {}, hangup() {} });
+    r2.send(108); r2.send(111);
+    assert.equal(WS2.last.messages.length, 2);
+});
+
+/** A finger server as small ones are: the question is what its first read got; it answers that and hangs up. */
+function naiveServer() {
+    const firsts = [];
+    const server = net.createServer(s => {
+        s.once('data', d => { firsts.push(d.toString('latin1')); s.end(`asked: ${d.toString('latin1').trim()}\r\n`); });
+        s.on('error', () => {});
+    });
+    return new Promise(r => server.listen(0, '127.0.0.1', () => r({ server, firsts, port: server.address().port })));
+}
+
+test('the gateway through the bridge: a question typed a byte at a time reaches a one-read server whole', async () => {
+    const { server: tcp, firsts, port: tport } = await naiveServer();
+    const bridge = createBridge({ allow: [`127.0.0.1:${tport}`] });
+    const bport = await listen(bridge);
+    const gw = new Gateway({ url: `ws://127.0.0.1:${bport}`, rawPorts: [tport] });
+    const received = [];
+    let hung = false;
+    const remote = await gw.dial('127.0.0.1', tport, { receive: b => received.push(...b), hangup: () => { hung = true; } });
+    for (const ch of 'bucharest\r\n') { remote.send(ch.charCodeAt(0)); await new Promise(r => setTimeout(r, 8)); }   // at about 1200 baud
+    for (let i = 0; i < 200 && !hung; i++) await new Promise(r => setTimeout(r, 10));
+    assert.deepEqual(firsts, ['bucharest\r\n']);
+    assert.equal(Buffer.from(received).toString('latin1'), 'asked: bucharest\r\n');
+    await closeAll(bridge, tcp);
 });

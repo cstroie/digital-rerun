@@ -169,7 +169,9 @@ of modem code (a ring for what comes, the dial, the hang-up), copied into each s
   it sets the date and the time (UTC and the offset) and reads them back: this BIOS keeps the host's clock, so it says it
   was not set; a machine with no clock of its own keeps what NETTIME gives it.
 
-The gateway passes ports 13, 37, 70 and 79 raw, as it does IRC's; `tools/bridge.sh` allows the hosts of `GOPHER.DIR`,
+The gateway passes ports 13, 37, 70 and 79 raw, as it does IRC's, and on the raw ports it sends a line in one piece
+(at LF, or after 50 ms with nothing more): the modem gives it a byte at a time, and a small server (graph.no's finger,
+a gopher hole) takes what its first read gets as the whole question, so `bucharest` in pieces would be asked as `b`; `tools/bridge.sh` allows the hosts of `GOPHER.DIR`,
 `MUD.DIR`, `FINGER.DIR` and `time.nist.gov:13` by default. The command line comes in capitals from the CCP, so
 these programs take it in lower case: a selector with capitals is typed at GOPHER's G instead.
 

@@ -26,6 +26,13 @@ prts	equ	2		;printer status: 0FFh when ready
 prtd	equ	3		;printer data
 rdrd	equ	4		;paper tape reader: next byte, 1Ah at the end
 pund	equ	5		;paper tape punch
+mstat	equ	6		;the modem: IN bit 0 a byte waits, bit 1 it may send (bit 2 carrier)
+mdat	equ	7		;the modem's data
+;	the I/O byte (location 3): CON: UC1: (3) is the modem, RDR: UR1: (2), PUN: UP1: (2) and LST: UL1: (3) too
+ucon	equ	3		;CON: bits 0-1
+urdr	equ	08h		;RDR: bits 2-3 = 2
+upun	equ	20h		;PUN: bits 4-5 = 2
+ulst	equ	0c0h		;LST: bits 6-7 = 3 (UL1:) the modem too
 fdcd	equ	10		;drive; IN: 0FFh when it holds a disk
 fdct	equ	11		;track
 fdcs	equ	12		;sector, low byte
@@ -129,15 +136,16 @@ signon:	db	13,10,'DigitalRerun 64K CP/M 2.2',13,10,0
 
 ;	cold start
 boot:	lxi	sp,buff
+	xra	a		;first: the byte is the boot sector's code until now, the console is the terminal
+	sta	iobyte
 	lxi	h,signon
 	call	prmsg
 	xra	a
-	sta	iobyte
 	sta	cdisk
 	jmp	gocpm
 
 ;	warm start: load CCP and BDOS again from the system tracks of A:
-wboot:	lxi	sp,buff
+wboot:	lxi	sp,buff		;the I/O byte is kept, as CP/M keeps it (STAT sets it for later commands)
 	xra	a
 	out	fdcd
 	out	fdcsh
@@ -205,38 +213,93 @@ prmsg:	mov	a,m
 	inx	h
 	jmp	prmsg
 
-;	console
-const:	in	cons		;0FFh when a key waits, else 0
+;	console: the physical one, or the modem when the I/O byte says UC1:
+const:	lda	iobyte
+	ani	3
+	cpi	ucon
+	jz	mconst
+	in	cons		;0FFh when a key waits, else 0
 	ret
 
-conin:	in	cons
+conin:	lda	iobyte
+	ani	3
+	cpi	ucon
+	jz	mconin
+	in	cons
 	ora	a
 	jz	conin
 	in	cond
 	ani	7fh
 	ret
 
-conout:	mov	a,c
+conout:	lda	iobyte
+	ani	3
+	cpi	ucon
+	jz	mconout
+	mov	a,c
 	out	cond
 	ret
 
-;	printer
-list:	in	prts		;wait while off line
+;	the modem (ports 6 and 7) as a character device: a byte waits when status bit 0 is set, a byte
+;	may be sent when bit 1 is set; the carrier (bit 2) is not looked at
+mconst:	in	mstat
+	ani	1
+	rz
+	mvi	a,0ffh
+	ret
+mconin:	in	mstat
+	ani	1
+	jz	mconin
+	in	mdat
+	ani	7fh
+	ret
+mconout:in	mstat
+	ani	2
+	jz	mconout
+	mov	a,c
+	out	mdat
+	ret
+
+;	printer: the printer, or the modem when the I/O byte says UL1:
+list:	lda	iobyte
+	ani	0c0h
+	cpi	ulst
+	jz	mconout
+	in	prts		;wait while off line
 	ora	a
 	jz	list
 	mov	a,c
 	out	prtd
 	ret
 
-listst:	in	prts
+listst:	lda	iobyte
+	ani	0c0h
+	cpi	ulst
+	jz	mlst
+	in	prts
 	ret
 
-;	paper tape: the host's files, through the PAPER TAPE panel
-punch:	mov	a,c
+;	the modem may take a byte: 0FFh
+mlst:	in	mstat
+	ani	2
+	rz
+	mvi	a,0ffh
+	ret
+
+;	paper tape: the host's files, through the PAPER TAPE panel; the modem when the I/O byte says UP1: or UR1:
+punch:	lda	iobyte
+	ani	30h
+	cpi	upun
+	jz	mconout
+	mov	a,c
 	out	pund
 	ret
 
-reader:	in	rdrd		;1Ah when the tape has run out
+reader:	lda	iobyte
+	ani	0ch
+	cpi	urdr
+	jz	mconin
+	in	rdrd		;1Ah when the tape has run out
 	ret
 
 ;	disks

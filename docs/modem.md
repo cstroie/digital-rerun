@@ -259,7 +259,7 @@ alike: the bridge never sees TLS, so an http page and an https page both work. E
 
 **As a CGI** (the C bridge, no daemon): lighttpd runs the bridge for each call and hands it the WebSocket, the request
 in the environment, the call on its stdin and stdout (`cgi.upgrade`, lighttpd 1.4.46 or later; tested with 1.4.74). It
-takes its options from the environment, `MODEM_BRIDGE_` and the option's name: `ALLOW`, `TOKEN` (required: a CGI
+takes its options from the environment, `COUPLER_` and the option's name: `ALLOW`, `TOKEN` (required: a CGI
 without one refuses every call), `ORIGIN`, `TIMEOUT`, `KNOWN`, `ALLOW_PRIVATE`, `PING`. Its log is the CGI's stderr,
 which lighttpd writes to `server.breakagelog`.
 
@@ -279,10 +279,10 @@ $HTTP["url"] =~ "^/connect" {
     cgi.assign = ( "" => "" )                    # run the file itself
     cgi.upgrade = "enable"                       # the WebSocket to its stdin and stdout
     setenv.add-environment = (
-        "MODEM_BRIDGE_ALLOW"  => "telehack.com,irc.libera.chat:6667,gopher.floodgap.com:70,geminiprotocol.net:1965",
-        "MODEM_BRIDGE_TOKEN"  => "a-long-random-secret",
-        "MODEM_BRIDGE_ORIGIN" => "https://where.the.page.is",
-        "MODEM_BRIDGE_KNOWN"  => "/var/lib/coupler/known" )
+        "COUPLER_ALLOW"  => "telehack.com,irc.libera.chat:6667,gopher.floodgap.com:70,geminiprotocol.net:1965",
+        "COUPLER_TOKEN"  => "a-long-random-secret",
+        "COUPLER_ORIGIN" => "https://where.the.page.is",
+        "COUPLER_KNOWN"  => "/var/lib/coupler/known" )
     server.max-read-idle  = 65535                # long calls (18 hours: lighttpd's most); the pings help too
     server.max-write-idle = 65535
 }
@@ -307,7 +307,7 @@ $HTTP["url"] =~ "^/connect" {
 
 - **Origin, not CORS**: browsers do not apply CORS to WebSockets, so `Access-Control-*` headers would do nothing.
   They send the page's `Origin`, which the bridge checks: once it is on the internet, name the page that may use it
-  (`--origin`, `MODEM_BRIDGE_ORIGIN`: its scheme, host and port), and give it a random token. The daemon's default
+  (`--origin`, `COUPLER_ORIGIN`: its scheme, host and port), and give it a random token. The daemon's default
   token is not a secret from someone who knows the machine's name, the user and the port.
 - **`--allow`**: keep it to the hosts you mean. Never `*` with `--allow-private` on a public machine: that reaches your LAN.
 - **Long calls**: lighttpd closes a connection that is quiet for `server.max-read-idle` seconds (65535 at most). The

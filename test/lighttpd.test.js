@@ -37,9 +37,9 @@ $HTTP["url"] =~ "^/connect" {
     cgi.assign = ( "" => "" )
     cgi.upgrade = "enable"
     setenv.add-environment = (
-        "MODEM_BRIDGE_ALLOW" => "127.0.0.1:${tport}",
-        "MODEM_BRIDGE_TOKEN" => "s3cret",
-        "MODEM_BRIDGE_KNOWN" => "" )
+        "COUPLER_ALLOW" => "127.0.0.1:${tport}",
+        "COUPLER_TOKEN" => "s3cret",
+        "COUPLER_KNOWN" => "" )
     server.max-read-idle = 65535
     server.max-write-idle = 65535
 }

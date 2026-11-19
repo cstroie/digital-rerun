@@ -26,12 +26,12 @@ coupler --allow=<hosts> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --s
 - `--origin` limits the pages that may connect; `--max` the connections at once; `--timeout` the seconds to
   connect; `--allow-private` lets `*` reach private and loopback addresses. `--port=0` takes a free port.
 - `--ping`: a WebSocket ping after so many seconds of a quiet call (30; 0 none), so proxies and NATs keep long calls.
-- Every option may also come from the environment: `MODEM_BRIDGE_` and its name (`MODEM_BRIDGE_ALLOW`,
-  `MODEM_BRIDGE_ALLOW_PRIVATE` ...); the command line wins.
+- Every option may also come from the environment: `COUPLER_` and its name (`COUPLER_ALLOW`,
+  `COUPLER_ALLOW_PRIVATE` ...); the command line wins.
 
 **As a CGI** (`--cgi`, or found by itself when the web server sets `GATEWAY_INTERFACE`): no daemon. The web server
 runs it for each call, with the request in the environment and the WebSocket on stdin and stdout; lighttpd does this
-with `cgi.upgrade = "enable"`. It then takes its options from the environment (`MODEM_BRIDGE_TOKEN` is required: a
+with `cgi.upgrade = "enable"`. It then takes its options from the environment (`COUPLER_TOKEN` is required: a
 CGI without one refuses every call) and logs to stderr (lighttpd's `server.breakagelog`). The recipe is in
 [docs/modem.md](../../docs/modem.md#behind-https-lighttpd); `test/lighttpd.test.js` runs it under a real lighttpd
 (the WebSocket upgrade of HTTP/1.1; a browser's HTTP/2 WebSocket over https is not tested).

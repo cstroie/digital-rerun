@@ -22,7 +22,7 @@
  *
  * As a CGI (lighttpd with cgi.upgrade = "enable", or --cgi): no daemon; the web server runs it for
  * each call, the request in the environment, the WebSocket on stdin and stdout, the options as
- * MODEM_BRIDGE_ALLOW, MODEM_BRIDGE_TOKEN (required), MODEM_BRIDGE_ORIGIN ... (docs/modem.md).
+ * COUPLER_ALLOW, COUPLER_TOKEN (required), COUPLER_ORIGIN ... (docs/modem.md).
  * A quiet call gets a ping every --ping seconds (30; 0 none), so proxies and NATs keep it.
  *
  * POSIX only (Linux, the BSDs, macOS): a thread for each connection, blocking sockets.
@@ -749,7 +749,7 @@ static int cgi_main(void) {
     if (!query) query = "";
     if (!up) { cgi_reply(426, "This is a modem bridge: connect with a WebSocket."); return 0; }
     if (!token[0]) {
-        logf_("no MODEM_BRIDGE_TOKEN (or --token): every call is refused");
+        logf_("no COUPLER_TOKEN (or --token): every call is refused");
         cgi_reply(500, "The modem bridge has no token set.");
         return 0;
     }
@@ -790,7 +790,7 @@ static char **split(const char *s, int *n, int lower) {
 }
 
 /*
- * An option: --name=value or --name (a flag) on the command line, else MODEM_BRIDGE_NAME in the
+ * An option: --name=value or --name (a flag) on the command line, else COUPLER_NAME in the
  * environment (as a CGI is given them: - becomes _; 0, no or false means unset)
  */
 static const char *opt(int argc, char **argv, const char *name, int *flag) {
@@ -802,7 +802,7 @@ static const char *opt(int argc, char **argv, const char *name, int *flag) {
         else if (!argv[i][2 + n]) { v = ""; if (flag) *flag = 1; }
     }
     if (v) return v;
-    char env[64] = "MODEM_BRIDGE_";
+    char env[64] = "COUPLER_";
     size_t e = strlen(env);
     for (size_t i = 0; i < n && e < sizeof env - 1; i++) env[e++] = name[i] == '-' ? '_' : (char)(name[i] >= 'a' && name[i] <= 'z' ? name[i] - 32 : name[i]);
     env[e] = 0;
@@ -828,9 +828,9 @@ int main(int argc, char **argv) {
     const char *allow = opt(argc, argv, "allow", &flag);
     int help = opt(argc, argv, "help", NULL) != NULL;
     if (help || !allow || flag) {
-        if (cgi_mode && !help) { logf_("no MODEM_BRIDGE_ALLOW (or --allow): every call is refused"); cgi_reply(500, "The modem bridge allows no host."); return 0; }
+        if (cgi_mode && !help) { logf_("no COUPLER_ALLOW (or --allow): every call is refused"); cgi_reply(500, "The modem bridge allows no host."); return 0; }
         fprintf(stderr, "usage: coupler --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30] [--cgi]\n");
-        fprintf(stderr, "       every option may come from the environment instead: MODEM_BRIDGE_ALLOW, MODEM_BRIDGE_TOKEN ...\n");
+        fprintf(stderr, "       every option may come from the environment instead: COUPLER_ALLOW, COUPLER_TOKEN ...\n");
         return help ? 0 : 2;
     }
     allow_list = split(allow, &allow_n, 1);

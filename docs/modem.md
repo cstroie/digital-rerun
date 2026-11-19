@@ -266,13 +266,13 @@ which lighttpd writes to `server.breakagelog`.
 ```
 make -C tools/coupler TLS=1          # TLS=1 for Gemini (OpenSSL); without it no dependencies
 install -D -m 755 tools/coupler/coupler /usr/local/lib/coupler/coupler
-install -d -o www-data /var/lib/modem-bridge                # the certificates of Gemini capsules
+install -d -o www-data /var/lib/coupler                    # the certificates of Gemini capsules
 ```
 
 ```
-# /etc/lighttpd/conf-enabled/50-modem-bridge.conf
+# /etc/lighttpd/conf-enabled/50-coupler.conf
 server.modules += ( "mod_alias", "mod_cgi", "mod_setenv" )
-server.breakagelog = "/var/log/lighttpd/modem-bridge.log"   # the bridge's log (a CGI's stderr)
+server.breakagelog = "/var/log/lighttpd/coupler.log"   # the bridge's log (a CGI's stderr)
 
 $HTTP["url"] =~ "^/connect" {
     alias.url  = ( "/connect" => "/usr/local/lib/coupler/coupler" )
@@ -282,7 +282,7 @@ $HTTP["url"] =~ "^/connect" {
         "MODEM_BRIDGE_ALLOW"  => "telehack.com,irc.libera.chat:6667,gopher.floodgap.com:70,geminiprotocol.net:1965",
         "MODEM_BRIDGE_TOKEN"  => "a-long-random-secret",
         "MODEM_BRIDGE_ORIGIN" => "https://where.the.page.is",
-        "MODEM_BRIDGE_KNOWN"  => "/var/lib/modem-bridge/known" )
+        "MODEM_BRIDGE_KNOWN"  => "/var/lib/coupler/known" )
     server.max-read-idle  = 65535                # long calls (18 hours: lighttpd's most); the pings help too
     server.max-write-idle = 65535
 }

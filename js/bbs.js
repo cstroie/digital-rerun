@@ -681,7 +681,7 @@
                 text = clean(text);
                 if (/^\/?(bye|quit|exit|q)$/i.test(text)) return this.menu('chat with the sysop ended');
                 if (!text) return this.chatPrompt();
-                this.out(`${BOLD}sysop>${OFF} (typing)`);
+                this.out(`${BOLD}sysop>${OFF} ...`);                   // overwritten by the reply
                 let answer;
                 try { answer = await this.s.sysop.reply(this.history, text); } catch (e) { answer = ''; }
                 answer = clean(String(answer || '')).length ? String(answer) : 'The line crackled. Say that again?';

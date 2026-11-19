@@ -451,7 +451,7 @@ test('C: a chat, with the history passed on, and /BYE back to the menu', async (
     assert.match(c.out, /you>\x1b\[0m /);
     c.take();
     c.type('hello there\r');
-    assert.match(c.out, /sysop>\x1b\[0m \(typing\)/);
+    assert.match(c.out, /sysop>\x1b\[0m \.\.\./);
     await c.settle();
     assert.match(c.out, /\r\x1b\[K\x1b\[1msysop>\x1b\[0m Heard: hello there\./);
     assert.match(c.out, /Heard: hello there\. Second line\./, 'the reply is set in lines of its own');
@@ -744,7 +744,7 @@ test('C: a long reply never runs past column 79: the lines are set after the "sy
     c.take();
     c.type('how is your cat doing?\r');
     await c.settle();
-    const lines = plain(c.out.replace(/[^\n]*\r\x1b\[K/, '')).split(/\r?\n/).filter(l => l.trim());     // the "(typing)" is written over
+    const lines = plain(c.out.replace(/[^\n]*\r\x1b\[K/, '')).split(/\r?\n/).filter(l => l.trim());     // the "..." is written over
     assert.ok(lines.length >= 4, 'wrapped to several lines');
     for (const line of lines) assert.ok(line.length <= 79, `${line.length}: ${line}`);
     assert.ok(lines.some(l => /^ {7}\S/.test(l)), 'a continuation is indented under the first line');

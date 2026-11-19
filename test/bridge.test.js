@@ -419,3 +419,19 @@ test('the gateway asks for TLS on port 1965 (Gemini), raw: no telnet, a line in 
     await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS2 }).dial('gopher.example', 70, { receive() {}, hangup() {} });
     assert.doesNotMatch(WS2.last.url, /tls=/);
 });
+
+test('a quiet call gets a ping (--ping), so proxies and NATs keep it', async () => {
+    const { server: tcp, port: tport } = await tcpServer();
+    const bridge = createBridge({ allow: [`127.0.0.1:${tport}`], ping: 0.2 });
+    const bport = await listen(bridge);
+    const sock = net.connect(bport, '127.0.0.1');
+    let got = Buffer.alloc(0);
+    sock.on('data', d => { got = Buffer.concat([got, d]); });
+    await new Promise(r => sock.once('connect', r));
+    sock.write(`GET /connect?host=127.0.0.1&port=${tport} HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n`);
+    const pinged = () => got.includes(Buffer.from([0x89, 0x00]));
+    for (let i = 0; i < 100 && !pinged(); i++) await new Promise(r => setTimeout(r, 10));
+    assert.ok(pinged());
+    sock.destroy();
+    await closeAll(bridge, tcp);
+});

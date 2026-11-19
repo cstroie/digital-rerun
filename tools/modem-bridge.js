@@ -5,7 +5,7 @@
  *
  *   node tools/modem-bridge.js --allow=<hosts> [--port=1984] [--bind=127.0.0.1]
  *        [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<page origin>[,...]]
- *        [--timeout=10] [--max=8] [--allow-private] [--known=<file>]
+ *        [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30]
  *   tools/bridge.sh [hosts]      the same, with the board's directory allowed by default
  *
  *   --allow    which hosts may be dialed, comma separated: `bbs.example.org`,
@@ -23,6 +23,8 @@
  *              can always be named in --allow).
  *   --max      connections at once (default 8). --timeout: seconds to connect.
  *   --known    where the certificates of TLS hosts are kept (default ~/.modem-bridge-known).
+ *   --ping     a WebSocket ping after so many seconds of a quiet call (default 30; 0 none): proxies
+ *              and NATs then keep a long call (IRC at night); the browser answers on its own.
  *
  * The page connects to ws://<bind>:<port>/connect?host=<h>&port=<p>&token=<t>.
  * The bridge makes the TCP connection and sends the text message "connected",
@@ -159,10 +161,10 @@ class FrameReader {
 /* ---------- the bridge ---------- */
 
 /**
- * @param options { allow: [..], token, origins: [..]|null, timeout (s), max, allowPrivate, known (file|null), log(text) }
+ * @param options { allow: [..], token, origins: [..]|null, timeout (s), max, allowPrivate, known (file|null), ping (s, 0 none), log(text) }
  * @returns an http.Server (call listen)
  */
-function createBridge({ allow = [], token = '', origins = null, timeout = 10, max = 8, allowPrivate = false, known = null, log = () => {} } = {}) {
+function createBridge({ allow = [], token = '', origins = null, timeout = 10, max = 8, allowPrivate = false, known = null, ping = 30, log = () => {} } = {}) {
     let active = 0;
     const server = http.createServer((req, res) => { res.writeHead(426, { 'Content-Type': 'text/plain' }); res.end('This is a modem bridge: connect with a WebSocket.\n'); });
 
@@ -182,10 +184,13 @@ function createBridge({ allow = [], token = '', origins = null, timeout = 10, ma
             `Sec-WebSocket-Accept: ${crypto.createHash('sha1').update(key + GUID).digest('base64')}\r\n\r\n`);
         socket.setNoDelay(true);
 
-        let tcp = null, closed = false;
+        let tcp = null, closed = false, quiet = 0;
+        // a ping when the call has been quiet for `ping` seconds
+        const pinger = ping > 0 ? setInterval(() => { if (++quiet >= 2 && socket.writable) { socket.write(frame(9, Buffer.alloc(0))); quiet = 0; } }, ping * 500) : null;
         const close = code => {
             if (closed) return;
             closed = true;
+            if (pinger) clearInterval(pinger);
             active--;
             if (tcp) tcp.destroy();
             if (socket.writable) socket.end(frame(8, Buffer.from([code >> 8, code & 0xFF])));
@@ -196,7 +201,7 @@ function createBridge({ allow = [], token = '', origins = null, timeout = 10, ma
             else if (op === 9) socket.write(frame(10, data));
             else if (op === 2 || op === 1) { if (tcp && !tcp.destroyed && tcp.writable && !tcp.connecting) tcp.write(data); }
         }, code => close(code));
-        socket.on('data', c => reader.push(c));
+        socket.on('data', c => { quiet = 0; reader.push(c); });
         socket.on('close', () => close(1001));
         socket.on('error', () => close(1011));
 
@@ -222,7 +227,7 @@ function createBridge({ allow = [], token = '', origins = null, timeout = 10, ma
             } else log(`connected ${host}:${port}`);
             socket.write(frame(1, Buffer.from('connected')));
         });
-        tcp.on('data', d => { if (closed) return; for (let i = 0; i < d.length; i += 65536) socket.write(frame(2, d.subarray(i, i + 65536))); });
+        tcp.on('data', d => { if (closed) return; quiet = 0; for (let i = 0; i < d.length; i += 65536) socket.write(frame(2, d.subarray(i, i + 65536))); });
         tcp.once('timeout', () => { log(`no answer ${host}:${port}`); close(4003); });
         tcp.once('error', e => { log(`failed ${host}:${port} ${e.code || ''}`); close(e.code === 'ECONNREFUSED' ? 4002 : 4004); });
         // closed before it was up (a host that dropped the TLS handshake): a failure, not a hang-up
@@ -238,7 +243,7 @@ function main() {
     const token = typeof args.token === 'string' ? args.token : seedToken({ port, salt: typeof args.seed === 'string' ? args.seed : '' });
     if (args['show-token']) { console.log(token); return; }
     if (args.help || !args.allow || args.allow === true) {
-        console.error('usage: node tools/modem-bridge.js --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>]');
+        console.error('usage: node tools/modem-bridge.js --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30]');
         process.exit(args.help ? 0 : 2);
     }
     const server = createBridge({
@@ -249,6 +254,7 @@ function main() {
         max: Number(args.max) || 8,
         allowPrivate: !!args['allow-private'],
         known: typeof args.known === 'string' ? (args.known || null) : path.join(os.homedir(), '.modem-bridge-known'),
+        ping: args.ping === undefined ? 30 : Number(args.ping) || 0,
         log: t => console.error(new Date().toISOString().slice(11, 19), t)
     });
     const bind = typeof args.bind === 'string' ? args.bind : '127.0.0.1';

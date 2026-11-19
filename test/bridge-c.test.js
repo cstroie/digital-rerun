@@ -316,3 +316,122 @@ test('C bridge with TLS: a host that does not speak it is 4004; built without TL
         assert.match(plain.log(), /not built in \(make TLS=1\)/);
     } finally { b.stop(); plain.stop(); await close(tcp); }
 });
+
+/* ---------- as a CGI (the request in the environment, the call on stdin and stdout) ---------- */
+
+/** A masked client frame. */
+function clientFrame(op, data = Buffer.alloc(0)) {
+    const mask = Buffer.from([1, 2, 3, 4]);
+    const len = data.length;
+    const head = len < 126 ? Buffer.from([0x80 | op, 0x80 | len]) : Buffer.from([0x80 | op, 0x80 | 126, len >> 8, len & 255]);
+    return Buffer.concat([head, mask, Buffer.from(data.map((b, i) => b ^ mask[i & 3]))]);
+}
+/** The server's frames in a buffer: [{ op, data }]. */
+function serverFrames(buf) {
+    const out = [];
+    let i = 0;
+    while (i + 2 <= buf.length) {
+        let len = buf[i + 1] & 127, at = i + 2;
+        if (len === 126) { len = buf.readUInt16BE(at); at += 2; } else if (len === 127) { len = Number(buf.readBigUInt64BE(at)); at += 8; }
+        if (at + len > buf.length) break;
+        out.push({ op: buf[i] & 15, data: buf.subarray(at, at + len) });
+        i = at + len;
+    }
+    return out;
+}
+
+/** Run the binary as a CGI: resolves { head, frames(), send(buf), done, exitCode, log } */
+function cgi(env, bin = BIN) {
+    const child = spawn(bin, [], {
+        env: { PATH: process.env.PATH, GATEWAY_INTERFACE: 'CGI/1.1', REQUEST_METHOD: 'GET', HTTP_UPGRADE: 'websocket', HTTP_SEC_WEBSOCKET_KEY: 'dGhlIHNhbXBsZSBub25jZQ==', HTTP_SEC_WEBSOCKET_VERSION: '13', ...env },
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
+    children.add(child);
+    const r = { out: Buffer.alloc(0), log: '', head: null };
+    child.stdout.on('data', d => { r.out = Buffer.concat([r.out, d]); });
+    child.stderr.on('data', d => { r.log += d; });
+    child.stdin.on('error', () => {});
+    r.done = new Promise(res => child.on('exit', code => { children.delete(child); r.exitCode = code; res(r); }));
+    r.send = b => child.stdin.write(b);
+    r.end = () => child.stdin.end();
+    r.split = () => { const at = r.out.indexOf('\r\n\r\n'); return at < 0 ? null : { head: r.out.subarray(0, at).toString('latin1'), frames: serverFrames(r.out.subarray(at + 4)) }; };
+    r.until = async fn => { for (let i = 0; i < 300 && !fn(); i++) await new Promise(res => setTimeout(res, 10)); return fn(); };
+    return r;
+}
+
+test('C bridge as a CGI: Status 101 with the right accept, "connected", bytes both ways, 1000 when the host hangs up', { skip }, async () => {
+    const { server: tcp, got, port: tport } = await tcpServer(Buffer.from('hello from the host\r\n'));
+    try {
+        const r = cgi({ QUERY_STRING: `host=127.0.0.1&port=${tport}&token=t`, MODEM_BRIDGE_ALLOW: `127.0.0.1:${tport}`, MODEM_BRIDGE_TOKEN: 't', MODEM_BRIDGE_KNOWN: '' });
+        assert.ok(await r.until(() => { const s = r.split(); return s && s.frames.length >= 2; }), r.out.toString('latin1') + r.log);
+        const { head, frames } = r.split();
+        assert.match(head, /^Status: 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK\+xOo=$/);
+        assert.equal(frames[0].op, 1);
+        assert.equal(frames[0].data.toString(), 'connected');
+        assert.equal(frames[1].data.toString(), 'hello from the host\r\n');
+        r.send(clientFrame(2, Buffer.from('typed\r\n')));
+        assert.ok(await r.until(() => got.length >= 7));
+        assert.equal(Buffer.from(got).toString(), 'typed\r\n');
+        tcp.last.destroy();
+        await r.done;
+        const last = r.split().frames.pop();
+        assert.equal(last.op, 8);
+        assert.equal(last.data.readUInt16BE(0), 1000);
+        assert.match(r.log, /connected 127\.0\.0\.1:\d+/);
+    } finally { await close(tcp); }
+});
+
+test('C bridge as a CGI: no upgrade 426, a wrong token or origin 403, no token or no allow list 500; a host not allowed 4001', { skip }, async () => {
+    const status = async env => { const r = cgi(env); await r.done; return r.out.toString('latin1').split('\r\n')[0]; };
+    const base = { QUERY_STRING: 'host=example.org&port=23&token=t', MODEM_BRIDGE_ALLOW: '127.0.0.1', MODEM_BRIDGE_TOKEN: 't' };
+    assert.equal(await status({ ...base, HTTP_UPGRADE: '' }), 'Status: 400 Bad Request', 'an empty upgrade');
+    const plain = spawn(BIN, [], { env: { PATH: process.env.PATH, GATEWAY_INTERFACE: 'CGI/1.1', REQUEST_METHOD: 'GET', ...base } });
+    let pout = '';
+    plain.stdout.on('data', d => { pout += d; });
+    await new Promise(r => plain.on('exit', r));
+    assert.match(pout, /^Status: 426 Upgrade Required\r\n[\s\S]*connect with a WebSocket/, 'a plain GET');
+    assert.equal(await status({ ...base, QUERY_STRING: 'host=example.org&port=23&token=x' }), 'Status: 403 Forbidden');
+    assert.equal(await status({ ...base, MODEM_BRIDGE_ORIGIN: 'https://app.example', HTTP_ORIGIN: 'https://evil.example' }), 'Status: 403 Forbidden');
+    assert.equal(await status({ ...base, MODEM_BRIDGE_TOKEN: undefined }), 'Status: 500 Internal Server Error', 'no token set: nobody');
+    assert.equal(await status({ ...base, MODEM_BRIDGE_ALLOW: undefined }), 'Status: 500 Internal Server Error', 'no allow list');
+    const r = cgi(base);
+    await r.done;
+    const s = r.split();
+    assert.match(s.head, /^Status: 101/);
+    assert.equal(s.frames[0].op, 8);
+    assert.equal(s.frames[0].data.readUInt16BE(0), 4001);
+});
+
+test('C bridge: a quiet call gets a ping (as a CGI and as the daemon); the browser\'s pong is taken quietly', { skip }, async () => {
+    const { server: tcp, port: tport } = await tcpServer();
+    try {
+        const r = cgi({ QUERY_STRING: `host=127.0.0.1&port=${tport}&token=t`, MODEM_BRIDGE_ALLOW: `127.0.0.1:${tport}`, MODEM_BRIDGE_TOKEN: 't', MODEM_BRIDGE_PING: '1' });
+        assert.ok(await r.until(() => { const s = r.split(); return s && s.frames.some(f => f.op === 9); }), 'a ping within the second and a bit');
+        r.send(clientFrame(10));
+        r.send(clientFrame(8, Buffer.from([0x03, 0xE8])));
+        await r.done;
+        assert.equal(r.split().frames.pop().data.readUInt16BE(0), 1000);
+        const b = await start([`--allow=127.0.0.1:${tport}`, '--token=t', '--ping=1']);
+        try {
+            const sock = net.connect(b.port, '127.0.0.1');
+            let got = Buffer.alloc(0);
+            sock.on('data', d => { got = Buffer.concat([got, d]); });
+            await new Promise(res => sock.once('connect', res));
+            sock.write(`GET /connect?host=127.0.0.1&port=${tport}&token=t HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n`);
+            for (let i = 0; i < 300 && !serverFrames(got.subarray(got.indexOf('\r\n\r\n') + 4)).some(f => f.op === 9); i++) await new Promise(res => setTimeout(res, 10));
+            assert.ok(serverFrames(got.subarray(got.indexOf('\r\n\r\n') + 4)).some(f => f.op === 9), 'the daemon pings too');
+            sock.destroy();
+        } finally { b.stop(); }
+    } finally { await close(tcp); }
+});
+
+test('C bridge as a CGI with TLS: the call to the capsule is TLS, the page gets plain bytes', { skip: skipTls }, async () => {
+    const { server: srv, port: tport } = await tlsServer(1);
+    try {
+        const r = cgi({ QUERY_STRING: `host=127.0.0.1&port=${tport}&token=t&tls=1`, MODEM_BRIDGE_ALLOW: `127.0.0.1:${tport}`, MODEM_BRIDGE_TOKEN: 't', MODEM_BRIDGE_KNOWN: '' }, BIN_TLS);
+        assert.ok(await r.until(() => { const s = r.split(); return s && s.frames.length >= 2; }), r.log);
+        assert.equal(r.split().frames[1].data.toString(), 'hello over tls\r\n');
+        r.end();
+        await r.done;
+    } finally { await close(srv); }
+});

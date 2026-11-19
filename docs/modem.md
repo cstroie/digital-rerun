@@ -253,35 +253,71 @@ secret from someone who knows the machine name, the user and the port. Then DEVI
 ### Behind https: lighttpd
 
 A page served over https (GitHub Pages, your own site) may open only `wss:` WebSockets, and the bridge speaks `ws:`. Put
-a web server that has the certificate in front of it: lighttpd ends TLS and passes the WebSocket on to the bridge on
-localhost. Neither bridge changes.
+lighttpd, which has the certificate, in front of it, in one of two ways. Both serve `ws://` (port 80) and `wss://` (443)
+alike: the bridge never sees TLS, so an http page and an https page both work. Either way, DEVICES → MODEM: *Bridge*
+`wss://your.host` (no path: the page asks for `/connect` itself) and the token.
+
+**As a CGI** (the C bridge, no daemon): lighttpd runs the bridge for each call and hands it the WebSocket, the request
+in the environment, the call on its stdin and stdout (`cgi.upgrade`, lighttpd 1.4.46 or later; tested with 1.4.74). It
+takes its options from the environment, `MODEM_BRIDGE_` and the option's name: `ALLOW`, `TOKEN` (required: a CGI
+without one refuses every call), `ORIGIN`, `TIMEOUT`, `KNOWN`, `ALLOW_PRIVATE`, `PING`. Its log is the CGI's stderr,
+which lighttpd writes to `server.breakagelog`.
+
+```
+make -C tools/modem-bridge TLS=1          # TLS=1 for Gemini (OpenSSL); without it no dependencies
+install -D -m 755 tools/modem-bridge/modem-bridge /usr/local/lib/modem-bridge/modem-bridge
+install -d -o www-data /var/lib/modem-bridge                # the certificates of Gemini capsules
+```
+
+```
+# /etc/lighttpd/conf-enabled/50-modem-bridge.conf
+server.modules += ( "mod_alias", "mod_cgi", "mod_setenv" )
+server.breakagelog = "/var/log/lighttpd/modem-bridge.log"   # the bridge's log (a CGI's stderr)
+
+$HTTP["url"] =~ "^/connect" {
+    alias.url  = ( "/connect" => "/usr/local/lib/modem-bridge/modem-bridge" )
+    cgi.assign = ( "" => "" )                    # run the file itself
+    cgi.upgrade = "enable"                       # the WebSocket to its stdin and stdout
+    setenv.add-environment = (
+        "MODEM_BRIDGE_ALLOW"  => "telehack.com,irc.libera.chat:6667,gopher.floodgap.com:70,geminiprotocol.net:1965",
+        "MODEM_BRIDGE_TOKEN"  => "a-long-random-secret",
+        "MODEM_BRIDGE_ORIGIN" => "https://where.the.page.is",
+        "MODEM_BRIDGE_KNOWN"  => "/var/lib/modem-bridge/known" )
+    server.max-read-idle  = 65535                # long calls (18 hours: lighttpd's most); the pings help too
+    server.max-write-idle = 65535
+}
+```
+
+**As a proxy** (either bridge, as a daemon on localhost):
 
 ```
 tools/bridge.sh --origin=https://where.the.page.is      # ws://127.0.0.1:1984, and its token
 ```
 
 ```
-# /etc/lighttpd/lighttpd.conf (or a file in conf-enabled/): lighttpd 1.4.46 or later
 server.modules += ( "mod_proxy" )
 
 $HTTP["url"] =~ "^/connect" {
     proxy.server = ( "" => ( ( "host" => "127.0.0.1", "port" => 1984 ) ) )
     proxy.header = ( "upgrade" => "enable" )        # pass the WebSocket upgrade on
+    server.max-read-idle  = 65535
+    server.max-write-idle = 65535
 }
 ```
 
-Then DEVICES → MODEM: *Bridge* `wss://your.host` (no path: the page asks for `/connect` itself) and the token.
-
-- **`--origin`**: once the bridge is on the internet, name the page that may use it (its scheme, host and port, as the
-  browser sends them in `Origin`). The token is not a secret from someone who knows the machine's name, the user and
-  the port; give `--token` a random one too.
+- **Origin, not CORS**: browsers do not apply CORS to WebSockets, so `Access-Control-*` headers would do nothing.
+  They send the page's `Origin`, which the bridge checks: once it is on the internet, name the page that may use it
+  (`--origin`, `MODEM_BRIDGE_ORIGIN`: its scheme, host and port), and give it a random token. The daemon's default
+  token is not a secret from someone who knows the machine's name, the user and the port.
 - **`--allow`**: keep it to the hosts you mean. Never `*` with `--allow-private` on a public machine: that reaches your LAN.
+- **Long calls**: lighttpd closes a connection that is quiet for `server.max-read-idle` seconds (65535 at most). The
+  bridge also sends a WebSocket ping when a call has been quiet for `--ping` seconds (30; 0 none), which the browser
+  answers on its own, so lighttpd, other proxies and NATs see a live call.
 - **The site's root**: the gateway puts `/connect` in place of the URL's path, so the bridge cannot sit under a prefix
   (`wss://your.host/modem/`); give it a host name of its own if the site's root is taken.
-- **Idle calls**: a long quiet call (IRC at night) may be closed by the server's idle timeout; if so, raise
-  `server.max-read-idle` and `server.max-write-idle` (seconds) in the same `$HTTP["url"]` block.
-- The bridge sees every call come from 127.0.0.1 and logs the host dialed, as before; lighttpd's access log has the
-  callers.
+- **The known file** (Gemini's certificates) must be writable by lighttpd's user (`www-data`) as a CGI.
+- The bridge sees every call come from 127.0.0.1 (proxy) or from lighttpd (CGI) and logs the host dialed; lighttpd's
+  access log has the callers. `test/lighttpd.test.js` runs the CGI recipe under a real lighttpd, when there is one.
 
 ## The sysop (chat)
 

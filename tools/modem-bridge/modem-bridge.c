@@ -6,7 +6,7 @@
  *   make -C tools/modem-bridge        (or: cc -O2 -o modem-bridge modem-bridge.c -lpthread)
  *   tools/modem-bridge/modem-bridge --allow=<hosts> [--port=1984] [--bind=127.0.0.1]
  *        [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<page origin>[,...]]
- *        [--timeout=10] [--max=8] [--allow-private] [--known=<file>]
+ *        [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30] [--cgi]
  *
  * See tools/modem-bridge.js for what each option means. The page connects to
  * ws://<bind>:<port>/connect?host=<h>&port=<p>&token=<t>; the bridge makes the TCP
@@ -19,6 +19,11 @@
  * built with `make TLS=1` (OpenSSL), else such a call is refused (4004). The certificate
  * is trusted the first time and kept in the --known file (default ~/.modem-bridge-known,
  * `host:port sha256` a line); another one later is refused with 4005.
+ *
+ * As a CGI (lighttpd with cgi.upgrade = "enable", or --cgi): no daemon; the web server runs it for
+ * each call, the request in the environment, the WebSocket on stdin and stdout, the options as
+ * MODEM_BRIDGE_ALLOW, MODEM_BRIDGE_TOKEN (required), MODEM_BRIDGE_ORIGIN ... (docs/modem.md).
+ * A quiet call gets a ping every --ping seconds (30; 0 none), so proxies and NATs keep it.
  *
  * POSIX only (Linux, the BSDs, macOS): a thread for each connection, blocking sockets.
  * No dependencies; SHA-1 (the handshake) and SHA-256 (the token) are here.
@@ -70,6 +75,8 @@ static char **origin_list = NULL;  /* --origin, or NULL for any */
 static int origin_n = 0;
 static char token[256] = "";
 static int timeout_s = 10, max_conn = 8, allow_private = 0;
+static int ping_s = 30;             /* a ping after so many seconds of a quiet call (0: none) */
+static int cgi_mode = 0;            /* run by a web server as a CGI: the call on stdin and stdout */
 static char known_file[1024] = "";  /* the certificates of TLS hosts; empty: none kept */
 #ifdef WITH_TLS
 static pthread_mutex_t known_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -261,7 +268,7 @@ static int allowed(const char *host, int port) {
 static int write_all(int fd, const void *buf, size_t len) {
     const unsigned char *p = buf;
     while (len) {
-        ssize_t n = send(fd, p, len, MSG_NOSIGNAL);
+        ssize_t n = write(fd, p, len);              /* a socket, or a CGI's stdout (SIGPIPE is ignored) */
         if (n < 0) { if (errno == EINTR) continue; return -1; }
         p += n;
         len -= (size_t)n;
@@ -370,7 +377,7 @@ static int dial(const char *host, int port, int *code, char *why, size_t whysize
 /* ---------- a connection ---------- */
 
 struct conn {
-    int ws, tcp;
+    int ws, wsout, tcp;             /* the page's side: in and out (one socket, or a CGI's stdin and stdout) */
 #ifdef WITH_TLS
     SSL *ssl;                       /* TLS to the host, if asked for */
 #endif
@@ -488,15 +495,16 @@ static void release(struct conn *c) {
 static void finish(struct conn *c, int code) {
     if (code) {
         unsigned char b[2] = { (unsigned char)(code >> 8), (unsigned char)code };
-        send_frame(c->ws, 8, b, 2);
+        send_frame(c->wsout, 8, b, 2);
     }
 #ifdef WITH_TLS
     if (c->ssl) { SSL_shutdown(c->ssl); SSL_free(c->ssl); c->ssl = NULL; }
 #endif
     if (c->tcp >= 0) close(c->tcp);
     c->tcp = -1;
-    shutdown(c->ws, SHUT_WR);
+    shutdown(c->wsout, SHUT_WR);
     close(c->ws);
+    if (c->wsout != c->ws) close(c->wsout);
     release(c);
     free(c->buf);
     free(c);
@@ -524,7 +532,7 @@ static int frames(struct conn *c) {
         if (op >= 8) {
             if (!fin || len > 125) return 1002;
             if (op == 8) code = 1000;
-            else if (op == 9) send_frame(c->ws, 10, data, (size_t)len);
+            else if (op == 9) send_frame(c->wsout, 10, data, (size_t)len);
         } else {
             if (op != 0) c->part_op = op;
             else if (!c->part_op) return 1002;
@@ -547,12 +555,119 @@ static int take(struct conn *c) {
         c->buf = nb;
         c->cap = cap;
     }
-    ssize_t n = recv(c->ws, c->buf + c->len, c->cap - c->len, 0);
+    ssize_t n = read(c->ws, c->buf + c->len, c->cap - c->len);
     if (n <= 0) return 0;
     c->len += (size_t)n;
     return 1;
 }
 
+/*
+ * The checks of a request, the same for the daemon and the CGI: 0 to take it, or the HTTP status
+ * that refuses it. `path` is NULL for a CGI (the web server chose it).
+ */
+static int check(const char *path, const char *query, const char *up, const char *key, const char *version, const char *origin) {
+    if ((path && strcmp(path, "/connect")) || !key || !key[0] || !up || strcasecmp(up, "websocket") || !version || strcmp(version, "13")) return 400;
+    if (origin_list) {
+        int ok = 0;
+        for (int i = 0; i < origin_n && origin; i++) if (!strcmp(origin_list[i], origin)) ok = 1;
+        if (!ok) return 403;
+    }
+    if (!token[0]) return cgi_mode ? 500 : 0;          /* a CGI without a token takes nobody */
+    char given[512];
+    param(query, "token", given, sizeof given);
+    size_t a = strlen(given), b = strlen(token);
+    unsigned diff = (unsigned)(a != b);
+    for (size_t i = 0; i < b; i++) diff |= (unsigned)(unsigned char)(i < a ? given[i] : 0) ^ (unsigned char)token[i];
+    return diff ? 403 : 0;
+}
+
+static const char *reason(int status) {
+    return status == 400 ? "Bad Request" : status == 403 ? "Forbidden" : status == 426 ? "Upgrade Required" : status == 503 ? "Service Unavailable" : "Internal Server Error";
+}
+
+/* Sec-WebSocket-Accept for a key */
+static void accept_for(const char *key, char *accept) {
+    unsigned char digest[20];
+    char both[200];
+    snprintf(both, sizeof both, "%s%s", key, GUID);
+    sha1((const unsigned char *)both, strlen(both), digest);
+    base64(digest, 20, accept);
+}
+
+/* the call, once the WebSocket is up: the host dialed, then the bytes both ways */
+static void relay(struct conn *c, const char *query) {
+    int one = 1;
+    char host[300], portstr[16];
+    param(query, "host", host, sizeof host);
+    param(query, "port", portstr, sizeof portstr);
+    int ok = strlen(host) >= 1 && strlen(host) <= 253;
+    for (const char *p = host; *p && ok; p++) ok = (*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') || *p == '.' || *p == '-';
+    int port = 0;
+    ok = ok && portstr[0];
+    for (const char *p = portstr; *p && ok; p++) ok = *p >= '0' && *p <= '9';
+    if (ok) { port = atoi(portstr); ok = strlen(portstr) <= 5 && port >= 1 && port <= 65535; }
+    char lower[300];
+    for (size_t i = 0; i <= strlen(host); i++) lower[i] = (char)(host[i] >= 'A' && host[i] <= 'Z' ? host[i] + 32 : host[i]);
+    if (!ok || !allowed(lower, port)) {
+        logf_("refused %s:%s", host, portstr[0] ? portstr : "0");
+        finish(c, 4001);
+        return;
+    }
+    int code;
+    char why[128];
+    c->tcp = dial(host, port, &code, why, sizeof why);
+    if (c->tcp < 0) {
+        if (code == 4003) logf_("no answer %s:%d", host, port);
+        else logf_("failed %s:%d %s", host, port, why);
+        finish(c, code);
+        return;
+    }
+    char tlsq[8];
+    param(query, "tls", tlsq, sizeof tlsq);
+    if (!strcmp(tlsq, "1")) {
+#ifdef WITH_TLS
+        char fp[2 * EVP_MAX_MD_SIZE + 1] = "";
+        int r = tls_start(c, host, port, fp, sizeof fp);
+        if (r == 4005) { logf_("certificate changed %s:%d %.16s", host, port, fp); finish(c, 4005); return; }
+        if (r > 1) { logf_("failed %s:%d tls", host, port); finish(c, r); return; }
+        logf_("connected %s:%d tls %.16s%s", host, port, fp, r == 1 ? " (new)" : "");
+#else
+        logf_("failed %s:%d tls: not built in (make TLS=1)", host, port);
+        finish(c, 4004);
+        return;
+#endif
+    } else logf_("connected %s:%d", host, port);
+    setsockopt(c->tcp, IPPROTO_TCP, TCP_NODELAY, &one, sizeof one);
+    if (send_frame(c->wsout, 1, (const unsigned char *)"connected", 9) < 0) { finish(c, 0); return; }
+    if (c->len) { int r = frames(c); if (r) { finish(c, r); return; } }
+
+    /* the bytes both ways; a ping when the call has been quiet for ping_s seconds (proxies and NATs then
+       see it alive; the browser answers on its own) */
+    static __thread unsigned char data[65536];
+    for (;;) {
+        struct pollfd pf[2] = { { c->ws, POLLIN, 0 }, { c->tcp, POLLIN, 0 } };
+        int pending = tcp_pending(c);
+        int r = poll(pf, 2, pending ? 0 : ping_s > 0 ? ping_s * 1000 : -1);
+        if (r < 0) { if (errno == EINTR) continue; finish(c, 1011); return; }
+        if (r == 0 && !pending) {
+            if (send_frame(c->wsout, 9, NULL, 0) < 0) { finish(c, 0); return; }
+            continue;
+        }
+        if (pending || (pf[1].revents & (POLLIN | POLLHUP | POLLERR))) {
+            ssize_t n = tcp_read(c, data, sizeof data);
+            if (n == -2) n = 0;                                 /* TLS: nothing for the page this time */
+            else if (n <= 0) { finish(c, 1000); return; }       /* the far end hung up */
+            if (n && send_frame(c->wsout, 2, data, (size_t)n) < 0) { finish(c, 0); return; }
+        }
+        if (pf[0].revents & (POLLIN | POLLHUP | POLLERR)) {
+            if (!take(c)) { finish(c, 0); return; }             /* the page went */
+            int f = frames(c);
+            if (f) { finish(c, f); return; }
+        }
+    }
+}
+
+/* a call to the daemon: the HTTP request read from the socket, checked, answered, then relayed */
 static void *serve(void *arg) {
     struct conn *c = arg;
     char head[MAX_HEAD + 1];
@@ -590,22 +705,8 @@ static void *serve(void *arg) {
     if (q) *q = 0;
     char *hash = strchr((char *)query, '#');
     if (hash) *hash = 0;
-    if (strcmp(target, "/connect") || !has_key || !key[0] || strcasecmp(up, "websocket") || strcmp(version, "13")) {
-        refuse(c->ws, 400, "Bad Request"); close(c->ws); free(c); return NULL;
-    }
-    if (origin_list) {
-        int ok = 0;
-        for (int i = 0; i < origin_n && has_origin; i++) if (!strcmp(origin_list[i], origin)) ok = 1;
-        if (!ok) { refuse(c->ws, 403, "Forbidden"); close(c->ws); free(c); return NULL; }
-    }
-    char given[512];
-    param(query, "token", given, sizeof given);
-    if (token[0]) {
-        size_t a = strlen(given), b = strlen(token);
-        unsigned diff = (unsigned)(a != b);
-        for (size_t i = 0; i < b; i++) diff |= (unsigned)(unsigned char)(i < a ? given[i] : 0) ^ (unsigned char)token[i];
-        if (diff) { refuse(c->ws, 403, "Forbidden"); close(c->ws); free(c); return NULL; }
-    }
+    int st = check(target, query, up, has_key ? key : NULL, version, has_origin ? origin : NULL);
+    if (st) { refuse(c->ws, st, reason(st)); close(c->ws); free(c); return NULL; }
     pthread_mutex_lock(&active_lock);
     int full = active >= max_conn;
     if (!full) active++;
@@ -613,11 +714,8 @@ static void *serve(void *arg) {
     if (full) { refuse(c->ws, 503, "Service Unavailable"); close(c->ws); free(c); return NULL; }
     c->counted = 1;
 
-    unsigned char digest[20];
-    char both[200], accept[40], reply[256];
-    snprintf(both, sizeof both, "%s%s", key, GUID);
-    sha1((const unsigned char *)both, strlen(both), digest);
-    base64(digest, 20, accept);
+    char accept[40], reply[256];
+    accept_for(key, accept);
     int rn = snprintf(reply, sizeof reply, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", accept);
     if (write_all(c->ws, reply, (size_t)rn) < 0) { finish(c, 0); return NULL; }
     int one = 1;
@@ -629,69 +727,46 @@ static void *serve(void *arg) {
         memcpy(c->buf, head + headlen, hl - headlen);
         c->len = hl - headlen;
     }
+    relay(c, query);
+    return NULL;
+}
 
-    char host[300], portstr[16];
-    param(query, "host", host, sizeof host);
-    param(query, "port", portstr, sizeof portstr);
-    int ok = strlen(host) >= 1 && strlen(host) <= 253;
-    for (const char *p = host; *p && ok; p++) ok = (*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') || *p == '.' || *p == '-';
-    int port = 0;
-    ok = ok && portstr[0];
-    for (const char *p = portstr; *p && ok; p++) ok = *p >= '0' && *p <= '9';
-    if (ok) { port = atoi(portstr); ok = strlen(portstr) <= 5 && port >= 1 && port <= 65535; }
-    char lower[300];
-    for (size_t i = 0; i <= strlen(host); i++) lower[i] = (char)(host[i] >= 'A' && host[i] <= 'Z' ? host[i] + 32 : host[i]);
-    if (!ok || !allowed(lower, port)) {
-        logf_("refused %s:%s", host, portstr[0] ? portstr : "0");
-        finish(c, 4001);
-        return NULL;
-    }
-    int code;
-    char why[128];
-    c->tcp = dial(host, port, &code, why, sizeof why);
-    if (c->tcp < 0) {
-        if (code == 4003) logf_("no answer %s:%d", host, port);
-        else logf_("failed %s:%d %s", host, port, why);
-        finish(c, code);
-        return NULL;
-    }
-    char tlsq[8];
-    param(query, "tls", tlsq, sizeof tlsq);
-    if (!strcmp(tlsq, "1")) {
-#ifdef WITH_TLS
-        char fp[2 * EVP_MAX_MD_SIZE + 1] = "";
-        int r = tls_start(c, host, port, fp, sizeof fp);
-        if (r == 4005) { logf_("certificate changed %s:%d %.16s", host, port, fp); finish(c, 4005); return NULL; }
-        if (r > 1) { logf_("failed %s:%d tls", host, port); finish(c, r); return NULL; }
-        logf_("connected %s:%d tls %.16s%s", host, port, fp, r == 1 ? " (new)" : "");
-#else
-        logf_("failed %s:%d tls: not built in (make TLS=1)", host, port);
-        finish(c, 4004);
-        return NULL;
-#endif
-    } else logf_("connected %s:%d", host, port);
-    setsockopt(c->tcp, IPPROTO_TCP, TCP_NODELAY, &one, sizeof one);
-    if (send_frame(c->ws, 1, (const unsigned char *)"connected", 9) < 0) { finish(c, 0); return NULL; }
-    if (c->len) { int r = frames(c); if (r) { finish(c, r); return NULL; } }
+/* ---------- as a CGI ---------- */
 
-    /* the bytes both ways */
-    static __thread unsigned char data[65536];
-    for (;;) {
-        struct pollfd pf[2] = { { c->ws, POLLIN, 0 }, { c->tcp, POLLIN, 0 } };
-        int pending = tcp_pending(c);
-        if (poll(pf, 2, pending ? 0 : -1) < 0) { if (errno == EINTR) continue; finish(c, 1011); return NULL; }
-        if (pending || (pf[1].revents & (POLLIN | POLLHUP | POLLERR))) {
-            ssize_t n = tcp_read(c, data, sizeof data);
-            if (n == -2) n = 0;                                 /* TLS: nothing for the page this time */
-            else if (n <= 0) { finish(c, 1000); return NULL; }  /* the far end hung up */
-            if (n && send_frame(c->ws, 2, data, (size_t)n) < 0) { finish(c, 0); return NULL; }
-        }
-        if (pf[0].revents & (POLLIN | POLLHUP | POLLERR)) {
-            if (!take(c)) { finish(c, 0); return NULL; }        /* the page went */
-            int r = frames(c);
-            if (r) { finish(c, r); return NULL; }
-        }
+/* a CGI answer with no WebSocket: a status and a line of text */
+static void cgi_reply(int status, const char *text) {
+    char buf[512];
+    int n = snprintf(buf, sizeof buf, "Status: %d %s\r\nContent-Type: text/plain\r\n\r\n%s\n", status, reason(status), text);
+    write_all(1, buf, (size_t)n);
+}
+
+/*
+ * Run by a web server as a CGI that may take the WebSocket upgrade (lighttpd: cgi.upgrade = "enable"):
+ * the request is in the environment; the answer, then the call, on stdout; what the page sends on stdin.
+ */
+static int cgi_main(void) {
+    const char *up = getenv("HTTP_UPGRADE"), *query = getenv("QUERY_STRING");
+    if (!query) query = "";
+    if (!up) { cgi_reply(426, "This is a modem bridge: connect with a WebSocket."); return 0; }
+    if (!token[0]) {
+        logf_("no MODEM_BRIDGE_TOKEN (or --token): every call is refused");
+        cgi_reply(500, "The modem bridge has no token set.");
+        return 0;
     }
+    const char *key = getenv("HTTP_SEC_WEBSOCKET_KEY");
+    int st = check(NULL, query, up, key, getenv("HTTP_SEC_WEBSOCKET_VERSION"), getenv("HTTP_ORIGIN"));
+    if (st) { cgi_reply(st, reason(st)); return 0; }
+    char accept[40], reply[256];
+    accept_for(key, accept);
+    int rn = snprintf(reply, sizeof reply, "Status: 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", accept);
+    if (write_all(1, reply, (size_t)rn) < 0) return 0;
+    struct conn *c = calloc(1, sizeof *c);
+    if (!c) return 1;
+    c->ws = 0;
+    c->wsout = 1;
+    c->tcp = -1;
+    relay(c, query);
+    return 0;
 }
 
 /* ---------- the command line ---------- */
@@ -714,6 +789,10 @@ static char **split(const char *s, int *n, int lower) {
     return out;
 }
 
+/*
+ * An option: --name=value or --name (a flag) on the command line, else MODEM_BRIDGE_NAME in the
+ * environment (as a CGI is given them: - becomes _; 0, no or false means unset)
+ */
 static const char *opt(int argc, char **argv, const char *name, int *flag) {
     size_t n = strlen(name);
     const char *v = NULL;
@@ -722,11 +801,20 @@ static const char *opt(int argc, char **argv, const char *name, int *flag) {
         if (argv[i][2 + n] == '=') { v = argv[i] + 3 + n; if (flag) *flag = 0; }
         else if (!argv[i][2 + n]) { v = ""; if (flag) *flag = 1; }
     }
+    if (v) return v;
+    char env[64] = "MODEM_BRIDGE_";
+    size_t e = strlen(env);
+    for (size_t i = 0; i < n && e < sizeof env - 1; i++) env[e++] = name[i] == '-' ? '_' : (char)(name[i] >= 'a' && name[i] <= 'z' ? name[i] - 32 : name[i]);
+    env[e] = 0;
+    v = getenv(env);
+    if (v && (!strcmp(v, "0") || !strcasecmp(v, "no") || !strcasecmp(v, "false"))) v = NULL;
+    if (v && flag) *flag = 0;
     return v;
 }
 
 int main(int argc, char **argv) {
     int flag = 0;
+    cgi_mode = opt(argc, argv, "cgi", NULL) != NULL || getenv("GATEWAY_INTERFACE") != NULL;
     const char *p = opt(argc, argv, "port", NULL);
     int port = p && *p ? atoi(p) : DEFAULT_PORT;
     int listen_port = port;
@@ -735,12 +823,14 @@ int main(int argc, char **argv) {
     const char *tok = opt(argc, argv, "token", &flag);
     const char *seed = opt(argc, argv, "seed", NULL);
     if (tok && !flag) snprintf(token, sizeof token, "%s", tok);
-    else seed_token(port, seed ? seed : "", token, sizeof token);
+    else if (!cgi_mode) seed_token(port, seed ? seed : "", token, sizeof token);   /* a CGI's token must be given */
     if (opt(argc, argv, "show-token", NULL)) { printf("%s\n", token); return 0; }
     const char *allow = opt(argc, argv, "allow", &flag);
     int help = opt(argc, argv, "help", NULL) != NULL;
     if (help || !allow || flag) {
-        fprintf(stderr, "usage: modem-bridge --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>]\n");
+        if (cgi_mode && !help) { logf_("no MODEM_BRIDGE_ALLOW (or --allow): every call is refused"); cgi_reply(500, "The modem bridge allows no host."); return 0; }
+        fprintf(stderr, "usage: modem-bridge --allow=<host[:port],*.domain,*> [--port=1984] [--bind=127.0.0.1] [--token=<secret> | --seed=<salt>] [--show-token] [--origin=<origin>] [--timeout=10] [--max=8] [--allow-private] [--known=<file>] [--ping=30] [--cgi]\n");
+        fprintf(stderr, "       every option may come from the environment instead: MODEM_BRIDGE_ALLOW, MODEM_BRIDGE_TOKEN ...\n");
         return help ? 0 : 2;
     }
     allow_list = split(allow, &allow_n, 1);
@@ -751,6 +841,8 @@ int main(int argc, char **argv) {
     const char *m = opt(argc, argv, "max", NULL);
     if (m && atoi(m) > 0) max_conn = atoi(m);
     allow_private = opt(argc, argv, "allow-private", NULL) != NULL;
+    const char *pg = opt(argc, argv, "ping", NULL);
+    if (pg && *pg) ping_s = atoi(pg) > 0 ? atoi(pg) : 0;
     const char *k = opt(argc, argv, "known", &flag);
     if (k && !flag) snprintf(known_file, sizeof known_file, "%s", k);                 /* --known= (empty) keeps none */
     else if (getenv("HOME")) snprintf(known_file, sizeof known_file, "%s/.modem-bridge-known", getenv("HOME"));
@@ -760,10 +852,11 @@ int main(int argc, char **argv) {
     SSL_CTX_set_verify(tls_ctx, SSL_VERIFY_NONE, NULL);       /* Gemini hosts sign their own: the known file is the check */
     SSL_CTX_clear_mode(tls_ctx, SSL_MODE_AUTO_RETRY);
 #endif
+    signal(SIGPIPE, SIG_IGN);
+    if (cgi_mode) return cgi_main();
     const char *b = opt(argc, argv, "bind", &flag);
     const char *bind_to = b && !flag && *b ? b : "127.0.0.1";
 
-    signal(SIGPIPE, SIG_IGN);
     struct addrinfo hints = { 0 }, *res = NULL;
     char ports[8];
     snprintf(ports, sizeof ports, "%d", listen_port);
@@ -800,7 +893,7 @@ int main(int argc, char **argv) {
         if (fd < 0) { if (errno == EINTR || errno == ECONNABORTED || errno == EMFILE || errno == ENFILE) { if (errno == EMFILE || errno == ENFILE) sleep(1); continue; } perror("accept"); return 1; }
         struct conn *c = calloc(1, sizeof *c);
         if (!c) { close(fd); continue; }
-        c->ws = fd;
+        c->ws = c->wsout = fd;
         c->tcp = -1;
         pthread_t th;
         if (pthread_create(&th, &attr, serve, c)) { close(fd); free(c); }

@@ -881,7 +881,7 @@
   "id": "online",
   "name": "Online",
   "format": "sssd8",
-  "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM); IRC, an IRC client; GOPHER, a Gopher client (menus, texts, searches, the way back, save to a file); MUD, a client for text worlds; FINGER, who is on a host or what someone's plan says; NETTIME, the time from a clock on the net. Each with its directory where it has one (TERM.DIR, IRC.DIR, GOPHER.DIR, MUD.DIR). Put it in B:, then B: and the program.",
+  "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM); IRC, an IRC client; GOPHER, a Gopher client (menus, texts, searches, the way back, save to a file); MUD, a client for text worlds; FINGER, who is on a host or what someone's plan says; NETTIME, the time from a clock on the net. Each with its directory where it has one (TERM.DIR, IRC.DIR, GOPHER.DIR, MUD.DIR, FINGER.DIR). Put it in B:, then B: and the program.",
   "credit": "Costin Stroie; MIT licence. Source: github.com/cstroie/dialtone (system/dialtone).",
   "licence": "MIT",
   "category": "Comm",
@@ -889,7 +889,8 @@
    "TERM.DIR",
    "IRC.DIR",
    "GOPHER.DIR",
-   "MUD.DIR"
+   "MUD.DIR",
+   "FINGER.DIR"
   ],
   "files": [
    {
@@ -899,6 +900,10 @@
    {
     "name": "FINGER.COM",
     "path": "disks/shelf/online/FINGER.COM"
+   },
+   {
+    "name": "FINGER.DIR",
+    "path": "disks/shelf/online/FINGER.DIR"
    },
    {
     "name": "GOPHER.ASM",
@@ -969,8 +974,8 @@
     "path": "disks/shelf/online/TERM.DIR"
    }
   ],
-  "size": 147326,
-  "free": 78848
+  "size": 151291,
+  "free": 74752
  },
  {
   "id": "photopia",

@@ -163,13 +163,14 @@ of modem code (a ring for what comes, the dial, the hang-up), copied into each s
   a prompt with `password` in it, the next line shows as stars and is not kept. `/connect [host[:port] | n | a word]`,
   `MUD.DIR` (from `MUDBOOK`), `/quit`, `/bye`, `/clear`, `/help`. The world's text never breaks the line being typed.
 - **FINGER** (port 79): `FINGER user@host`, `FINGER @host`, `host:port`; the answer a page at a time (`--More--`).
+  Alone it lists `FINGER.DIR` (from `FINGERBOOK`: graph.no's weather, who is on SDF), and `FINGER 2` asks its second line.
 - **NETTIME** (port 13, NIST's daytime format): `NETTIME [host[:port]] [+h | -h | +h:mm]`. It shows the UTC time it is
   given and how far this machine's clock (port 20) is from it (on this machine: the host's offset from UTC). Under CP/M 3
   it sets the date and the time (UTC and the offset) and reads them back: this BIOS keeps the host's clock, so it says it
   was not set; a machine with no clock of its own keeps what NETTIME gives it.
 
 The gateway passes ports 13, 37, 70 and 79 raw, as it does IRC's; `tools/bridge.sh` allows the hosts of `GOPHER.DIR`,
-`MUD.DIR`, a few finger hosts and `time.nist.gov:13` by default. The command line comes in capitals from the CCP, so
+`MUD.DIR`, `FINGER.DIR` and `time.nist.gov:13` by default. The command line comes in capitals from the CCP, so
 these programs take it in lower case: a selector with capitals is typed at GOPHER's G instead.
 
 **The carrier and the data.** When the other end hangs up, carrier drops once the bytes already on the wire have arrived

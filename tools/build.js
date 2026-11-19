@@ -37,7 +37,7 @@ const path = require('path');
 const { assemble, formatListing } = require('../js/asm8080.js');
 const { Disk } = require('../js/devices/fdc.js');
 const { CpmFs, toCpmText } = require('../js/cpmfs.js');
-const { PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK } = require('../js/devices/directory.js');
+const { PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK, FINGERBOOK } = require('../js/devices/directory.js');
 const { playCom } = require('./play.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -108,6 +108,7 @@ function main() {
     fs.writeFileSync(path.join(onlineDir, 'IRC.DIR'), IRCBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
     fs.writeFileSync(path.join(onlineDir, 'GOPHER.DIR'), GOPHERBOOK.map(e => `${at(e)} ${e.text}`).join('\n') + '\n');
     fs.writeFileSync(path.join(onlineDir, 'MUD.DIR'), MUDBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(onlineDir, 'FINGER.DIR'), FINGERBOOK.map(e => `${e.ask} ${e.text}`).join('\n') + '\n');
     // the submit files too: ASM, LOAD and SUBMIT of the boot disk build every program on the machine itself
     for (const f of ['MAKE.SUB', 'MAKEALL.SUB'])
         fs.copyFileSync(path.join(ROOT, 'system/dialtone', f), path.join(onlineDir, f));

@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { boot, until, settle, say, run, oneShot } = require('./net.js');
 
-test('FINGER: no argument shows how; no modem says so', async () => {
+test('FINGER: no argument and no FINGER.DIR shows how; no modem says so', async () => {
     let { m } = boot();
     let at = await run(m, 'FINGER');
     await until(m, 'FINGER user@host', at);
@@ -62,4 +62,23 @@ test('FINGER: long lines wrap at 80 columns, UTF-8 shows as ?, control character
     const out = m.out.slice(at);
     assert.ok(out.includes('x'.repeat(80) + '\r\nxxxxx\r\n'), out);
     assert.ok(out.includes('caf?!\r\n'), out);
+});
+
+test('FINGER alone lists FINGER.DIR, numbered (no modem needed); FINGER n asks that line', async () => {
+    const { FINGERBOOK } = require('../js/devices/directory.js');
+    const dir = FINGERBOOK.map(e => `${e.ask} ${e.text}`).join('\r\n') + '\r\n';
+    const asked = [];
+    let { m } = boot({ modem: false, files: { 'FINGER.DIR': dir } });
+    let at = await run(m, 'FINGER');
+    await until(m, 'FINGER n asks one of these', at);
+    const out = m.out.slice(at);
+    FINGERBOOK.forEach((e, i) => assert.ok(out.includes(` ${i + 1}  ${e.ask} ${e.text}\r\n`), out));
+    ({ m } = boot({ files: { 'FINGER.DIR': dir }, hosts: { 'graph.no:79': oneShot(u => `Weather for ${u}: rain.\r\n`, asked) } }));
+    at = await run(m, 'FINGER 2');
+    await until(m, 'Weather for oslo: rain.', at);
+    await until(m, 'B>', at + 10);
+    assert.ok(m.out.slice(at).includes('[graph.no]'));
+    assert.deepEqual(asked, ['oslo']);
+    at = say(m, 'FINGER 9\r');
+    await until(m, 'No such line in FINGER.DIR.', at);
 });

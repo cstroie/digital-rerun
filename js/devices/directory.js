@@ -68,6 +68,14 @@
         { host: '3k.org', port: 3000, text: '3Kingdoms: an LPMud' }
     ];
 
+    /** The questions FINGER.DIR offers (FINGER.COM: alone it lists them, FINGER n asks one): port 79, passed raw. */
+    const FINGERBOOK = [
+        { ask: 'help@graph.no', text: 'Weather by finger: how to ask' },
+        { ask: 'oslo@graph.no', text: 'The weather in Oslo' },
+        { ask: 'london@graph.no', text: 'The weather in London' },
+        { ask: '@sdf.org', text: 'Who is on SDF' }
+    ];
+
     /** The clocks NETTIME.COM asks: the daytime service (port 13, raw), in NIST's format. */
     const TIMEHOST = 'time.nist.gov';
 
@@ -100,7 +108,7 @@
         }
     }
 
-    const api = { Directory, echoService, sometimesBusy, PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK, TIMEHOST };
+    const api = { Directory, echoService, sometimesBusy, PHONEBOOK, IRCBOOK, GOPHERBOOK, MUDBOOK, FINGERBOOK, TIMEHOST };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);

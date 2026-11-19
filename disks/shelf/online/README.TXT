@@ -25,7 +25,8 @@ AARDWOLF (a word of a line of its directory, a number, or a host).
              leaves. A password is shown as stars.
 
   FINGER     FINGER user@host or FINGER @host: who is there, or what
-             someone's plan says, a page at a time.
+             someone's plan says, a page at a time. Alone it lists
+             FINGER.DIR; FINGER 2 asks its second line.
 
   NETTIME    the time from a clock on the net (time.nist.gov unless one
              is named), and how far this machine's clock is from it.
@@ -36,7 +37,8 @@ assembles all six with ASM and LOAD (SUBMIT B:MAKE GOPHER for one).
 
 The .DIR files are plain text, one place per line: edit them with ED.
 IRC.DIR, GOPHER.DIR and MUD.DIR hold host[:port] and a name (GOPHER.DIR
-may add /type/selector); TERM.DIR a number or host and a name. All but
-the BBS need the bridge (DEVICES, MODEM; see docs/modem.md). It passes
-the ports of IRC (6660-6669), gopher (70), finger (79) and daytime (13)
-raw; the others are telnet, as a MUD wants.
+may add /type/selector); FINGER.DIR user@host and a name; TERM.DIR a
+number or host and a name. All but the BBS need the bridge (DEVICES,
+MODEM; see docs/modem.md). It passes the ports of IRC (6660-6669),
+gopher (70), finger (79) and daytime (13) raw; the others are telnet,
+as a MUD wants.

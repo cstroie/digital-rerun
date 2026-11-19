@@ -15,7 +15,7 @@
  *   4004 anything else          NO CARRIER
  * An https page can reach only wss:// or ws://localhost.
  *
- * Ports 6660-6669 (IRC), 13 (daytime), 37 (time), 70 (gopher) and 79 (finger) are
+ * Ports 6660-6669 (IRC), 13 (daytime), 37 (time), 70 (gopher), 79 (finger) and 119 (NNTP) are
  * no telnet hosts: there the bytes go through raw, with no telnet in between (no
  * CR NUL, no doubled 255, no negotiation) and no local echo. What the program
  * sends there goes out a line at a time (at LF, or after QUIET ms with nothing
@@ -26,6 +26,7 @@
  *
  * Port 1965 is Gemini's: raw too, and the bridge is asked to speak TLS to the host
  * (&tls=1), since the 8080 cannot; the page and the program see plain bytes.
+ * Port 563 (NNTP over TLS, Usenet) is the same.
  */
 (function (root) {
     'use strict';
@@ -35,11 +36,11 @@
 
     const REASONS = { 4002: 'BUSY', 4003: 'NO ANSWER' };      // 4001 not allowed, 4004 failed, 4005 a changed certificate: NO CARRIER
     const QUIET = 50, LINE_MAX = 1024;
-    const TLS_PORTS = [1965];
-    const RAW_PORTS = [13, 37, 70, 79, 1965, 6660, 6661, 6662, 6663, 6664, 6665, 6666, 6667, 6668, 6669];
+    const TLS_PORTS = [563, 1965];
+    const RAW_PORTS = [13, 37, 70, 79, 119, 563, 1965, 6660, 6661, 6662, 6663, 6664, 6665, 6666, 6667, 6668, 6669];
 
     class Gateway {
-        /** `url`: the bridge, e.g. ws://localhost:1984; `token`: its secret; `rawPorts`: the ports whose bytes go through untouched (IRC, daytime, time, gopher, finger). */
+        /** `url`: the bridge, e.g. ws://localhost:1984; `token`: its secret; `rawPorts`: the ports whose bytes go through untouched (IRC, daytime, time, gopher, finger, NNTP). */
         constructor({ url, token = '', WebSocketClass = root.WebSocket, rawPorts = RAW_PORTS, tlsPorts = TLS_PORTS } = {}) {
             this.url = url;
             this.rawPorts = rawPorts;

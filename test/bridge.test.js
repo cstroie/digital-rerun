@@ -296,8 +296,8 @@ test('the gateway: the IRC ports (6660-6669) are raw: no telnet, no CR NUL, no l
     assert.deepEqual(got2, [13, 10]);
 });
 
-test('the gateway: daytime (13), time (37), gopher (70) and finger (79) are raw too', async () => {
-    for (const port of [13, 37, 70, 79]) {
+test('the gateway: daytime (13), time (37), gopher (70), finger (79) and NNTP (119) are raw too', async () => {
+    for (const port of [13, 37, 70, 79, 119]) {
         const WS = fakeSocket();
         const got = [];
         const remote = await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS }).dial('host.example.org', port, { receive: b => got.push(...b), hangup() {} });
@@ -417,6 +417,17 @@ test('the gateway asks for TLS on port 1965 (Gemini), raw: no telnet, a line in 
     assert.deepEqual(WS.last.messages.map(m => Buffer.from(m).toString('latin1')), ['gemini://geminiprotocol.net/\r\n']);
     const WS2 = fakeSocket();
     await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS2 }).dial('gopher.example', 70, { receive() {}, hangup() {} });
+    assert.doesNotMatch(WS2.last.url, /tls=/);
+});
+
+test('the gateway asks for TLS on port 563 (NNTP over TLS), raw; 119 is plain', async () => {
+    const WS = fakeSocket();
+    const remote = await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS }).dial('news.example.org', 563, { receive() {}, hangup() {} });
+    assert.match(WS.last.url, /[?&]tls=1(&|$)/);
+    for (const ch of 'GROUP comp.os.cpm\r\n') remote.send(ch.charCodeAt(0));
+    assert.deepEqual(WS.last.messages.map(m => Buffer.from(m).toString('latin1')), ['GROUP comp.os.cpm\r\n']);
+    const WS2 = fakeSocket();
+    await new Gateway({ url: 'ws://127.0.0.1:1984', WebSocketClass: WS2 }).dial('news.example.org', 119, { receive() {}, hangup() {} });
     assert.doesNotMatch(WS2.last.url, /tls=/);
 });
 

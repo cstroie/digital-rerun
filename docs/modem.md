@@ -204,7 +204,8 @@ secret from someone who knows the machine name, the user and the port. Then DEVI
 *Bridge token*, and in TERM `ATDT bbs.example.org` (port 23) or `ATDT bbs.example.org:2323` (use `ATDT`: Hayes takes a lone `T` or
 `P` after `D` as a dial modifier). Anything that is not a number of the built-in directory (letters or dots) goes to the bridge.
 
-- **The bridge** (`tools/modem-bridge.js`, no dependencies) is a WebSocket to TCP pipe. `--allow` is required and
+- **The bridge** (`tools/modem-bridge.js`, no dependencies; the same in C in `tools/modem-bridge/`, for a machine
+  without Node.js: `make -C tools/modem-bridge`, and `tools/bridge.sh` runs it from then on) is a WebSocket to TCP pipe. `--allow` is required and
   names what may be dialed (`host`, `host:port`, `*.domain`, an IPv4 block such as `192.168.0.0/16` or `10.0.0.0/8` (literal addresses, no DNS), `*` for any public host; `--allow-private` lets `*`
   reach private and loopback addresses, which can always be named). A token (worked out from the host, user and port by default, or `--token`)
   must come with every connection; `--origin` limits the pages; `--max` connections at once. It logs the host

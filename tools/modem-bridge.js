@@ -30,7 +30,8 @@
  * 4001 not allowed, 4002 refused, 4003 no answer in time, 4004 other.
  * It speaks ws:, not wss:: for a page served over https use localhost or put
  * a TLS reverse proxy in front. It logs the host dialed and nothing of what
- * is said. No dependencies.
+ * is said. No dependencies. tools/modem-bridge/ is the same bridge in C, for a machine
+ * without Node.js (tools/bridge.sh runs it once it is built).
  */
 'use strict';
 const http = require('http');

@@ -4,4 +4,4 @@ node_modules/
 system/*.lst
 _private/
 _dist/
-_shots/
+_shots/tools/modem-bridge/modem-bridge

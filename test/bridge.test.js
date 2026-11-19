@@ -60,7 +60,10 @@ function client(port, params) {
     const ws = new WebSocket(`ws://127.0.0.1:${port}/connect?${new URLSearchParams(params)}`);
     ws.binaryType = 'arraybuffer';
     const c = { ws, messages: [], code: null, opened: false };
-    c.done = new Promise(r => { ws.onclose = e => { c.code = e.code; r(c); }; });
+    c.done = new Promise(r => {
+        ws.onclose = e => { c.code = e.code; r(c); };
+        ws.onerror = () => { if (!c.opened) r(c); };      // a refused handshake: some Node versions never send the close
+    });
     ws.onopen = () => { c.opened = true; };
     ws.onmessage = e => c.messages.push(typeof e.data === 'string' ? e.data : Buffer.from(e.data));
     c.until = async fn => { for (let i = 0; i < 200 && !fn(); i++) await new Promise(r => setTimeout(r, 10)); return fn(); };

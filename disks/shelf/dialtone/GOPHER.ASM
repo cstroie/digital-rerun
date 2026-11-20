@@ -162,94 +162,6 @@ vhelp:	xra	a
 	call	anykey
 	jmp	vdraw
 
-;	a table of lines (0-ended, each a string), each on a row of its own
-hlines:	mov	e,m
-	inx	h
-	mov	d,m
-	inx	h
-	mov	a,d
-	ora	e
-	rz
-	push	h
-	xchg
-	call	pz
-	lxi	h,scrlf
-	call	pz
-	pop	h
-	jmp	hlines
-
-;	wait for a key
-anykey:	call	poll
-	call	keyin
-	ora	a
-	jz	anykey
-	ret
-
-;	Return: follow the item numbered; with no number, the next page
-venter:	lda	nlen
-	ora	a
-	jz	vnext
-	lxi	h,nbuf		;the number into HL
-	mov	b,a
-	lxi	d,0
-ve1:	push	h
-	mov	h,d
-	mov	l,e
-	dad	h
-	dad	h
-	dad	d
-	dad	h
-	xchg
-	pop	h
-	mov	a,m
-	sui	'0'
-	add	e
-	mov	e,a
-	mvi	a,0
-	adc	d
-	mov	d,a
-	inx	h
-	dcr	b
-	jnz	ve1
-	xra	a
-	sta	nlen
-	xchg
-	call	follow
-	jmp	vdraw
-
-vnext:	xra	a
-	sta	nlen
-	lhld	top		;another page if there is more below
-	lxi	d,rows
-	dad	d
-	xchg
-	lhld	nlines
-	mov	a,e
-	sub	l
-	mov	a,d
-	sbb	h
-	lxi	h,mend
-	jnc	vmsg
-	xchg
-	shld	top
-	jmp	vdraw
-vprev:	xra	a
-	sta	nlen
-	lhld	top
-	mov	a,h
-	ora	l
-	lxi	h,mtop
-	jz	vmsg
-	lhld	top
-	lxi	d,-rows
-	dad	d
-	jc	vp1		;no borrow: it stays at 0 or more
-	lxi	h,0
-vp1:	shld	top
-	jmp	vdraw
-vmsg:	shld	msg
-	jmp	vprom
-
 ;	B: back the way we came
 vback:	xra	a
 	sta	nlen
@@ -434,51 +346,6 @@ fcopy:	mov	a,m
 	call	field
 fc2:	xra	a
 	stax	d
-	ret
-
-;	the place at HL to the one at DE
-copyl:	mvi	b,0
-cl1:	mov	a,m
-	stax	d
-	inx	h
-	inx	d
-	dcr	b
-	jnz	cl1
-	ret
-
-;	the way back: CUR pushed (the oldest goes when it is full), and popped
-hpush:	lda	hcnt
-	cpi	hmax
-	jc	hp1
-	lxi	h,hist+lsize	;full: all move down one
-	lxi	d,hist
-	mvi	c,hmax-1
-hp0:	call	copyl
-	dcr	c
-	jnz	hp0
-	lda	hcnt
-	dcr	a
-	sta	hcnt
-hp1:	call	hslot
-	xchg
-	lxi	h,cur
-	call	copyl
-	lda	hcnt
-	inr	a
-	sta	hcnt
-	ret
-hpop:	lda	hcnt
-	dcr	a
-	sta	hcnt
-	call	hslot
-	lxi	d,cur
-	jmp	copyl
-;	HL = the slot HCNT of the way back
-hslot:	lda	hcnt
-	mov	h,a
-	mvi	l,0
-	lxi	d,hist
-	dad	d
 	ret
 
 ;	---- the page: read, indexed, shown ----
@@ -686,35 +553,6 @@ addent:	push	h
 ad9:	pop	h
 	ret
 
-;	the whole screen: the bar, a page of rows from TOP
-draw:	lxi	h,scls
-	call	pz
-	call	bar
-	lhld	top
-	shld	ent
-	mvi	a,rows
-	sta	rcnt
-dr1:	lhld	ent
-	xchg
-	lhld	nlines
-	mov	a,e
-	sub	l
-	mov	a,d
-	sbb	h
-	rnc
-	lxi	h,scrlf
-	call	pz
-	lhld	ent
-	call	prow
-	lhld	ent
-	inx	h
-	shld	ent
-	lda	rcnt
-	dcr	a
-	sta	rcnt
-	jnz	dr1
-	ret
-
 ;	the top row: GOPHER, where we are
 bar:	lxi	h,sbar
 	call	pz
@@ -749,27 +587,6 @@ ba1:	mvi	a,'/'
 ba2:	call	pzr
 	lxi	h,sbarz
 	jmp	pz
-;	the text at HL, as much as ROOM says (a tab, the search words after it, as a space)
-pzr:	mov	a,m
-	ora	a
-	rz
-	inx	h
-	cpi	tab
-	jnz	pr1
-	mvi	a,' '
-pr1:	call	cr1
-	jmp	pzr
-cr1:	push	psw
-	lda	room
-	ora	a
-	jz	cr2
-	dcr	a
-	sta	room
-	pop	psw
-	jmp	cout
-cr2:	pop	psw
-	ret
-
 ;	row HL of the page
 prow:	dad	h
 	lxi	d,idxt
@@ -920,6 +737,448 @@ pm3:	mov	a,m
 	jnz	pm3
 	ret
 
+;	---- the home menu: GOPHER.DIR made a menu ----
+
+home:	mvi	a,'H'
+	sta	cur+ltype
+	mvi	a,'1'
+	sta	mode
+	lxi	h,0
+	shld	cur+ltop
+	lhld	docend		;the file is read into the last 4K of the room
+	lxi	d,-4096
+	dad	d
+	shld	dirp
+	call	loaddir
+	jnc	hm0
+	lhld	dirp		;no GOPHER.DIR: one hole
+	xchg
+	lxi	h,defdir
+hm00:	mov	a,m
+	stax	d
+	inx	h
+	inx	d
+	ora	a
+	jnz	hm00
+hm0:	lhld	docbeg
+	xchg
+	lxi	h,shead		;the lines on top
+	call	wstr
+	lhld	dirp
+hm1:	mov	a,m		;a line of the file: blanks before it go
+	cpi	1ah
+	jz	hm9
+	ora	a
+	jz	hm9
+	cpi	21h
+	jnc	hm2
+	inx	h
+	jmp	hm1
+hm2:	push	d
+	lxi	d,newl
+	call	paddr
+	pop	d
+	jc	hm8		;not an address: the line goes
+hm3:	mov	a,m
+	cpi	' '
+	jz	hm3a
+	cpi	tab
+	jnz	hm4
+hm3a:	inx	h
+	jmp	hm3
+hm4:	lda	newl+ltype
+	stax	d
+	inx	d
+	mvi	b,70
+hm5:	mov	a,m		;the name, up to the end of the line
+	cpi	20h
+	jc	hm6
+	stax	d
+	inx	h
+	inx	d
+	dcr	b
+	jnz	hm5
+hm6:	shld	scan
+	mvi	a,tab
+	stax	d
+	inx	d
+	lxi	h,newl+lsel
+	call	wstr
+	mvi	a,tab
+	stax	d
+	inx	d
+	lxi	h,newl+lhost
+	call	wstr
+	mvi	a,tab
+	stax	d
+	inx	d
+	lhld	newl+lport
+	call	wnum
+	mvi	a,lf
+	stax	d
+	inx	d
+	lhld	scan
+hm8:	mov	a,m		;to the next line of the file
+	ora	a
+	jz	hm9
+	cpi	1ah
+	jz	hm9
+	inx	h
+	cpi	lf
+	jnz	hm8
+	jmp	hm1
+hm9:	xra	a
+	stax	d
+	ret
+;	an address at HL (gopher:// may lead), host[:port][/type[selector]], into the place at
+;	DE: type 1 and port 70 if not given; HL after it. CY set if there is no host.
+paddr:	xchg
+	shld	lp
+	xchg
+	push	h		;gopher:// is skipped
+	lxi	d,sproto
+pa0:	ldax	d
+	ora	a
+	jz	pa0b
+	mov	b,a
+	mov	a,m
+	call	lower
+	cmp	b
+	jnz	pa0a
+	inx	h
+	inx	d
+	jmp	pa0
+pa0a:	pop	h
+	push	h
+pa0b:	pop	d		;(thrown away)
+	xchg
+	lhld	lp
+	mvi	m,'1'		;the type
+	inx	h
+	mvi	m,70		;the port
+	inx	h
+	mvi	m,0
+	lxi	b,lsel-lport-1
+	dad	b
+	mvi	m,0		;no selector
+	lhld	lp
+	lxi	b,lhost
+	dad	b
+	xchg			;HL the text, DE the host
+	mvi	b,63
+pa1:	mov	a,m
+	cpi	21h
+	jc	pa2
+	cpi	':'
+	jz	pa2
+	cpi	'/'
+	jz	pa2
+	call	lower
+	stax	d
+	inx	h
+	inx	d
+	dcr	b
+	jnz	pa1
+pa2:	xra	a
+	stax	d
+	mov	a,b
+	cpi	63
+	stc
+	rz			;no host
+	mov	a,m
+	cpi	':'
+	jnz	pa3
+	inx	h
+	call	rdnum
+	jc	pa3
+	push	h
+	lhld	lp
+	inx	h
+	mov	m,e
+	inx	h
+	mov	m,d
+	pop	h
+pa3:	mov	a,m
+	cpi	'/'
+	jnz	pa9
+	inx	h
+	mov	a,m
+	cpi	21h
+	jc	pa9
+	xchg
+	lhld	lp
+	mov	m,a		;the type
+	lxi	b,lsel
+	dad	b
+	xchg
+	inx	h
+	mvi	b,180
+pa4:	mov	a,m		;the selector, as it is
+	cpi	21h
+	jc	pa5
+	stax	d
+	inx	h
+	inx	d
+	dcr	b
+	jnz	pa4
+pa5:	xra	a
+	stax	d
+pa9:	ora	a
+	ret
+
+;	W: what is shown to a file, as CP/M text
+vwrite:	xra	a
+	sta	nlen
+	mvi	a,1
+	sta	noh		;a file name is not kept for Ctrl-P
+	lxi	h,psave
+	call	input
+	mvi	a,0
+	sta	noh
+	jc	vprom
+	jz	vprom
+	call	mkfcb
+	lxi	h,mbadfn
+	jc	vmsg
+	lxi	d,fcb
+	mvi	c,delete
+	call	bdos
+	lxi	d,fcb
+	mvi	c,makef
+	call	bdos
+	inr	a
+	lxi	h,mdiskf
+	jz	vmsg
+	lxi	h,rec
+	shld	recp
+	lhld	docbeg
+wr1:	mov	a,m
+	ora	a
+	jz	wr8
+	inx	h
+	cpi	lf
+	jnz	wr2
+	mvi	a,cr
+	call	wbyte
+	jc	wr9
+	mvi	a,lf
+wr2:	call	wbyte
+	jc	wr9
+	jmp	wr1
+wr8:	mvi	a,1ah		;^Z, and the record filled with them
+	call	wbyte
+	jc	wr9
+	lhld	recp
+	lxi	d,rec
+	mov	a,l
+	cmp	e
+	jz	wr8b
+wr8a:	mvi	a,1ah
+	call	wbyte
+	jc	wr9
+	lhld	recp
+	lxi	d,rec
+	mov	a,l
+	cmp	e
+	jnz	wr8a
+wr8b:	lxi	d,fcb
+	mvi	c,closef
+	call	bdos
+	lxi	d,80h
+	mvi	c,setdma
+	call	bdos
+	lxi	h,msaved
+	jmp	vmsg
+wr9:	lxi	d,80h
+	mvi	c,setdma
+	call	bdos
+	lxi	h,mdiskf
+	jmp	vmsg
+;	---- the page viewer ----
+;	a table of lines (0-ended, each a string), each on a row of its own
+hlines:	mov	e,m
+	inx	h
+	mov	d,m
+	inx	h
+	mov	a,d
+	ora	e
+	rz
+	push	h
+	xchg
+	call	pz
+	lxi	h,scrlf
+	call	pz
+	pop	h
+	jmp	hlines
+
+;	wait for a key
+anykey:	call	poll
+	call	keyin
+	ora	a
+	jz	anykey
+	ret
+
+;	Return: follow the item numbered; with no number, the next page
+venter:	lda	nlen
+	ora	a
+	jz	vnext
+	lxi	h,nbuf		;the number into HL
+	mov	b,a
+	lxi	d,0
+ve1:	push	h
+	mov	h,d
+	mov	l,e
+	dad	h
+	dad	h
+	dad	d
+	dad	h
+	xchg
+	pop	h
+	mov	a,m
+	sui	'0'
+	add	e
+	mov	e,a
+	mvi	a,0
+	adc	d
+	mov	d,a
+	inx	h
+	dcr	b
+	jnz	ve1
+	xra	a
+	sta	nlen
+	xchg
+	call	follow
+	jmp	vdraw
+
+vnext:	xra	a
+	sta	nlen
+	lhld	top		;another page if there is more below
+	lxi	d,rows
+	dad	d
+	xchg
+	lhld	nlines
+	mov	a,e
+	sub	l
+	mov	a,d
+	sbb	h
+	lxi	h,mend
+	jnc	vmsg
+	xchg
+	shld	top
+	jmp	vdraw
+vprev:	xra	a
+	sta	nlen
+	lhld	top
+	mov	a,h
+	ora	l
+	lxi	h,mtop
+	jz	vmsg
+	lhld	top
+	lxi	d,-rows
+	dad	d
+	jc	vp1		;no borrow: it stays at 0 or more
+	lxi	h,0
+vp1:	shld	top
+	jmp	vdraw
+vmsg:	shld	msg
+	jmp	vprom
+
+;	the place at HL to the one at DE
+copyl:	mvi	b,0
+cl1:	mov	a,m
+	stax	d
+	inx	h
+	inx	d
+	dcr	b
+	jnz	cl1
+	ret
+
+;	the way back: CUR pushed (the oldest goes when it is full), and popped
+hpush:	lda	hcnt
+	cpi	hmax
+	jc	hp1
+	lxi	h,hist+lsize	;full: all move down one
+	lxi	d,hist
+	mvi	c,hmax-1
+hp0:	call	copyl
+	dcr	c
+	jnz	hp0
+	lda	hcnt
+	dcr	a
+	sta	hcnt
+hp1:	call	hslot
+	xchg
+	lxi	h,cur
+	call	copyl
+	lda	hcnt
+	inr	a
+	sta	hcnt
+	ret
+hpop:	lda	hcnt
+	dcr	a
+	sta	hcnt
+	call	hslot
+	lxi	d,cur
+	jmp	copyl
+
+;	HL = the slot HCNT of the way back
+hslot:	lda	hcnt
+	mov	h,a
+	mvi	l,0
+	lxi	d,hist
+	dad	d
+	ret
+
+;	the whole screen: the bar, a page of rows from TOP
+draw:	lxi	h,scls
+	call	pz
+	call	bar
+	lhld	top
+	shld	ent
+	mvi	a,rows
+	sta	rcnt
+dr1:	lhld	ent
+	xchg
+	lhld	nlines
+	mov	a,e
+	sub	l
+	mov	a,d
+	sbb	h
+	rnc
+	lxi	h,scrlf
+	call	pz
+	lhld	ent
+	call	prow
+	lhld	ent
+	inx	h
+	shld	ent
+	lda	rcnt
+	dcr	a
+	sta	rcnt
+	jnz	dr1
+	ret
+
+;	the text at HL, as much as ROOM says (a tab, the search words after it, as a space)
+pzr:	mov	a,m
+	ora	a
+	rz
+	inx	h
+	cpi	tab
+	jnz	pr1
+	mvi	a,' '
+pr1:	call	cr1
+	jmp	pzr
+cr1:	push	psw
+	lda	room
+	ora	a
+	jz	cr2
+	dcr	a
+	sta	room
+	pop	psw
+	jmp	cout
+cr2:	pop	psw
+	ret
+
 ;	the cursor to the bottom row, the row cleared
 rowmsg:	lxi	h,srow
 	jmp	pz
@@ -1037,6 +1296,7 @@ ihnext:	lda	ihpos
 	jz	in1
 	dcr	a
 	sta	ihpos
+
 ;	the line ihpos (1 the newest; 0 the empty one) into IBUF, the line redrawn, B its length
 ihget:	lda	ihpos
 	mvi	b,0
@@ -1077,99 +1337,6 @@ ihg3:	push	b
 	pop	b
 	jmp	in1
 
-;	---- the home menu: GOPHER.DIR made a menu ----
-
-home:	mvi	a,'H'
-	sta	cur+ltype
-	mvi	a,'1'
-	sta	mode
-	lxi	h,0
-	shld	cur+ltop
-	lhld	docend		;the file is read into the last 4K of the room
-	lxi	d,-4096
-	dad	d
-	shld	dirp
-	call	loaddir
-	jnc	hm0
-	lhld	dirp		;no GOPHER.DIR: one hole
-	xchg
-	lxi	h,defdir
-hm00:	mov	a,m
-	stax	d
-	inx	h
-	inx	d
-	ora	a
-	jnz	hm00
-hm0:	lhld	docbeg
-	xchg
-	lxi	h,shead		;the lines on top
-	call	wstr
-	lhld	dirp
-hm1:	mov	a,m		;a line of the file: blanks before it go
-	cpi	1ah
-	jz	hm9
-	ora	a
-	jz	hm9
-	cpi	21h
-	jnc	hm2
-	inx	h
-	jmp	hm1
-hm2:	push	d
-	lxi	d,newl
-	call	paddr
-	pop	d
-	jc	hm8		;not an address: the line goes
-hm3:	mov	a,m
-	cpi	' '
-	jz	hm3a
-	cpi	tab
-	jnz	hm4
-hm3a:	inx	h
-	jmp	hm3
-hm4:	lda	newl+ltype
-	stax	d
-	inx	d
-	mvi	b,70
-hm5:	mov	a,m		;the name, up to the end of the line
-	cpi	20h
-	jc	hm6
-	stax	d
-	inx	h
-	inx	d
-	dcr	b
-	jnz	hm5
-hm6:	shld	scan
-	mvi	a,tab
-	stax	d
-	inx	d
-	lxi	h,newl+lsel
-	call	wstr
-	mvi	a,tab
-	stax	d
-	inx	d
-	lxi	h,newl+lhost
-	call	wstr
-	mvi	a,tab
-	stax	d
-	inx	d
-	lhld	newl+lport
-	call	wnum
-	mvi	a,lf
-	stax	d
-	inx	d
-	lhld	scan
-hm8:	mov	a,m		;to the next line of the file
-	ora	a
-	jz	hm9
-	cpi	1ah
-	jz	hm9
-	inx	h
-	cpi	lf
-	jnz	hm8
-	jmp	hm1
-hm9:	xra	a
-	stax	d
-	ret
 ;	the 0-ended text at HL to DE (the 0 left out)
 wstr:	mov	a,m
 	ora	a
@@ -1233,102 +1400,6 @@ cf1:	mov	m,a
 	inx	h
 	dcr	c
 	jnz	cf1
-	ret
-
-;	an address at HL (gopher:// may lead), host[:port][/type[selector]], into the place at
-;	DE: type 1 and port 70 if not given; HL after it. CY set if there is no host.
-paddr:	xchg
-	shld	lp
-	xchg
-	push	h		;gopher:// is skipped
-	lxi	d,sproto
-pa0:	ldax	d
-	ora	a
-	jz	pa0b
-	mov	b,a
-	mov	a,m
-	call	lower
-	cmp	b
-	jnz	pa0a
-	inx	h
-	inx	d
-	jmp	pa0
-pa0a:	pop	h
-	push	h
-pa0b:	pop	d		;(thrown away)
-	xchg
-	lhld	lp
-	mvi	m,'1'		;the type
-	inx	h
-	mvi	m,70		;the port
-	inx	h
-	mvi	m,0
-	lxi	b,lsel-lport-1
-	dad	b
-	mvi	m,0		;no selector
-	lhld	lp
-	lxi	b,lhost
-	dad	b
-	xchg			;HL the text, DE the host
-	mvi	b,63
-pa1:	mov	a,m
-	cpi	21h
-	jc	pa2
-	cpi	':'
-	jz	pa2
-	cpi	'/'
-	jz	pa2
-	call	lower
-	stax	d
-	inx	h
-	inx	d
-	dcr	b
-	jnz	pa1
-pa2:	xra	a
-	stax	d
-	mov	a,b
-	cpi	63
-	stc
-	rz			;no host
-	mov	a,m
-	cpi	':'
-	jnz	pa3
-	inx	h
-	call	rdnum
-	jc	pa3
-	push	h
-	lhld	lp
-	inx	h
-	mov	m,e
-	inx	h
-	mov	m,d
-	pop	h
-pa3:	mov	a,m
-	cpi	'/'
-	jnz	pa9
-	inx	h
-	mov	a,m
-	cpi	21h
-	jc	pa9
-	xchg
-	lhld	lp
-	mov	m,a		;the type
-	lxi	b,lsel
-	dad	b
-	xchg
-	inx	h
-	mvi	b,180
-pa4:	mov	a,m		;the selector, as it is
-	cpi	21h
-	jc	pa5
-	stax	d
-	inx	h
-	inx	d
-	dcr	b
-	jnz	pa4
-pa5:	xra	a
-	stax	d
-pa9:	ora	a
 	ret
 
 ;	HL at decimal digits: their value in DE (5 at most), HL after them; CY set if there are none
@@ -1456,74 +1527,6 @@ pg2:	mvi	a,'0'
 	mov	a,b
 	jmp	cout
 
-;	W: what is shown to a file, as CP/M text
-vwrite:	xra	a
-	sta	nlen
-	mvi	a,1
-	sta	noh		;a file name is not kept for Ctrl-P
-	lxi	h,psave
-	call	input
-	mvi	a,0
-	sta	noh
-	jc	vprom
-	jz	vprom
-	call	mkfcb
-	lxi	h,mbadfn
-	jc	vmsg
-	lxi	d,fcb
-	mvi	c,delete
-	call	bdos
-	lxi	d,fcb
-	mvi	c,makef
-	call	bdos
-	inr	a
-	lxi	h,mdiskf
-	jz	vmsg
-	lxi	h,rec
-	shld	recp
-	lhld	docbeg
-wr1:	mov	a,m
-	ora	a
-	jz	wr8
-	inx	h
-	cpi	lf
-	jnz	wr2
-	mvi	a,cr
-	call	wbyte
-	jc	wr9
-	mvi	a,lf
-wr2:	call	wbyte
-	jc	wr9
-	jmp	wr1
-wr8:	mvi	a,1ah		;^Z, and the record filled with them
-	call	wbyte
-	jc	wr9
-	lhld	recp
-	lxi	d,rec
-	mov	a,l
-	cmp	e
-	jz	wr8b
-wr8a:	mvi	a,1ah
-	call	wbyte
-	jc	wr9
-	lhld	recp
-	lxi	d,rec
-	mov	a,l
-	cmp	e
-	jnz	wr8a
-wr8b:	lxi	d,fcb
-	mvi	c,closef
-	call	bdos
-	lxi	d,80h
-	mvi	c,setdma
-	call	bdos
-	lxi	h,msaved
-	jmp	vmsg
-wr9:	lxi	d,80h
-	mvi	c,setdma
-	call	bdos
-	lxi	h,mdiskf
-	jmp	vmsg
 ;	a byte (A) into the record, written when it is full: CY set if the disk is (HL kept)
 wbyte:	push	h
 	lhld	recp
@@ -1979,7 +1982,6 @@ ga4:	mov	m,a
 	jnz	ga3
 ga9:	mvi	m,0
 	ret
-
 
 ;	---- the data ----
 

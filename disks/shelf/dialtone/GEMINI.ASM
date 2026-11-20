@@ -178,94 +178,6 @@ vhelp:	xra	a
 	call	anykey
 	jmp	vdraw
 
-;	a table of lines (0-ended, each a string), each on a row of its own
-hlines:	mov	e,m
-	inx	h
-	mov	d,m
-	inx	h
-	mov	a,d
-	ora	e
-	rz
-	push	h
-	xchg
-	call	pz
-	lxi	h,scrlf
-	call	pz
-	pop	h
-	jmp	hlines
-
-;	wait for a key
-anykey:	call	poll
-	call	keyin
-	ora	a
-	jz	anykey
-	ret
-
-;	Return: follow the link numbered; with no number, the next page
-venter:	lda	nlen
-	ora	a
-	jz	vnext
-	lxi	h,nbuf		;the number into HL
-	mov	b,a
-	lxi	d,0
-ve1:	push	h
-	mov	h,d
-	mov	l,e
-	dad	h
-	dad	h
-	dad	d
-	dad	h
-	xchg
-	pop	h
-	mov	a,m
-	sui	'0'
-	add	e
-	mov	e,a
-	mvi	a,0
-	adc	d
-	mov	d,a
-	inx	h
-	dcr	b
-	jnz	ve1
-	xra	a
-	sta	nlen
-	xchg
-	call	follow
-	jmp	vdraw
-
-vnext:	xra	a
-	sta	nlen
-	lhld	top		;another page if there is more below
-	lxi	d,rows
-	dad	d
-	xchg
-	lhld	nlines
-	mov	a,e
-	sub	l
-	mov	a,d
-	sbb	h
-	lxi	h,mend
-	jnc	vmsg
-	xchg
-	shld	top
-	jmp	vdraw
-vprev:	xra	a
-	sta	nlen
-	lhld	top
-	mov	a,h
-	ora	l
-	lxi	h,mtop
-	jz	vmsg
-	lhld	top
-	lxi	d,-rows
-	dad	d
-	jc	vp1		;no borrow: it stays at 0 or more
-	lxi	h,0
-vp1:	shld	top
-	jmp	vdraw
-vmsg:	shld	msg
-	jmp	vprom
-
 ;	B: back the way we came (the page before is read again)
 vback:	xra	a
 	sta	nlen
@@ -1019,35 +931,6 @@ addrow:	push	h
 ar9:	pop	h
 	ret
 
-;	the whole screen: the bar, a page of rows from TOP
-draw:	lxi	h,scls
-	call	pz
-	call	bar
-	lhld	top
-	shld	ent
-	mvi	a,rows
-	sta	rcnt
-dr1:	lhld	ent
-	xchg
-	lhld	nlines
-	mov	a,e
-	sub	l
-	mov	a,d
-	sbb	h
-	rnc
-	lxi	h,scrlf
-	call	pz
-	lhld	ent
-	call	prow
-	lhld	ent
-	inx	h
-	shld	ent
-	lda	rcnt
-	dcr	a
-	sta	rcnt
-	jnz	dr1
-	ret
-
 ;	row HL of the page
 prow:	mov	d,h		;* 5
 	mov	e,l
@@ -1711,6 +1594,178 @@ room8:	mov	a,l
 
 ;	---- shared with GOPHER ----
 
+;	---- the page: read, indexed, shown ----
+
+;	---- the home menu: GOPHER.DIR made a menu ----
+
+;	W: what is shown to a file, as CP/M text
+vwrite:	xra	a
+	sta	nlen
+	mvi	a,1
+	sta	noh		;a file name is not kept for Ctrl-P
+	lxi	h,psave
+	call	input
+	mvi	a,0
+	sta	noh
+	jc	vprom
+	jz	vprom
+	call	mkfcb
+	lxi	h,mbadfn
+	jc	vmsg
+	lxi	d,fcb
+	mvi	c,delete
+	call	bdos
+	lxi	d,fcb
+	mvi	c,makef
+	call	bdos
+	inr	a
+	lxi	h,mdiskf
+	jz	vmsg
+	lxi	h,rec
+	shld	recp
+	lhld	bodyp
+wr1:	mov	a,m
+	ora	a
+	jz	wr8
+	inx	h
+	cpi	lf
+	jnz	wr2
+	mvi	a,cr
+	call	wbyte
+	jc	wr9
+	mvi	a,lf
+wr2:	call	wbyte
+	jc	wr9
+	jmp	wr1
+wr8:	mvi	a,1ah		;^Z, and the record filled with them
+	call	wbyte
+	jc	wr9
+	lhld	recp
+	lxi	d,rec
+	mov	a,l
+	cmp	e
+	jz	wr8b
+wr8a:	mvi	a,1ah
+	call	wbyte
+	jc	wr9
+	lhld	recp
+	lxi	d,rec
+	mov	a,l
+	cmp	e
+	jnz	wr8a
+wr8b:	lxi	d,fcb
+	mvi	c,closef
+	call	bdos
+	lxi	d,80h
+	mvi	c,setdma
+	call	bdos
+	lxi	h,msaved
+	jmp	vmsg
+wr9:	lxi	d,80h
+	mvi	c,setdma
+	call	bdos
+	lxi	h,mdiskf
+	jmp	vmsg
+;	HL (0-999) three wide, blanks before it
+pnum3:	mvi	a,' '
+	sta	lead
+	lxi	d,100
+	call	pdig
+	lxi	d,10
+	call	pdig
+	mov	a,l
+	adi	'0'
+	jmp	cout
+
+;	---- the page viewer ----
+;	a table of lines (0-ended, each a string), each on a row of its own
+hlines:	mov	e,m
+	inx	h
+	mov	d,m
+	inx	h
+	mov	a,d
+	ora	e
+	rz
+	push	h
+	xchg
+	call	pz
+	lxi	h,scrlf
+	call	pz
+	pop	h
+	jmp	hlines
+
+;	wait for a key
+anykey:	call	poll
+	call	keyin
+	ora	a
+	jz	anykey
+	ret
+
+;	Return: follow the item numbered; with no number, the next page
+venter:	lda	nlen
+	ora	a
+	jz	vnext
+	lxi	h,nbuf		;the number into HL
+	mov	b,a
+	lxi	d,0
+ve1:	push	h
+	mov	h,d
+	mov	l,e
+	dad	h
+	dad	h
+	dad	d
+	dad	h
+	xchg
+	pop	h
+	mov	a,m
+	sui	'0'
+	add	e
+	mov	e,a
+	mvi	a,0
+	adc	d
+	mov	d,a
+	inx	h
+	dcr	b
+	jnz	ve1
+	xra	a
+	sta	nlen
+	xchg
+	call	follow
+	jmp	vdraw
+
+vnext:	xra	a
+	sta	nlen
+	lhld	top		;another page if there is more below
+	lxi	d,rows
+	dad	d
+	xchg
+	lhld	nlines
+	mov	a,e
+	sub	l
+	mov	a,d
+	sbb	h
+	lxi	h,mend
+	jnc	vmsg
+	xchg
+	shld	top
+	jmp	vdraw
+vprev:	xra	a
+	sta	nlen
+	lhld	top
+	mov	a,h
+	ora	l
+	lxi	h,mtop
+	jz	vmsg
+	lhld	top
+	lxi	d,-rows
+	dad	d
+	jc	vp1		;no borrow: it stays at 0 or more
+	lxi	h,0
+vp1:	shld	top
+	jmp	vdraw
+vmsg:	shld	msg
+	jmp	vprom
+
 ;	the place at HL to the one at DE
 copyl:	mvi	b,0
 cl1:	mov	a,m
@@ -1748,6 +1803,7 @@ hpop:	lda	hcnt
 	call	hslot
 	lxi	d,cur
 	jmp	copyl
+
 ;	HL = the slot HCNT of the way back
 hslot:	lda	hcnt
 	mov	h,a
@@ -1756,7 +1812,34 @@ hslot:	lda	hcnt
 	dad	d
 	ret
 
-;	---- the page: read, indexed, shown ----
+;	the whole screen: the bar, a page of rows from TOP
+draw:	lxi	h,scls
+	call	pz
+	call	bar
+	lhld	top
+	shld	ent
+	mvi	a,rows
+	sta	rcnt
+dr1:	lhld	ent
+	xchg
+	lhld	nlines
+	mov	a,e
+	sub	l
+	mov	a,d
+	sbb	h
+	rnc
+	lxi	h,scrlf
+	call	pz
+	lhld	ent
+	call	prow
+	lhld	ent
+	inx	h
+	shld	ent
+	lda	rcnt
+	dcr	a
+	sta	rcnt
+	jnz	dr1
+	ret
 
 ;	the text at HL, as much as ROOM says (a tab, the search words after it, as a space)
 pzr:	mov	a,m
@@ -1896,6 +1979,7 @@ ihnext:	lda	ihpos
 	jz	in1
 	dcr	a
 	sta	ihpos
+
 ;	the line ihpos (1 the newest; 0 the empty one) into IBUF, the line redrawn, B its length
 ihget:	lda	ihpos
 	mvi	b,0
@@ -1935,8 +2019,6 @@ ihg3:	push	b
 	call	pz
 	pop	b
 	jmp	in1
-
-;	---- the home menu: GOPHER.DIR made a menu ----
 
 ;	the 0-ended text at HL to DE (the 0 left out)
 wstr:	mov	a,m
@@ -2128,74 +2210,6 @@ pg2:	mvi	a,'0'
 	mov	a,b
 	jmp	cout
 
-;	W: what is shown to a file, as CP/M text
-vwrite:	xra	a
-	sta	nlen
-	mvi	a,1
-	sta	noh		;a file name is not kept for Ctrl-P
-	lxi	h,psave
-	call	input
-	mvi	a,0
-	sta	noh
-	jc	vprom
-	jz	vprom
-	call	mkfcb
-	lxi	h,mbadfn
-	jc	vmsg
-	lxi	d,fcb
-	mvi	c,delete
-	call	bdos
-	lxi	d,fcb
-	mvi	c,makef
-	call	bdos
-	inr	a
-	lxi	h,mdiskf
-	jz	vmsg
-	lxi	h,rec
-	shld	recp
-	lhld	bodyp
-wr1:	mov	a,m
-	ora	a
-	jz	wr8
-	inx	h
-	cpi	lf
-	jnz	wr2
-	mvi	a,cr
-	call	wbyte
-	jc	wr9
-	mvi	a,lf
-wr2:	call	wbyte
-	jc	wr9
-	jmp	wr1
-wr8:	mvi	a,1ah		;^Z, and the record filled with them
-	call	wbyte
-	jc	wr9
-	lhld	recp
-	lxi	d,rec
-	mov	a,l
-	cmp	e
-	jz	wr8b
-wr8a:	mvi	a,1ah
-	call	wbyte
-	jc	wr9
-	lhld	recp
-	lxi	d,rec
-	mov	a,l
-	cmp	e
-	jnz	wr8a
-wr8b:	lxi	d,fcb
-	mvi	c,closef
-	call	bdos
-	lxi	d,80h
-	mvi	c,setdma
-	call	bdos
-	lxi	h,msaved
-	jmp	vmsg
-wr9:	lxi	d,80h
-	mvi	c,setdma
-	call	bdos
-	lxi	h,mdiskf
-	jmp	vmsg
 ;	a byte (A) into the record, written when it is full: CY set if the disk is (HL kept)
 wbyte:	push	h
 	lhld	recp
@@ -2290,17 +2304,6 @@ upper:	cpi	'a'
 	rnc
 	sui	20h
 	ret
-
-;	HL (0-999) three wide, blanks before it
-pnum3:	mvi	a,' '
-	sta	lead
-	lxi	d,100
-	call	pdig
-	lxi	d,10
-	call	pdig
-	mov	a,l
-	adi	'0'
-	jmp	cout
 
 ;	---- the modem ----
 ;	move what the modem has into the ring (all registers kept); a full ring waits
@@ -2663,9 +2666,7 @@ ga4:	mov	m,a
 ga9:	mvi	m,0
 	ret
 
-
 ;	---- the data ----
-
 
 ;	---- the data ----
 

@@ -14,7 +14,11 @@ const lighttpd = ['/usr/sbin/lighttpd', '/usr/local/sbin/lighttpd', '/usr/bin/li
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lighttpd-bridge-'));
 const BIN = path.join(dir, 'coupler');
 const built = lighttpd && spawnSync('cc', ['-O2', '-o', BIN, path.join(__dirname, '../tools/coupler/coupler.c'), '-lpthread']).status === 0;
-const skip = !lighttpd ? 'no lighttpd' : !built ? 'no C compiler' : false;
+// lighttpd 1.4.63 (Ubuntu 22.04) closes a CGI's stdin right after the 101: the coupler reads EOF, takes it for
+// the page hanging up and leaves. 1.4.74 and 1.4.79 keep it open; older than 1.4.74 is not tried.
+const version = lighttpd && (/lighttpd\/(\d+)\.(\d+)\.(\d+)/.exec(spawnSync(lighttpd, ['-v']).stdout) || []).slice(1).map(Number);
+const tooOld = version && version.length === 3 && (version[0] * 1e6 + version[1] * 1e3 + version[2]) < 1004074;
+const skip = !lighttpd ? 'no lighttpd' : tooOld ? `lighttpd ${version.join('.')} closes a CGI's stdin after the upgrade (1.4.74 or later)` : !built ? 'no C compiler' : false;
 
 const freePort = () => new Promise(r => { const s = net.createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
 

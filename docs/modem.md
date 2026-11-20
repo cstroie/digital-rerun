@@ -258,7 +258,7 @@ alike: the bridge never sees TLS, so an http page and an https page both work. E
 `wss://your.host` (no path: the page asks for `/connect` itself) and the token.
 
 **As a CGI** (the C bridge, no daemon): lighttpd runs the bridge for each call and hands it the WebSocket, the request
-in the environment, the call on its stdin and stdout (`cgi.upgrade`, lighttpd 1.4.46 or later; tested with 1.4.74). It
+in the environment, the call on its stdin and stdout (`cgi.upgrade`, lighttpd 1.4.74 or later; tested with 1.4.74 and 1.4.79: 1.4.63 closes the CGI's stdin after the upgrade, and the call drops at once). It
 takes its options from the environment, `COUPLER_` and the option's name: `ALLOW`, `TOKEN` (required: a CGI
 without one refuses every call), `ORIGIN`, `TIMEOUT`, `KNOWN`, `ALLOW_PRIVATE`, `PING`. Its log is the CGI's stderr,
 which lighttpd writes to `server.breakagelog`.

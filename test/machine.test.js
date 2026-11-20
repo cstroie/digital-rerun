@@ -115,7 +115,7 @@ test('a changed BIOS, assembled and installed inside CP/M, boots', () => {
     m.console.type('\r');                          // reboot: the image stays at 0900h
     settle(m);
     command(m, 'SAVE 34 CPM64.COM');
-    assert.match(command(m, 'ASM BIOS'), /END OF ASSEMBLY/);
+    assert.match(command(m, 'ASM BIOS.AAZ'), /END OF ASSEMBLY/);   // no listing: the PRN would not fit on the disk
     command(m, 'DDT CPM64.COM');
     command(m, 'IBIOS.HEX');
     command(m, 'R2580');                           // BIOS 0FA00h -> image 1F80h

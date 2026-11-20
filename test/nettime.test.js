@@ -31,7 +31,7 @@ test('NETTIME asks time.nist.gov:13, shows its UTC time and how far this machine
     const a = Math.abs(diff);
     const said = /, (.*)\r\n/.exec(out.slice(out.indexOf('This machine:')))[1];
     if (a === 0) assert.equal(said, 'the same, to the second.');
-    else if (a > 86400 * 1.5) assert.equal(said, 'more than a day apart.');
+    else if (a >= 0x20000) assert.equal(said, 'more than a day apart.');   // nettime.asm: from 20000h seconds (36:24:32) on
     else {
         const p = n => String(n).padStart(2, '0');
         assert.equal(said, `${Math.floor(a / 3600)}:${p(Math.floor(a / 60) % 60)}:${p(a % 60)} ${diff > 0 ? 'ahead' : 'behind'}.`);

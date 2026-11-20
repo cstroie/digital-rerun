@@ -212,8 +212,8 @@ function createBridge({ allow = [], token = '', origins = null, timeout = 10, ma
         }
         const secure = url.searchParams.get('tls') === '1';
         tcp = secure
-            ? tls.connect({ host, port, servername: net.isIP(host) ? undefined : host, rejectUnauthorized: false, minVersion: 'TLSv1.2' })
-            : net.connect({ host, port });
+            ? tls.connect({ host, port, servername: net.isIP(host) ? undefined : host, rejectUnauthorized: false, minVersion: 'TLSv1.2', family: 4 })
+            : net.connect({ host, port, family: 4 });         // IPv4 only: many hosts publish an IPv6 address that does not answer
         tcp.setTimeout(timeout * 1000);
         let up = false;
         tcp.once(secure ? 'secureConnect' : 'connect', () => {

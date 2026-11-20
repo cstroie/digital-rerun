@@ -339,7 +339,7 @@ static int dial(const char *host, int port, int *code, char *why, size_t whysize
     struct addrinfo hints = { 0 }, *res = NULL;
     char ports[8];
     snprintf(ports, sizeof ports, "%d", port);
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = AF_INET;          /* IPv4 only: many hosts publish an IPv6 address that does not answer */
     hints.ai_socktype = SOCK_STREAM;
     time_t until = time(NULL) + timeout_s;
     int e = getaddrinfo(host, ports, &hints, &res);

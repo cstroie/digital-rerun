@@ -57,7 +57,9 @@ have:	lxi	h,0
 	out	mctl
 	xra	a
 	sta	rhead
+	sta	rhead+1
 	sta	rtail
+	sta	rtail+1
 	sta	dcd		;the first look at the carrier tells if a call is up
 	sta	dialing
 	sta	reg
@@ -121,49 +123,85 @@ cdown:	xra	a
 cstat:	call	drawstat
 	jmp	loop
 
-;	---- the modem: a ring of what came, and the way out ----
-
-;	move what the modem has into the ring (all registers kept)
+;	---- the modem: NET.ASM (its ring is the page at RING, 3000h) ----
+;	move what the modem has into the ring (all registers kept); a full ring waits
 poll:	push	psw
 	push	b
+	push	d
 	push	h
 pl1:	in	mst
 	ani	1
 	jz	pl9
-	lda	rhead
-	mov	b,a		;B = head
-	inr	a		;A = head + 1
-	lxi	h,rtail
-	cmp	m		;the ring is full when head + 1 is the tail
-	jz	pl9
-	sta	rhead
+	lhld	rhead
+	inx	h
+	mov	a,h
+	ani	rmask
+	mov	h,a
+	xchg			;DE = the head after this byte
+	lhld	rtail
+	mov	a,l
+	cmp	e
+	jnz	pl2
+	mov	a,h
+	cmp	d
+	jz	pl9		;full
+pl2:	lhld	rhead
+	lxi	b,ring
+	dad	b
 	in	mdat
-	mov	c,a
-	mov	l,b
-	mvi	h,ringhi
-	mov	m,c
+	mov	m,a
+	xchg
+	shld	rhead
 	jmp	pl1
 pl9:	pop	h
+	pop	d
 	pop	b
 	pop	psw
 	ret
 
-;	a byte of the ring into A; CY set if it is empty (H and L kept)
-rget:	push	h
-	lda	rtail
-	lxi	h,rhead
-	cmp	m
+;	a byte of the ring into A; CY set if it is empty (BC, DE and HL kept)
+rget:	push	d
+	push	h
+	lhld	rtail
+	xchg
+	lhld	rhead
+	mov	a,l
+	cmp	e
+	jnz	rg1
+	mov	a,h
+	cmp	d
 	jnz	rg1
 	pop	h
+	pop	d
 	stc
 	ret
-rg1:	mov	l,a
-	inr	a
-	sta	rtail
-	mvi	h,ringhi
+rg1:	lxi	h,ring
+	dad	d
+	inx	d
+	mov	a,d
+	ani	rmask
+	mov	d,a
+	xchg
+	shld	rtail
+	xchg
 	mov	a,m
 	pop	h
-	ora	a		;CY clear
+	pop	d
+	ora	a
+	ret
+
+;	the last byte taken goes back
+unget:	lhld	rtail
+	dcx	h
+	mov	a,h
+	ani	rmask
+	mov	h,a
+	shld	rtail
+	ret
+
+;	forget what is in the ring
+flush:	lhld	rhead
+	shld	rtail
 	ret
 
 ;	send A to the modem when it may take it (the receiver is looked at meanwhile)
@@ -184,7 +222,7 @@ txz:	mov	a,m
 	call	txb
 	jmp	txz
 
-;	the low 16 bits of the clock's milliseconds into HL
+;	the low 16 bits of the clock's milliseconds into HL (A and B used)
 now:	xra	a
 	out	clk		;latch the record
 	mvi	b,11
@@ -197,15 +235,9 @@ now1:	in	clk
 	mov	h,a
 	ret
 
-;	wait HL milliseconds, the modem looked at meanwhile
-delay:	push	h
-	call	now
-	shld	t0
-	pop	h
-	shld	tlim
-dl1:	call	poll
-	call	now
-	xchg			;DE = now
+;	HL = milliseconds since T0
+elapsed:call	now
+	xchg
 	lhld	t0
 	mov	a,e
 	sub	l
@@ -213,7 +245,15 @@ dl1:	call	poll
 	mov	a,d
 	sbb	h
 	mov	h,a
-	xchg			;DE = elapsed
+	ret
+
+;	wait HL milliseconds, the modem looked at meanwhile
+delay:	shld	tlim
+	call	now
+	shld	t0
+dl1:	call	poll
+	call	elapsed
+	xchg
 	lhld	tlim
 	mov	a,e
 	sub	l
@@ -222,16 +262,179 @@ dl1:	call	poll
 	jc	dl1
 	ret
 
+;	a key, or 0 (no registers kept)
+keyin:	mvi	e,0ffh
+	mvi	c,conio
+	jmp	bdos
+
+;	DTR up; a call still up (TERM's Q leaves one) is dropped; the modem echoes nothing
+minit:	mvi	a,1
+	out	mctl
+	in	mst
+	ani	4
+	cnz	hangup
+	lxi	h,sate0
+	call	txz
+	lxi	h,300
+	call	delay
+	jmp	flush
+
+;	the echo back on, as TERM expects it
+mfini:	in	mst
+	ani	4
+	cnz	hangup
+	lxi	h,sate1
+	call	txz
+	lxi	h,300
+	call	delay
+	jmp	flush
+
 ;	DTR down and up again: the call is dropped
 hangup:	xra	a
-	sta	dialing
-	sta	reg
 	out	mctl
-	lxi	h,50
+	lxi	h,100
 	call	delay
 	mvi	a,1
 	out	mctl
+	lxi	h,300
+	call	delay
+	jmp	flush
+
+;	ATDT, the text at HL (up to a blank or a control character), the text at DE if the
+;	first has no colon (a port), CR, 0: into DIALBUF
+mkdial:	push	d
+	lxi	d,dialbuf+4
+	mvi	b,60
+	mvi	c,0
+mk1:	mov	a,m
+	cpi	21h
+	jc	mk2
+	cpi	':'
+	jnz	mk1a
+	inr	c
+mk1a:	stax	d
+	inx	h
+	inx	d
+	dcr	b
+	jnz	mk1
+mk2:	pop	h
+	mov	a,c
+	ora	a
+	jnz	mk4		;a port of its own
+mk3:	mov	a,m
+	ora	a
+	jz	mk4
+	stax	d
+	inx	h
+	inx	d
+	jmp	mk3
+mk4:	mvi	a,cr
+	stax	d
+	inx	d
+	xra	a
+	stax	d
 	ret
+
+;	dial DIALBUF: CY clear when the carrier is up (the CONNECT line read); else CY set and
+;	HL what went wrong (0-ended). A key gives up, so does a minute of nothing.
+mdial:	call	flush
+	lxi	h,dialbuf
+	call	txz
+	call	now
+	shld	t0
+	lxi	h,lbuf
+	shld	lptr
+md1:	call	poll
+	in	mst
+	ani	4
+	jnz	mdup
+	call	keyin
+	ora	a
+	lxi	h,mcancel
+	jnz	mdgive
+	call	elapsed
+	lxi	d,60000
+	mov	a,l
+	sub	e
+	mov	a,h
+	sbb	d
+	lxi	h,mnoans
+	jnc	mdgive
+	call	rget
+	jc	md1
+	cpi	cr
+	jz	mdeol
+	cpi	lf
+	jz	mdeol
+	lhld	lptr
+	lxi	d,lbuf+76
+	mov	b,a
+	mov	a,l
+	sub	e
+	mov	a,h
+	sbb	d
+	jnc	md1		;too long: the rest is lost
+	mov	m,b
+	inx	h
+	shld	lptr
+	jmp	md1
+mdeol:	lhld	lptr
+	mvi	m,0
+	lxi	h,lbuf
+	shld	lptr
+	mov	a,m
+	cpi	'N'		;NO CARRIER, NO ANSWER, NO DIALTONE
+	jz	mdfail
+	cpi	'B'		;BUSY
+	jz	mdfail
+	cpi	'E'		;ERROR
+	jnz	md1		;an empty line, OK: on
+mdfail:	lxi	h,lbuf
+	stc
+	ret
+mdgive:	push	h		;a byte to the modem stops the dial
+	mvi	a,cr
+	call	txb
+	lxi	h,500
+	call	delay
+	pop	h
+	stc
+	ret
+mdup:	call	now		;the CONNECT line, if there is one, is not the host's
+	shld	t0
+mu1:	call	poll
+	call	elapsed
+	mov	a,h
+	cpi	8		;2 seconds
+	rnc
+	call	rget
+	jc	mu1
+	cpi	cr
+	jz	mu1
+	cpi	lf
+	jz	mu1
+	cpi	'C'
+	jnz	mu3
+mu2:	call	poll
+	call	elapsed
+	mov	a,h
+	cpi	8
+	rnc
+	call	rget
+	jc	mu2
+	cpi	lf
+	jnz	mu2
+	ora	a
+	ret
+mu3:	call	unget
+	ora	a
+	ret
+
+;	hang up (NET.ASM), and nothing is dialing or registered any more
+ihang:	xra	a
+	sta	dialing
+	sta	reg
+	jmp	hangup
 
 ;	---- the screen ----
 
@@ -1145,11 +1348,11 @@ cquit:	lda	dcd
 	jnz	cq1
 	lda	dialing
 	ora	a
-	jnz	hangup		;a dial in progress: give it up
+	jnz	ihang		;a dial in progress: give it up
 	lxi	h,mnocon
 	jmp	info
 cq1:	call	sayquit
-	jmp	hangup
+	jmp	ihang
 sayquit:call	bnew
 	lxi	h,squit
 	call	bstr
@@ -1169,10 +1372,10 @@ cbye:	lda	dcd
 	cnz	sayquit
 	lda	dcd
 	ora	a
-	cnz	hangup
+	cnz	ihang
 	lda	dialing
 	ora	a
-	cnz	hangup
+	cnz	ihang
 exit:	in	mst
 	ani	4
 	jnz	ex1
@@ -1222,7 +1425,7 @@ cc2:	lhld	w1
 	call	findkey
 	jnc	cc4
 cc3:	lhld	w1
-cc4:	call	mkdial
+cc4:	call	ircdial
 	jmp	docall
 cc8:	lxi	h,malready
 	jmp	info
@@ -1235,59 +1438,59 @@ nosuch:	lxi	h,mnosuch
 
 ;	the dial string ATDT host[:port] CR from the text at HL (ended by a blank or any control character);
 ;	a name with no port gets 6667
-mkdial:	lxi	d,dialbuf+4
+ircdial:lxi	d,dialbuf+4
 	mvi	b,40
-md1:	mov	a,m
+id1:	mov	a,m
 	cpi	21h
-	jc	md2
+	jc	id2
 	stax	d
 	inx	h
 	inx	d
 	dcr	b
-	jnz	md1
-md2:	xra	a
+	jnz	id1
+id2:	xra	a
 	stax	d
 	push	d
 	lxi	h,dialbuf+4
 	mvi	c,0		;bit 0: a colon, bit 1: a letter or a dot
-md3:	mov	a,m
+id3:	mov	a,m
 	ora	a
-	jz	md6
+	jz	id6
 	cpi	':'
-	jnz	md4
+	jnz	id4
 	mov	a,c
 	ori	1
 	mov	c,a
-	jmp	md5
-md4:	cpi	'.'
-	jz	md4a
+	jmp	id5
+id4:	cpi	'.'
+	jz	id4a
 	cpi	'A'
-	jc	md5
-md4a:	mov	a,c
+	jc	id5
+id4a:	mov	a,c
 	ori	2
 	mov	c,a
-md5:	inx	h
-	jmp	md3
-md6:	pop	d
+id5:	inx	h
+	jmp	id3
+id6:	pop	d
 	mov	a,c
 	cpi	2
-	jnz	md8
+	jnz	id8
 	lxi	h,sport
-md7:	mov	a,m
+id7:	mov	a,m
 	ora	a
-	jz	md8
+	jz	id8
 	stax	d
 	inx	h
 	inx	d
-	jmp	md7
-md8:	mvi	a,cr
+	jmp	id7
+id8:	mvi	a,cr
 	stax	d
 	inx	d
 	xra	a
 	stax	d
 	ret
 
-;	dial what MKDIAL made
+;	dial what IRCDIAL made
 docall:	lxi	h,dialbuf+4
 	lxi	d,srvname
 	mvi	b,30
@@ -1309,7 +1512,7 @@ dcl2:	xra	a
 	call	mbeg
 	lxi	h,sstar
 	call	mputz
-	lxi	h,mdial
+	lxi	h,msdial
 	call	mputz
 	lxi	h,srvname
 	call	mputz
@@ -2229,7 +2432,9 @@ mnosuch:db	'No such entry in IRC.DIR.',0
 mpick:	db	'/connect n dials one of these, /connect host[:port] any other.',0
 malready:db	'Already connected: /quit first.',0
 mdialing:db	'Dialing already: /quit gives it up.',0
-mdial:	db	'Dialing ',0
+mcancel:db	'Given up.',0		;NET.ASM's MDIAL (IRC dials with its own loop)
+mnoans:	db	'No answer.',0
+msdial:	db	'Dialing ',0
 mtaken:	db	'That nick is taken, trying another.',0
 helptab:dw	hl0,hl1,hl2,hl3,hl4,hl5,hl6,hl7
 	dw	hl8,hl9,hl10,hl11,hl12,hl13,hl14,hl15
@@ -2312,8 +2517,8 @@ sdial:	db	'  dialing ',0
 sto:	db	'  talking to ',0
 snone:	db	'nobody',0
 sst2:	db	27,'[0m',27,'8',0
-rhead:	db	0
-rtail:	db	0
+rhead:	dw	0		;NET.ASM's ring: where the next byte goes, and the next to take
+rtail:	dw	0
 dcd:	db	0		;the carrier bit (0 or 4) as the loop last saw it
 dialing:db	0
 reg:	db	0		;1: the server has welcomed us (001)
@@ -2356,8 +2561,8 @@ hist:	ds	nhist*80
 fcb:	ds	36
 	ds	256
 stktop	equ	$
-ringhi	equ	30h		;the ring is a page of its own, above the program and its buffers
-ring	equ	3000h
+ring	equ	3000h		;the ring is a page of its own, above the program and its buffers
+rmask	equ	0		;256 bytes
 lbuf:	ds	520
 lend	equ	lbuf+510
 obuf:	ds	520

@@ -48,7 +48,8 @@ const BIOS = CCP + 0x1600;           // 0FA00h
 const SYSTEM_BYTES = 2 * 26 * 128;   // two 8" tracks
 
 function build(file, origin, length) {
-    const src = fs.readFileSync(path.join(ROOT, 'system', file), 'latin1');
+    const src = file.startsWith('dialtone/') ? require('../system/dialtone/build.js').source(file.slice(9))   // NET.ASM joined in
+        : fs.readFileSync(path.join(ROOT, 'system', file), 'latin1');
     const r = assemble(src, origin === null ? {} : { defines: { origin } });
     fs.writeFileSync(path.join(ROOT, 'system', file.replace(/\.asm$/, '.lst').replace(/^(cpm22|dialtone)\//, '')), formatListing(r) + '\n');
     const lo = origin === null ? 0 : origin;
@@ -97,10 +98,10 @@ function main() {
     // the shelf disk of the modem programs: all of dialtone (PROGRAMS of its build.js), with the directories made from
     // this emulator's own lists (the boot disk has no room for them)
     const dialtoneDir = path.join(ROOT, 'disks/shelf/dialtone');
-    const { PROGRAMS } = require('../system/dialtone/build.js');
+    const { PROGRAMS, source } = require('../system/dialtone/build.js');
     for (const [src, name] of PROGRAMS) {
         fs.writeFileSync(path.join(dialtoneDir, name), name === 'TERM.COM' ? termCom : com(`dialtone/${src}`));
-        fs.copyFileSync(path.join(ROOT, 'system/dialtone', src), path.join(dialtoneDir, src.toUpperCase()));
+        fs.writeFileSync(path.join(dialtoneDir, src.toUpperCase()), source(src), 'latin1');   // whole: NET.ASM joined in
     }
     // text, a place per line (the page makes them CP/M text: disk.json lists them)
     const at = e => `${e.host}${e.port === 70 ? '' : ':' + e.port}`;

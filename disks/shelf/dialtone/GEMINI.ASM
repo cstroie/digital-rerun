@@ -2291,8 +2291,6 @@ upper:	cpi	'a'
 	sui	20h
 	ret
 
-;	---- the modem (the same in FINGER, NETTIME, GOPHER, MUD, GEMINI and NEWS) ----
-
 ;	HL (0-999) three wide, blanks before it
 pnum3:	mvi	a,' '
 	sta	lead
@@ -2304,6 +2302,7 @@ pnum3:	mvi	a,' '
 	adi	'0'
 	jmp	cout
 
+;	---- the modem ----
 ;	move what the modem has into the ring (all registers kept); a full ring waits
 poll:	push	psw
 	push	b

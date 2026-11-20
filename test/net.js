@@ -18,7 +18,7 @@ const ROOT = path.join(__dirname, '..');
 
 /** The .COM of system/dialtone/<name>.asm. */
 function com(name) {
-    const r = assemble(fs.readFileSync(path.join(ROOT, 'system/dialtone', `${name}.asm`), 'latin1'), {});
+    const r = assemble(require('../system/dialtone/build.js').source(`${name}.asm`), {});
     return { image: r.image(0x100, r.high), high: r.high, symbols: r.symbols };
 }
 

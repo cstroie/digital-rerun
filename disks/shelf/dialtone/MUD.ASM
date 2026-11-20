@@ -911,8 +911,7 @@ ld4:	mvi	m,1ah
 	xra	a
 	ret
 
-;	---- the modem (the same in FINGER, NETTIME, GOPHER, MUD, GEMINI and NEWS) ----
-
+;	---- the modem ----
 ;	move what the modem has into the ring (all registers kept); a full ring waits
 poll:	push	psw
 	push	b

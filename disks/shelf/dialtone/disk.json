@@ -1,5 +1,5 @@
 {
- "name": "Online",
+ "name": "Dialtone",
  "format": "dsdd5",
  "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM); IRC, an IRC client; GOPHER, a Gopher client (menus, texts, searches, the way back, save to a file); GEMINI, a Gemini client (gemtext laid out, links numbered; the bridge speaks TLS); MUD, a client for text worlds; FINGER, who is on a host or what someone's plan says; NETTIME, the time from a clock on the net. Each with its directory where it has one (TERM.DIR, IRC.DIR, GOPHER.DIR, GEMINI.DIR, MUD.DIR, FINGER.DIR). Put it in B:, then B: and the program.",
  "credit": "Costin Stroie; MIT licence. Source: github.com/cstroie/dialtone (system/dialtone).",

@@ -15,7 +15,7 @@ const { createBridge } = require('../tools/coupler.js');
 const { Gateway } = require('../js/devices/gateway.js');
 
 /**
- * A machine booted from the system disk, the Online shelf disk (IRC and TERM) in B:, with a toy IRC server at ATDT0150: it
+ * A machine booted from the system disk, the Dialtone shelf disk (IRC and TERM) in B:, with a toy IRC server at ATDT0150: it
  * answers NICK/USER with 001, JOIN with the join, topic and names, LIST with two
  * channels, PING with PONG, and QUIT by closing. `server.got` is every line it was
  * sent; `server.say(text)` makes it say something (CRLF added).
@@ -25,7 +25,7 @@ function boot({ modem = true, server = true } = {}) {
     m.out = '';
     m.console.output = b => { m.out += String.fromCharCode(b); };
     m.fdc.mount(0, Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/cpm22.dsk')))));
-    m.fdc.mount(1, shelfDisk('online'));
+    m.fdc.mount(1, shelfDisk('dialtone'));
     const srv = { got: [], say: () => {} };
     const dir = new Directory();
     if (server) {
@@ -103,12 +103,12 @@ async function start(opts) {
 /** Type a line, wait for the effect given. */
 async function type(m, text) { const at = say(m, text + '\r'); for (let i = 0; i < 30; i++) m.run(200000); return at; }
 
-test('the Online shelf disk holds IRC and TERM with their directories (the boot disk has no room for IRC)', () => {
-    const files = new CpmFs(shelfDisk('online')).list().map(f => f.name);
+test('the Dialtone shelf disk holds IRC and TERM with their directories (the boot disk has no room for IRC)', () => {
+    const files = new CpmFs(shelfDisk('dialtone')).list().map(f => f.name);
     for (const n of ['IRC.COM', 'IRC.DIR', 'TERM.COM', 'TERM.DIR', 'README.TXT']) assert.ok(files.includes(n), n);
     const sys = new CpmFs(Disk.fromImage(new Uint8Array(fs.readFileSync(path.join(__dirname, '../disks/cpm22.dsk'))))).list().map(f => f.name);
     assert.ok(!sys.includes('IRC.COM'), 'the system disk keeps its room for rebuilding the BIOS');
-    assert.ok(new CpmFs(shelfDisk('online')).freeBytes() > 64 * 1024, 'room to build on it (IRC.HEX and IRC.COM take about 25K)');
+    assert.ok(new CpmFs(shelfDisk('dialtone')).freeBytes() > 64 * 1024, 'room to build on it (IRC.HEX and IRC.COM take about 25K)');
 });
 
 test('IRC without a modem says so and leaves', async () => {
@@ -121,7 +121,7 @@ test('IRC without a modem says so and leaves', async () => {
     await until(m, 'B>', at + 20);
 });
 
-test('TERM runs from the Online disk too, and dials from the TERM.DIR beside it', async () => {
+test('TERM runs from the Dialtone disk too, and dials from the TERM.DIR beside it', async () => {
     const { m } = boot();
     await until(m, 'A>');
     const sw = say(m, 'B:\r');

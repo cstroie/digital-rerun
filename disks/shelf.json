@@ -528,6 +528,131 @@
   "free": 104448
  },
  {
+  "id": "dialtone",
+  "name": "Dialtone",
+  "format": "dsdd5",
+  "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM); IRC, an IRC client; GOPHER, a Gopher client (menus, texts, searches, the way back, save to a file); GEMINI, a Gemini client (gemtext laid out, links numbered; the bridge speaks TLS); MUD, a client for text worlds; FINGER, who is on a host or what someone's plan says; NETTIME, the time from a clock on the net. Each with its directory where it has one (TERM.DIR, IRC.DIR, GOPHER.DIR, GEMINI.DIR, MUD.DIR, FINGER.DIR). Put it in B:, then B: and the program.",
+  "credit": "Costin Stroie; MIT licence. Source: github.com/cstroie/dialtone (system/dialtone).",
+  "licence": "MIT",
+  "category": "Comm",
+  "text": [
+   "TERM.DIR",
+   "IRC.DIR",
+   "GOPHER.DIR",
+   "GEMINI.DIR",
+   "MUD.DIR",
+   "FINGER.DIR"
+  ],
+  "files": [
+   {
+    "name": "FINGER.ASM",
+    "path": "disks/shelf/dialtone/FINGER.ASM"
+   },
+   {
+    "name": "FINGER.COM",
+    "path": "disks/shelf/dialtone/FINGER.COM"
+   },
+   {
+    "name": "FINGER.DIR",
+    "path": "disks/shelf/dialtone/FINGER.DIR"
+   },
+   {
+    "name": "GEMINI.ASM",
+    "path": "disks/shelf/dialtone/GEMINI.ASM"
+   },
+   {
+    "name": "GEMINI.COM",
+    "path": "disks/shelf/dialtone/GEMINI.COM"
+   },
+   {
+    "name": "GEMINI.DIR",
+    "path": "disks/shelf/dialtone/GEMINI.DIR"
+   },
+   {
+    "name": "GOPHER.ASM",
+    "path": "disks/shelf/dialtone/GOPHER.ASM"
+   },
+   {
+    "name": "GOPHER.COM",
+    "path": "disks/shelf/dialtone/GOPHER.COM"
+   },
+   {
+    "name": "GOPHER.DIR",
+    "path": "disks/shelf/dialtone/GOPHER.DIR"
+   },
+   {
+    "name": "IRC.ASM",
+    "path": "disks/shelf/dialtone/IRC.ASM"
+   },
+   {
+    "name": "IRC.COM",
+    "path": "disks/shelf/dialtone/IRC.COM"
+   },
+   {
+    "name": "IRC.DIR",
+    "path": "disks/shelf/dialtone/IRC.DIR"
+   },
+   {
+    "name": "MAKE.SUB",
+    "path": "disks/shelf/dialtone/MAKE.SUB"
+   },
+   {
+    "name": "MAKEALL.SUB",
+    "path": "disks/shelf/dialtone/MAKEALL.SUB"
+   },
+   {
+    "name": "MUD.ASM",
+    "path": "disks/shelf/dialtone/MUD.ASM"
+   },
+   {
+    "name": "MUD.COM",
+    "path": "disks/shelf/dialtone/MUD.COM"
+   },
+   {
+    "name": "MUD.DIR",
+    "path": "disks/shelf/dialtone/MUD.DIR"
+   },
+   {
+    "name": "NETTIME.ASM",
+    "path": "disks/shelf/dialtone/NETTIME.ASM"
+   },
+   {
+    "name": "NETTIME.COM",
+    "path": "disks/shelf/dialtone/NETTIME.COM"
+   },
+   {
+    "name": "NEWS.ASM",
+    "path": "disks/shelf/dialtone/NEWS.ASM"
+   },
+   {
+    "name": "NEWS.COM",
+    "path": "disks/shelf/dialtone/NEWS.COM"
+   },
+   {
+    "name": "NEWS.DIR",
+    "path": "disks/shelf/dialtone/NEWS.DIR"
+   },
+   {
+    "name": "README.TXT",
+    "path": "disks/shelf/dialtone/README.TXT"
+   },
+   {
+    "name": "TERM.ASM",
+    "path": "disks/shelf/dialtone/TERM.ASM"
+   },
+   {
+    "name": "TERM.COM",
+    "path": "disks/shelf/dialtone/TERM.COM"
+   },
+   {
+    "name": "TERM.DIR",
+    "path": "disks/shelf/dialtone/TERM.DIR"
+   }
+  ],
+  "size": 252947,
+  "free": 102400
+ },
+ {
   "id": "fantasy",
   "name": "The Fantasy Dimension",
   "format": "sssd8",
@@ -876,131 +1001,6 @@
   ],
   "size": 43360,
   "free": 201728
- },
- {
-  "id": "online",
-  "name": "Online",
-  "format": "dsdd5",
-  "description": "The modem programs: TERM, a terminal for the modem port (dial the bulletin board or a telnet host, XMODEM); IRC, an IRC client; GOPHER, a Gopher client (menus, texts, searches, the way back, save to a file); GEMINI, a Gemini client (gemtext laid out, links numbered; the bridge speaks TLS); MUD, a client for text worlds; FINGER, who is on a host or what someone's plan says; NETTIME, the time from a clock on the net. Each with its directory where it has one (TERM.DIR, IRC.DIR, GOPHER.DIR, GEMINI.DIR, MUD.DIR, FINGER.DIR). Put it in B:, then B: and the program.",
-  "credit": "Costin Stroie; MIT licence. Source: github.com/cstroie/dialtone (system/dialtone).",
-  "licence": "MIT",
-  "category": "Comm",
-  "text": [
-   "TERM.DIR",
-   "IRC.DIR",
-   "GOPHER.DIR",
-   "GEMINI.DIR",
-   "MUD.DIR",
-   "FINGER.DIR"
-  ],
-  "files": [
-   {
-    "name": "FINGER.ASM",
-    "path": "disks/shelf/online/FINGER.ASM"
-   },
-   {
-    "name": "FINGER.COM",
-    "path": "disks/shelf/online/FINGER.COM"
-   },
-   {
-    "name": "FINGER.DIR",
-    "path": "disks/shelf/online/FINGER.DIR"
-   },
-   {
-    "name": "GEMINI.ASM",
-    "path": "disks/shelf/online/GEMINI.ASM"
-   },
-   {
-    "name": "GEMINI.COM",
-    "path": "disks/shelf/online/GEMINI.COM"
-   },
-   {
-    "name": "GEMINI.DIR",
-    "path": "disks/shelf/online/GEMINI.DIR"
-   },
-   {
-    "name": "GOPHER.ASM",
-    "path": "disks/shelf/online/GOPHER.ASM"
-   },
-   {
-    "name": "GOPHER.COM",
-    "path": "disks/shelf/online/GOPHER.COM"
-   },
-   {
-    "name": "GOPHER.DIR",
-    "path": "disks/shelf/online/GOPHER.DIR"
-   },
-   {
-    "name": "IRC.ASM",
-    "path": "disks/shelf/online/IRC.ASM"
-   },
-   {
-    "name": "IRC.COM",
-    "path": "disks/shelf/online/IRC.COM"
-   },
-   {
-    "name": "IRC.DIR",
-    "path": "disks/shelf/online/IRC.DIR"
-   },
-   {
-    "name": "MAKE.SUB",
-    "path": "disks/shelf/online/MAKE.SUB"
-   },
-   {
-    "name": "MAKEALL.SUB",
-    "path": "disks/shelf/online/MAKEALL.SUB"
-   },
-   {
-    "name": "MUD.ASM",
-    "path": "disks/shelf/online/MUD.ASM"
-   },
-   {
-    "name": "MUD.COM",
-    "path": "disks/shelf/online/MUD.COM"
-   },
-   {
-    "name": "MUD.DIR",
-    "path": "disks/shelf/online/MUD.DIR"
-   },
-   {
-    "name": "NETTIME.ASM",
-    "path": "disks/shelf/online/NETTIME.ASM"
-   },
-   {
-    "name": "NETTIME.COM",
-    "path": "disks/shelf/online/NETTIME.COM"
-   },
-   {
-    "name": "NEWS.ASM",
-    "path": "disks/shelf/online/NEWS.ASM"
-   },
-   {
-    "name": "NEWS.COM",
-    "path": "disks/shelf/online/NEWS.COM"
-   },
-   {
-    "name": "NEWS.DIR",
-    "path": "disks/shelf/online/NEWS.DIR"
-   },
-   {
-    "name": "README.TXT",
-    "path": "disks/shelf/online/README.TXT"
-   },
-   {
-    "name": "TERM.ASM",
-    "path": "disks/shelf/online/TERM.ASM"
-   },
-   {
-    "name": "TERM.COM",
-    "path": "disks/shelf/online/TERM.COM"
-   },
-   {
-    "name": "TERM.DIR",
-    "path": "disks/shelf/online/TERM.DIR"
-   }
-  ],
-  "size": 252947,
-  "free": 102400
  },
  {
   "id": "photopia",

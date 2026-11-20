@@ -120,7 +120,7 @@ The CP/M 3 device is `MDM` (three letters, like CRT, LPT, PTR, PTP). Not built: 
 `IRC` is an IRC client for the modem, a program of its own (`system/dialtone/irc.asm`, 8080 code like TERM). It is on the **Online** shelf
 disk (SHELF, the Comm section) with `IRC.DIR`, and `TERM.COM` and `TERM.DIR` are there too: put the disk in B:, then `B:` and `IRC`.
 (The boot disk has no room for it: it keeps its space for rebuilding the BIOS inside CP/M. `tools/build.js` writes the four files
-into `disks/shelf/online` beside its `disk.json`.) `IRC libera` (or a number of `IRC.DIR`, or a host) connects at once, and `TERM telehack` likewise dials from the command line. It does not speak to a BBS: it dials a server, registers (`NICK`, `USER`) and talks IRC. The screen is a VT100:
+into `disks/shelf/dialtone` beside its `disk.json`.) `IRC libera` (or a number of `IRC.DIR`, or a host) connects at once, and `TERM telehack` likewise dials from the command line. It does not speak to a BBS: it dials a server, registers (`NICK`, `USER`) and talks IRC. The screen is a VT100:
 a status bar on row 1 (your nick, the server, who you are talking to), the messages scrolling in rows 2–23, and your line on
 row 24 (76 characters; backspace edits, Ctrl-U clears it).
 
@@ -157,7 +157,7 @@ takes what comes meanwhile: nothing is lost up to 19200 baud (test/irc.test.js).
 
 Five more programs for the modem, from dialtone like TERM and IRC (`system/dialtone/gopher.asm`, `gemini.asm`, `mud.asm`,
 `finger.asm`, `nettime.asm`), on the **Online** shelf disk with their sources (`SUBMIT B:MAKEALL` builds all seven on the
-machine; `SUBMIT B:MAKE GOPHER` one). The Online disk is a 5¼" DSDD 400K: an 8" 250K had no room left to build on. Each sends `ATE0`, dials
+machine; `SUBMIT B:MAKE GOPHER` one). The Dialtone disk is a 5¼" DSDD 400K: an 8" 250K had no room left to build on. Each sends `ATE0`, dials
 `host:port`, skips the modem's `CONNECT` line, and gives the echo back (`ATE1`) when it leaves, as IRC does. They share one block
 of modem code (a ring for what comes, the dial, the hang-up), copied into each source, since `ASM.COM` has no include.
 

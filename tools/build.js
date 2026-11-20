@@ -14,7 +14,7 @@
  *   - system/sysgen.asm and prtdemo.asm → SYSGEN.COM and PRTDEMO.COM
  *   - system/dialtone/term.asm (the submodule cstroie/dialtone) → TERM.COM (with TERM.DIR) on the boot disk; it and
  *     the rest of dialtone (irc, gopher, gemini, news, mud, finger, nettime .asm → .COM, with their .DIR files)
- *     go to the shelf disk disks/shelf/online (the boot disk has no room for them)
+ *     go to the shelf disk disks/shelf/dialtone (the boot disk has no room for them)
  *
  * The system tracks (two 8" tracks, 256 sectors total) are written to:
  *   system/cpm22.bin (for the boot ROM) and disks/cpm22.dsk (the boot disk)
@@ -96,24 +96,24 @@ function main() {
 
     // the shelf disk of the modem programs: all of dialtone (PROGRAMS of its build.js), with the directories made from
     // this emulator's own lists (the boot disk has no room for them)
-    const onlineDir = path.join(ROOT, 'disks/shelf/online');
+    const dialtoneDir = path.join(ROOT, 'disks/shelf/dialtone');
     const { PROGRAMS } = require('../system/dialtone/build.js');
     for (const [src, name] of PROGRAMS) {
-        fs.writeFileSync(path.join(onlineDir, name), name === 'TERM.COM' ? termCom : com(`dialtone/${src}`));
-        fs.copyFileSync(path.join(ROOT, 'system/dialtone', src), path.join(onlineDir, src.toUpperCase()));
+        fs.writeFileSync(path.join(dialtoneDir, name), name === 'TERM.COM' ? termCom : com(`dialtone/${src}`));
+        fs.copyFileSync(path.join(ROOT, 'system/dialtone', src), path.join(dialtoneDir, src.toUpperCase()));
     }
     // text, a place per line (the page makes them CP/M text: disk.json lists them)
     const at = e => `${e.host}${e.port === 70 ? '' : ':' + e.port}`;
-    fs.writeFileSync(path.join(onlineDir, 'TERM.DIR'), termDir);
-    fs.writeFileSync(path.join(onlineDir, 'IRC.DIR'), IRCBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
-    fs.writeFileSync(path.join(onlineDir, 'GOPHER.DIR'), GOPHERBOOK.map(e => `${at(e)} ${e.text}`).join('\n') + '\n');
-    fs.writeFileSync(path.join(onlineDir, 'MUD.DIR'), MUDBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
-    fs.writeFileSync(path.join(onlineDir, 'GEMINI.DIR'), GEMINIBOOK.map(e => `${e.url} ${e.text}`).join('\n') + '\n');
-    fs.writeFileSync(path.join(onlineDir, 'NEWS.DIR'), NEWSBOOK.map(e => `${e.at} ${e.text}`).join('\n') + '\n');
-    fs.writeFileSync(path.join(onlineDir, 'FINGER.DIR'), FINGERBOOK.map(e => `${e.ask} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(dialtoneDir, 'TERM.DIR'), termDir);
+    fs.writeFileSync(path.join(dialtoneDir, 'IRC.DIR'), IRCBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(dialtoneDir, 'GOPHER.DIR'), GOPHERBOOK.map(e => `${at(e)} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(dialtoneDir, 'MUD.DIR'), MUDBOOK.map(e => `${e.host}:${e.port} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(dialtoneDir, 'GEMINI.DIR'), GEMINIBOOK.map(e => `${e.url} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(dialtoneDir, 'NEWS.DIR'), NEWSBOOK.map(e => `${e.at} ${e.text}`).join('\n') + '\n');
+    fs.writeFileSync(path.join(dialtoneDir, 'FINGER.DIR'), FINGERBOOK.map(e => `${e.ask} ${e.text}`).join('\n') + '\n');
     // the submit files too: ASM, LOAD and SUBMIT of the boot disk build every program on the machine itself
     for (const f of ['MAKE.SUB', 'MAKEALL.SUB'])
-        fs.copyFileSync(path.join(ROOT, 'system/dialtone', f), path.join(onlineDir, f));
+        fs.copyFileSync(path.join(ROOT, 'system/dialtone', f), path.join(dialtoneDir, f));
 
     buildShelf();
 

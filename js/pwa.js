@@ -217,7 +217,7 @@
         if (isIos()) setTimeout(offerInstall, 4000);
 
         if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-            navigator.serviceWorker.register('sw.js')
+            navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
                 .then(reg => { registration = reg; watch(reg); })
                 .catch(() => {});
         }

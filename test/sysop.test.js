@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { Sysop, tidy, wrap, reflect, PERSONA } = require('../js/sysop.js');
+const { Sysop, tidy, unthink, wrap, reflect, PERSONA } = require('../js/sysop.js');
 
 const answer = content => ({ ok: true, json: async () => ({ choices: [{ message: { content } }] }) });
 const zero = () => 0;
@@ -91,7 +91,8 @@ test('with an endpoint: the persona, the recent chat and the new line go to /cha
     assert.deepEqual(body.messages.map(m => m.role), ['system', 'user', 'assistant', 'user']);
     assert.equal(body.messages[0].content, PERSONA);
     assert.equal(body.messages[3].content, 'how is the night');
-    assert.deepEqual(Object.keys(body).sort(), ['max_tokens', 'messages', 'model', 'stream', 'temperature']);
+    assert.deepEqual(Object.keys(body).sort(), ['chat_template_kwargs', 'max_tokens', 'messages', 'model', 'reasoning_effort', 'stream', 'temperature', 'think']);
+    assert.equal(body.chat_template_kwargs.enable_thinking, false);
 });
 
 test('the persona says it is an AI when sincerely asked, and keeps ASCII and brevity', () => {
@@ -133,4 +134,28 @@ test('converse: another set of instructions, tidied text; null with no endpoint 
     assert.equal(await off.converse('s', [], 'q'), null);
     const down = new Sysop({ online: () => true, config: () => ({ url: 'http://h/v1', model: 'm' }), fetch: async () => { throw new Error('down'); } });
     assert.equal(await down.converse('s', [], 'q'), null);
+});
+
+test('unthink: the reasoning goes, the answer stays', () => {
+    assert.equal(unthink('<think>\nhmm, a greeting\n</think>\n\nEvening.').trim(), 'Evening.');
+    assert.equal(unthink('the template opened it</think>Evening.'), 'Evening.');
+    assert.equal(unthink('Evening.<think>and then I wond').trim(), 'Evening.');
+    assert.equal(unthink('<think>cut off mid-thought'), '');
+    assert.equal(tidy('<think>x < y</think>Quiet night.'), 'Quiet night.');
+});
+
+test('a thinking model: only the answer is shown; all thought and no answer falls back to the rules', async () => {
+    let s = new Sysop({ online: () => true, config: () => ({ url: 'http://h/v1', model: 'qwen3.5:0.8b' }), fetch: async () => answer('<think>\nThe user greets.\n</think>\n\nEvening, caller.'), random: zero });
+    assert.equal(await s.reply([], 'hello'), 'Evening, caller.');
+    s = new Sysop({ online: () => true, config: () => ({ url: 'http://h/v1', model: 'm' }), fetch: async () => answer('<think>endless'), random: zero });
+    assert.match(await s.reply([], 'hello'), /Evening|Hello/);
+});
+
+test('a server that refuses the no-thinking fields is asked again without them, and not again', async () => {
+    const bodies = [];
+    const fetch = async (u, i) => { const b = JSON.parse(i.body); bodies.push(b); return 'think' in b ? { ok: false, status: 400 } : answer('ok'); };
+    const s = new Sysop({ online: () => true, config: () => ({ url: 'http://h/v1', model: 'm' }), fetch });
+    assert.equal(await s.reply([], 'a'), 'ok');
+    assert.equal(await s.reply([], 'b'), 'ok');
+    assert.deepEqual(bodies.map(b => 'think' in b), [true, false, false]);
 });

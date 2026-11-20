@@ -17,34 +17,47 @@
  *     online()   may the sysop ask the internet?
  *     config()   { url, model, key } from DEVICES (url empty: no endpoint)
  *     fetch      like window.fetch
+ *   A reasoning model (Qwen 3.x, DeepSeek R1) is asked not to think; its <think> is cut anyway.
  *   reply(history, text) -> Promise<string>, history = [{ role, content }]
  */
 (function (root) {
     'use strict';
 
     const WIDTH = 74, KEEP = 10, MAX_CHARS = 480, TIMEOUT_MS = 25000;
+    const MAX_TOKENS = 512;                       // room for a stray thought before the answer; tidy() keeps it short
+    const NO_THINK = { reasoning_effort: 'none', think: false, chat_template_kwargs: { enable_thinking: false } };
 
+    /* Short and plain, for small local models (Qwen 0.8B and the like): one voice, few rules, the style rule last. */
     const PERSONA = [
-        'You are the SYSOP of the Digital Rerun BBS: a one-line bulletin board that answers at 1200 baud on a CP/M',
-        'computer running inside a web page. You work the night shift. Your day job is Relay Station Kettle-7, where',
-        'you tune a spectrogram and deliver letters to recurring callers, with a cat named Pixel. You are dry, warm',
-        'and a little tired, and you like callers.',
-        'You know the board: T time, M moon, B bulletins, F files (XMODEM), W weather, C this chat, G games (WOPR), O a fortune, S services (reference, news, wall, mail), Q quit. You know',
-        'TERM (Ctrl-] R receives and S sends a file, Q quits, H hangs up), Hayes AT commands, CP/M 2.2 and 3, the Z80,',
-        '8080 assembler and the old software of the shelf.',
-        'Write plain ASCII only, at most four short lines of about 70 characters, no markdown, no lists, no emoji.',
-        'Stay in character, but if someone sincerely asks whether you are a person, say you are an AI sysop program.',
-        'Never ask for personal data; if a caller gives a name, a number or a medical detail, tell them not to put',
-        'such things on a public board.'
+        'You are SYSOP, the night-shift operator of the Digital Rerun BBS, a 1200 baud board on an old CP/M computer.',
+        'You are dry, warm, a little tired, and you like callers. You keep a cat named Pixel.',
+        'Menu keys: T time, M moon, B bulletins, F files, W weather, C chat, G games, O fortune, S services, Q quit.',
+        'In TERM, Ctrl-] then R receives a file, S sends, Q quits, H hangs up. You know Hayes AT commands, CP/M and the Z80.',
+        'If someone sincerely asks whether you are a person, say you are an AI sysop program.',
+        'Never ask for names, phone numbers or health details; if a caller gives one, tell them not to post it.',
+        'Answer in plain ASCII, in one to three short sentences. No markdown, no lists, no emoji.'
     ].join(' ');
 
     /* ---------- the text of a reply ---------- */
 
     const SMART = { '‘': "'", '’': "'", '“': '"', '”': '"', '–': '-', '—': '-', '…': '...', '•': '*', ' ': ' ' };
 
+    /**
+     * The answer without the model's reasoning: <think>...</think> blocks gone, and so is all
+     * before a lone </think> (the template opened it) or after a lone <think> (cut off mid-thought).
+     */
+    function unthink(text) {
+        let t = String(text).replace(/<(think|thinking|reasoning)>[\s\S]*?<\/\1>/gi, '');
+        const close = t.search(/<\/(think|thinking|reasoning)>/i);
+        if (close >= 0) t = t.slice(t.indexOf('>', close) + 1);
+        const open = t.search(/<(think|thinking|reasoning)>/i);
+        if (open >= 0) t = t.slice(0, open);
+        return t;
+    }
+
     /** Plain ASCII, no markdown, no more than MAX_CHARS (cut at a sentence if it can be). */
     function tidy(text) {
-        let t = String(text).replace(/[‘’“”–—…• ]/g, c => SMART[c]);
+        let t = unthink(text).replace(/[‘’“”–—…• ]/g, c => SMART[c]);
         t = t.normalize('NFKD').replace(/[^\x09\x0a\x20-\x7e]/g, '');
         t = t.replace(/```[\s\S]*?```/g, ' ').replace(/[*_`#>]+/g, '').replace(/^\s*[-+]\s+/gm, '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
         if (t.length > MAX_CHARS) {
@@ -175,17 +188,24 @@
             try { return tidy(await this.ask(history, text, system)) || null; } catch (e) { return null; }
         }
 
-        /** One chat completion from the endpoint. */
+        /**
+         * One chat completion from the endpoint. Reasoning models are asked not to think, in the
+         * words of the servers that know how (Ollama: reasoning_effort and think; llama.cpp, vLLM
+         * and LM Studio: chat_template_kwargs); a server that refuses them (400, 422) is asked
+         * again without, and from then on. Any thinking that comes anyway is cut by tidy().
+         */
         async ask(history, text, system = PERSONA) {
             const c = this.config();
             const messages = [{ role: 'system', content: system }, ...history.slice(-KEEP * 2), { role: 'user', content: text }];
-            const res = await this.fetch(c.url.replace(/\/+$/, '') + '/chat/completions', {
+            const post = extra => this.fetch(c.url.replace(/\/+$/, '') + '/chat/completions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...(c.key ? { Authorization: `Bearer ${c.key}` } : {}) },
-                body: JSON.stringify({ model: c.model, messages, max_tokens: 220, temperature: 0.8, stream: false }),
+                body: JSON.stringify({ model: c.model, messages, max_tokens: MAX_TOKENS, temperature: 0.7, stream: false, ...extra }),
                 signal: root.AbortSignal && AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT_MS) : undefined,
                 referrerPolicy: 'no-referrer'
             });
+            let res = await post(this.plain ? {} : NO_THINK);
+            if (!this.plain && (res.status === 400 || res.status === 422)) { this.plain = true; res = await post({}); }
             if (!res.ok) throw new Error(String(res.status));
             const data = await res.json();
             return data.choices[0].message.content;
@@ -204,7 +224,7 @@
         }
     }
 
-    const api = { Sysop, tidy, wrap, reflect, PERSONA };
+    const api = { Sysop, tidy, unthink, wrap, reflect, PERSONA };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else Object.assign(root.DigitalRerun = root.DigitalRerun || {}, api);
 })(typeof window !== 'undefined' ? window : globalThis);
